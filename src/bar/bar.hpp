@@ -165,6 +165,12 @@ inline void close_other_overlays(WaylandState &state, PillId keep) {
 }
 } // namespace bar_detail
 
+// Forward-declared here (not just further down, near bar_request_frame)
+// because the dynamic pill widgets below call it directly from their
+// on_click handlers, to force a synchronous re-layout after an instant
+// hover-expand snap - see bluetooth_widget.hpp's on_click.
+inline void bar_paint(WaylandState &state);
+
 #include "widgets/battery_widget.hpp"
 #include "widgets/bluetooth_widget.hpp"
 #include "widgets/control_center_widget.hpp"
@@ -231,7 +237,6 @@ inline constexpr wl_registry_listener registry_listener = {
     .global_remove = registry_global_remove,
 };
 
-inline void bar_paint(WaylandState &state);
 inline void bar_request_frame(WaylandState &state);
 
 inline bool init_egl(WaylandState &state) {
@@ -349,7 +354,7 @@ inline void bar_paint(WaylandState &state) {
     float x = 0.0f;
     std::vector<Pill> power_pills = {power_pill(state)};
     x = draw_pills(root, state.capsule, state.animations, x, height,
-                   power_pills, white, pill_bg, hovered);
+                   power_pills, white, pill_bg, hovered, current_panel_pill);
 
     int active_id = state.active_workspace_id();
     const std::vector<Workspace> &ws_list = state.workspaces();
@@ -373,8 +378,9 @@ inline void bar_paint(WaylandState &state) {
                                  control_center_pills, hovered, height);
     float batt_w = pills_row_width(state.capsule, state.animations,
                                    battery_pills, hovered, height);
-    float stub_w = pills_row_width(state.capsule, state.animations,
-                                   right_stub_pills, hovered, height);
+    float stub_w =
+        pills_row_width(state.capsule, state.animations, right_stub_pills,
+                        hovered, height, current_panel_pill);
 
     float cc_x = state.width - cc_w;
     float batt_x = cc_x - (batt_w > 0 ? kCapsuleGap : 0.0f) - batt_w;
@@ -382,7 +388,8 @@ inline void bar_paint(WaylandState &state) {
 
     if (stub_w > 0) {
         draw_pills(root, state.capsule, state.animations, stub_x, height,
-                   right_stub_pills, white, pill_bg, hovered);
+                   right_stub_pills, white, pill_bg, hovered,
+                   current_panel_pill);
     }
     if (batt_w > 0) {
         draw_pills(root, state.capsule, state.animations, batt_x, height,

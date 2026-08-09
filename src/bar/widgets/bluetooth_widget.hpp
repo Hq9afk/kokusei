@@ -36,6 +36,21 @@ inline Pill bluetooth_pill(WaylandState &state) {
     return Pill{PillId::Bluetooth, &state.bluetooth_icon_texture,
                 bluetooth_label(state.bluetooth), nullptr, [&state] {
                     close_other_overlays(state, PillId::Bluetooth);
+                    // A click can land before the pill's own hover-expand
+                    // tween has settled (no sustained hover required to
+                    // click), so pill_center_x below would otherwise read a
+                    // still-collapsing (or fully collapsed) center - snap
+                    // pill_expand_t to its target instantly, then force a
+                    // real repaint so pill_expanded_center_x is recomputed
+                    // from that now-settled value before we read it (the
+                    // snap alone does not update pill_expanded_center_x,
+                    // only the next draw_pills() call does). Same fix as
+                    // the IPC-triggered open path in kokusei.cpp.
+                    if (!state.bluetooth_panel.base.open) {
+                        update_pill_expand(state.capsule, state.animations,
+                                           PillId::Bluetooth, true, true);
+                        bar_paint(state);
+                    }
                     bluetooth_panel_toggle(
                         state.bluetooth_panel, state.bluetooth,
                         pill_center_x(state.capsule, PillId::Bluetooth));

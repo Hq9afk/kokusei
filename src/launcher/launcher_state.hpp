@@ -1,6 +1,5 @@
 #pragma once
 
-#include "launcher_config.hpp"
 #include "../core/async_process.hpp"
 #include "../core/log.hpp"
 #include "../render/animation/animation.hpp"
@@ -25,6 +24,7 @@
 #include "files_provider.hpp"
 #include "icon_theme.hpp"
 #include "launch_action.hpp"
+#include "launcher_config.hpp"
 #include "search.hpp"
 #include "spawn.hpp"
 #include "submenu.hpp"
@@ -38,9 +38,21 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <deque>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+// One entrance tween's live progress per character currently in `query`,
+// same index order as `query`'s codepoints. Pushed on KeyKind::Text, popped
+// (after cancelling its owners) on KeyKind::Backspace, see
+// launcher_handle_key_event. A std::deque, not a std::vector, so a
+// push_back/pop_back never relocates an existing entry an in-flight
+// AnimationManager setter still points at by reference.
+struct QueryCharAnim {
+    float scale = 1.0f;
+    float slide_x = 0.0f;
+};
 
 struct LauncherState {
     wl_surface *surface = nullptr;
@@ -67,6 +79,8 @@ struct LauncherState {
     float scroll_offset = 0.0f;
     float scroll_offset_target = -1.0f;
     std::string query;
+    std::deque<QueryCharAnim> query_char_anim;
+    bool cursor_blink_visible = true;
     LauncherMode mode = LauncherMode::Drun;
     std::string effective_query;
     std::string search_root;
@@ -307,6 +321,58 @@ inline void launcher_query_changed(LauncherState &state) {
     state.effective_query = mq.query;
     state.search_dirty = true;
     state.search_dirty_at = std::chrono::steady_clock::now();
+    state.cursor_blink_visible = true;
+}
+
+// Ported from keqing-shell's PasswordInput.qml: a new character starts
+// shrunk/offset and eases in (spring scale-pop, slide), matching that
+// component's per-dot NumberAnimations. Unlike PasswordInput.qml this skips
+// an opacity tween: the launcher surface itself already fades in as a whole
+// (kOverlayFadeMs, see launcher_toggle), and a character typed during that
+// window would have its own 0->1 opacity multiplied on top of the
+// surface's still-ramping opacity (Renderer::set_opacity multiplies every
+// node's alpha), double-blending it against the backdrop and making it
+// settle on a visibly different color than a character typed after the
+// surface has finished fading in. Scale and slide are pure geometry, so
+// they don't have this compounding problem and every character (including
+// the first) goes through the identical path here.
+inline void launcher_query_char_push(LauncherState &state) {
+    size_t idx = state.query_char_anim.size();
+    state.query_char_anim.push_back({0.0f, kLauncherQuerySlideOffsetPx});
+    state.animations.animate(
+        0.0f, 1.0f, kLauncherQueryScaleMs, Easing::EaseOutBack,
+        [&state, idx](float v) {
+            if (idx < state.query_char_anim.size())
+                state.query_char_anim[idx].scale = v;
+        },
+        {}, launcher_query_char_owner(idx, QueryCharProp::Scale));
+    state.animations.animate(
+        kLauncherQuerySlideOffsetPx, 0.0f, kLauncherQuerySlideMs,
+        Easing::Linear,
+        [&state, idx](float v) {
+            if (idx < state.query_char_anim.size())
+                state.query_char_anim[idx].slide_x = v;
+        },
+        {}, launcher_query_char_owner(idx, QueryCharProp::Slide));
+}
+
+// Matches PasswordInput.qml's instant dotModel.remove(), no exit animation.
+// Cancels the removed character's own tweens first, a still-running setter
+// must never be left pointing past the deque's new end.
+inline void launcher_query_char_pop(LauncherState &state) {
+    if (state.query_char_anim.empty())
+        return;
+    size_t idx = state.query_char_anim.size() - 1;
+    state.animations.cancelForOwner(
+        launcher_query_char_owner(idx, QueryCharProp::Scale));
+    state.animations.cancelForOwner(
+        launcher_query_char_owner(idx, QueryCharProp::Slide));
+    state.query_char_anim.pop_back();
+}
+
+inline void launcher_query_char_clear(LauncherState &state) {
+    while (!state.query_char_anim.empty())
+        launcher_query_char_pop(state);
 }
 
 inline int launcher_poll_timeout_ms(const LauncherState &state) {
@@ -361,6 +427,7 @@ inline void launcher_toggle(LauncherState &state, bool global) {
             [&state] {
                 state.open = false;
                 state.query.clear();
+                launcher_query_char_clear(state);
                 state.effective_query.clear();
                 state.mode = LauncherMode::Drun;
                 state.results.clear();
@@ -385,6 +452,7 @@ inline void launcher_toggle(LauncherState &state, bool global) {
     state.search_root = global ? "/" : (home ? home : "/");
     state.apps = scan_desktop_entries();
     state.open = true;
+    state.cursor_blink_visible = true;
     zwlr_layer_surface_v1_set_keyboard_interactivity(
         state.layer_surface,
         ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);
@@ -447,6 +515,7 @@ inline void launcher_handle_key_event(LauncherState &state,
         if (state.submenu.screen != SubmenuScreen::Search)
             submenu_close(state.submenu);
         state.query += event.text;
+        launcher_query_char_push(state);
         launcher_query_changed(state);
         break;
 
@@ -459,6 +528,7 @@ inline void launcher_handle_key_event(LauncherState &state,
             state.query.pop_back();
         if (!state.query.empty())
             state.query.pop_back();
+        launcher_query_char_pop(state);
         launcher_query_changed(state);
         break;
     }

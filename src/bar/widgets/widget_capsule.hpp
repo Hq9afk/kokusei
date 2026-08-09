@@ -134,8 +134,14 @@ inline float draw_static_pill_row(Node *root, float x, float height,
 
 inline size_t pill_idx(PillId id) { return static_cast<size_t>(id); }
 
+// Pill x-coordinates live in the bar surface's own coordinate space, which
+// is inset by kPanelSideMargin on each side (the bar's layer surface has
+// margin_left/margin_right set to it). The on-demand panels are separate,
+// full-width layer surfaces with no such margin, so the bar-local center
+// needs that margin added back in to land under the pill in the panel's
+// coordinate space.
 inline float pill_center_x(const WidgetCapsuleState &capsule, PillId id) {
-    return capsule.pill_expanded_center_x[pill_idx(id)];
+    return kPanelSideMargin + capsule.pill_expanded_center_x[pill_idx(id)];
 }
 
 inline PillId hit_test_pills(const WidgetCapsuleState &capsule,
@@ -181,16 +187,27 @@ inline const Texture &ensure_label_texture(WidgetCapsuleState &capsule,
     return tex;
 }
 
+// `instant`: skip the hover-expand tween and snap pill_expand_t straight to
+// its target within this same call (AnimationManager::animate() calls its
+// setter immediately when duration_ms <= 0). Needed when a pill is being
+// force-expanded by panel_pill() because its own panel just opened via a
+// path with no real mouse hover behind it (e.g. an IPC verb) - a caller that
+// locks a panel's on-screen position off this same frame's
+// pill_expanded_center_x must see the pill already at its final expanded
+// width, not mid-tween, or the lock captures a still-growing (and thus
+// still-shifting, in a right-anchored row) center. A genuine mouse hover
+// (hovered_prev already true before this call) never reaches the animate()
+// call at all, this only affects the specific forced-open transition.
 inline void update_pill_expand(WidgetCapsuleState &capsule,
                                AnimationManager &animations, PillId id,
-                               bool hovered_now) {
+                               bool hovered_now, bool instant = false) {
     size_t idx = pill_idx(id);
     if (capsule.pill_expand_hovered_prev[idx] == hovered_now)
         return;
     capsule.pill_expand_hovered_prev[idx] = hovered_now;
     animations.animate(
-        capsule.pill_expand_t[idx], hovered_now ? 1.0f : 0.0f, kPillExpandMs,
-        Easing::EaseOutCubic,
+        capsule.pill_expand_t[idx], hovered_now ? 1.0f : 0.0f,
+        instant ? 0.0f : kPillExpandMs, Easing::EaseOutCubic,
         [&capsule, idx](float v) { capsule.pill_expand_t[idx] = v; }, {},
         static_cast<uint64_t>(idx));
 }
@@ -198,14 +215,15 @@ inline void update_pill_expand(WidgetCapsuleState &capsule,
 inline float pills_row_width(WidgetCapsuleState &capsule,
                              AnimationManager &animations,
                              const std::vector<Pill> &pills, PillId hovered,
-                             float height) {
+                             float height, PillId instant_pill = PillId::None) {
     float w = 0;
     bool first = true;
     for (const Pill &p : pills) {
         if (!p.icon || !p.icon->id)
             continue;
-        update_pill_expand(capsule, animations, p.id,
-                           p.id == hovered && !p.label.empty());
+        bool hovered_now = p.id == hovered && !p.label.empty();
+        update_pill_expand(capsule, animations, p.id, hovered_now,
+                           hovered_now && p.id == instant_pill);
         float t = capsule.pill_expand_t[pill_idx(p.id)];
         float collapsed_w = std::max(p.icon->width + kPillPad * 2, height);
         float pw = collapsed_w;
@@ -228,13 +246,15 @@ inline float pills_row_width(WidgetCapsuleState &capsule,
 inline float draw_pills(Node *root, WidgetCapsuleState &capsule,
                         AnimationManager &animations, float x, float height,
                         const std::vector<Pill> &pills, const float tint[4],
-                        const float pill_bg[4], PillId hovered) {
+                        const float pill_bg[4], PillId hovered,
+                        PillId instant_pill = PillId::None) {
     for (const Pill &p : pills) {
         if (!p.icon || !p.icon->id)
             continue;
 
-        update_pill_expand(capsule, animations, p.id,
-                           p.id == hovered && !p.label.empty());
+        bool hovered_now = p.id == hovered && !p.label.empty();
+        update_pill_expand(capsule, animations, p.id, hovered_now,
+                           hovered_now && p.id == instant_pill);
         size_t idx = pill_idx(p.id);
         float t = capsule.pill_expand_t[idx];
         const Texture *label_tex =

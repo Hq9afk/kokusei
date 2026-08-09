@@ -34,27 +34,45 @@ inline void notification_paint(NotificationState &state) {
 
         Node *card = node_add_rrect(
             &state.scene.root, 0, card_y, kNotificationSurfaceWidth,
-            entry.height, kNotificationCardRadius,
-            kNotificationCardBorderWidth, rgba(card_fill),
-            rgba(card_border));
+            entry.height, kNotificationCardRadius, kNotificationCardBorderWidth,
+            rgba(card_fill), rgba(card_border));
         card->clip_children = true;
 
-        float remaining_ms = std::chrono::duration<float, std::milli>(
-                                 entry.expires_at - now)
-                                 .count();
+        float remaining_ms =
+            std::chrono::duration<float, std::milli>(entry.expires_at - now)
+                .count();
         float progress = entry.timeout_ms > 0
-                             ? std::clamp(remaining_ms /
-                                              static_cast<float>(entry.timeout_ms),
+                             ? std::clamp(remaining_ms / static_cast<float>(
+                                                             entry.timeout_ms),
                                           0.0f, 1.0f)
                              : 0.0f;
+        // Both bars are full-width rrects sharing the card's own top-corner
+        // radius (so their corner curve is pixel-identical to the card's -
+        // same radius, same corner center formula), each cropped to its
+        // visible span by a rectangular clip group. A group clip is a plain
+        // scissor rect (see critical-knowledge.md §3), which is enough here:
+        // it never needs to cut *through* the curved region, only along a
+        // straight edge (the bar's bottom) or through the card's already-flat
+        // interior (the fill's dynamic left edge) - the curved top-left/
+        // top-right corners always stay wholly inside or wholly outside each
+        // clip rect.
+        float bar_rrect_h = 2.0f * kNotificationCardRadius;
         blend.push_back(with_alpha(
             urgency_color, kNotificationProgressTrackOpacity * entry.opacity));
-        node_add_rect(card, 0, 0, kNotificationSurfaceWidth,
-                     kNotificationProgressHeight, rgba(blend.back()));
+        Node *track_clip = node_add_group(card, 0, 0, kNotificationSurfaceWidth,
+                                          kNotificationProgressHeight, true);
+        node_add_rrect(track_clip, 0, 0, kNotificationSurfaceWidth, bar_rrect_h,
+                       kNotificationCardRadius, 0, rgba(blend.back()),
+                       kNodeTransparent);
+
+        float fill_x = kNotificationSurfaceWidth * (1.0f - progress);
+        float fill_w = kNotificationSurfaceWidth * progress;
         blend.push_back(with_alpha(urgency_color, entry.opacity));
-        node_add_rect(card, 0, 0,
-                     kNotificationSurfaceWidth * progress,
-                     kNotificationProgressHeight, rgba(blend.back()));
+        Node *fill_clip = node_add_group(card, fill_x, 0, fill_w,
+                                         kNotificationProgressHeight, true);
+        node_add_rrect(fill_clip, -fill_x, 0, kNotificationSurfaceWidth,
+                       bar_rrect_h, kNotificationCardRadius, 0,
+                       rgba(blend.back()), kNodeTransparent);
 
         float content_x = kNotificationCardPadding;
         float content_y = kNotificationCardPadding;
@@ -63,23 +81,23 @@ inline void notification_paint(NotificationState &state) {
             notification_detail::texture_height(entry.app_name_texture));
 
         blend.push_back(with_alpha(urgency_color, entry.opacity));
-        node_add_rrect(
-            card, content_x,
-            content_y + (header_h - kNotificationUrgencyDotSize) / 2.0f,
-            kNotificationUrgencyDotSize, kNotificationUrgencyDotSize,
-            kNotificationUrgencyDotRadius, 0, rgba(blend.back()),
-            kNodeTransparent);
+        node_add_rrect(card, content_x,
+                       content_y +
+                           (header_h - kNotificationUrgencyDotSize) / 2.0f,
+                       kNotificationUrgencyDotSize, kNotificationUrgencyDotSize,
+                       kNotificationUrgencyDotRadius, 0, rgba(blend.back()),
+                       kNodeTransparent);
 
         if (entry.app_name_texture.id) {
             blend.push_back(with_alpha(palette::text, 0.65f * entry.opacity));
-            node_add_texture(card,
-                             content_x + kNotificationUrgencyDotSize +
-                                 kNotificationHeaderSpacing,
-                             content_y +
-                                 (header_h - notification_detail::texture_height(
-                                                 entry.app_name_texture)) /
-                                     2.0f,
-                             entry.app_name_texture, rgba(blend.back()));
+            node_add_texture(
+                card,
+                content_x + kNotificationUrgencyDotSize +
+                    kNotificationHeaderSpacing,
+                content_y + (header_h - notification_detail::texture_height(
+                                            entry.app_name_texture)) /
+                                2.0f,
+                entry.app_name_texture, rgba(blend.back()));
         }
 
         float row_y = content_y + header_h;

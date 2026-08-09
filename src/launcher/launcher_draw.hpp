@@ -3,6 +3,21 @@
 #include "launcher_state.hpp"
 
 namespace launcher_detail {
+// Byte length of the UTF-8 codepoint starting at `lead`, standard leading-byte
+// pattern (matches the continuation-byte skipping already used by elide() and
+// launcher_query_char_pop's backspace trim, just walked forward instead).
+inline size_t utf8_char_len(unsigned char lead) {
+    if ((lead & 0x80) == 0x00)
+        return 1;
+    if ((lead & 0xE0) == 0xC0)
+        return 2;
+    if ((lead & 0xF0) == 0xE0)
+        return 3;
+    if ((lead & 0xF8) == 0xF0)
+        return 4;
+    return 1;
+}
+
 inline std::string elide(const std::string &s) {
     if (s.size() <= kMaxRowChars)
         return s;
@@ -121,7 +136,7 @@ inline int launcher_surface_height(int visible_rows) {
     return static_cast<int>(h);
 }
 
-}
+} // namespace launcher_detail
 
 inline void launcher_paint(LauncherState &state) {
     using namespace launcher_detail;
@@ -208,23 +223,65 @@ inline void launcher_paint(LauncherState &state) {
                        kLauncherBorderWidth, kTransparent,
                        rgba(palette::accent));
         float text_x = field_box_x + kLauncherPad;
-        const Texture *query_tex =
-            cached_text(state.tcache, elide(state.query), scale);
-        if (query_tex) {
-            node_add_texture(
-                outer, orx(text_x),
-                ory(box_y + kLauncherPad +
-                    (kLauncherSearchHeight - query_tex->height) / 2.0f),
-                *query_tex, white);
+        float field_center_y =
+            box_y + kLauncherPad + kLauncherSearchHeight / 2.0f;
+
+        // One texture per character, animated independently (fade + spring
+        // scale-pop + slide-in), ported from keqing-shell's PasswordInput.qml.
+        // Laid out in fixed monospace cells (the launcher's body font is
+        // ComicShannsMono) rather than real Pango shaping across separately
+        // rasterized glyphs, same fixed-slot idea already used for icon rows.
+        float cell_w = 0.0f;
+        if (const Texture *ref_tex = cached_text(state.tcache, "M", scale))
+            cell_w =
+                static_cast<float>(ref_tex->width) /
+                static_cast<float>(ref_tex->scale > 0 ? ref_tex->scale : 1);
+
+        std::string display = elide(state.query);
+        size_t char_index = 0;
+        float cx = text_x;
+        for (size_t i = 0; i < display.size();) {
+            size_t len = std::min(launcher_detail::utf8_char_len(
+                                      static_cast<unsigned char>(display[i])),
+                                  display.size() - i);
+            std::string ch = display.substr(i, len);
+            i += len;
+
+            bool animated = char_index < state.query_char_anim.size();
+            const QueryCharAnim *anim =
+                animated ? &state.query_char_anim[char_index] : nullptr;
+            float glyph_scale = anim ? anim->scale : 1.0f;
+            float slide = anim ? anim->slide_x : 0.0f;
+
+            const Texture *ch_tex = cached_text(state.tcache, ch, scale);
+            if (ch_tex && glyph_scale > 0.0f) {
+                float inv = 1.0f / static_cast<float>(
+                                       ch_tex->scale > 0 ? ch_tex->scale : 1);
+                float w = static_cast<float>(ch_tex->width) * inv * glyph_scale;
+                float h =
+                    static_cast<float>(ch_tex->height) * inv * glyph_scale;
+                float cell_center_x = cx + cell_w / 2.0f + slide;
+                node_add_texture_rect(outer, orx(cell_center_x - w / 2.0f),
+                                      ory(field_center_y - h / 2.0f), w, h,
+                                      *ch_tex, white);
+            }
+            cx += cell_w;
+            ++char_index;
+        }
+
+        if (state.cursor_blink_visible) {
+            constexpr float kCaretW = 2.0f;
+            float caret_h = kLauncherSearchHeight - 2.0f * kLauncherPad;
+            node_add_rect(outer, orx(cx), ory(field_center_y - caret_h / 2.0f),
+                          kCaretW, caret_h, rgba(palette::text));
         }
 
         float content_x = mode_box_x + mode_box_w + kLauncherBulletGap;
         float list_top = box_y + kLauncherListTop;
         float list_h = box_y + box_h - clip_inset - list_top;
-        Node *list_clip =
-            node_add_group(outer, orx(mode_box_x), ory(list_top),
-                           kLauncherSurfaceWidth - 2 * kLauncherPad, list_h,
-                           true);
+        Node *list_clip = node_add_group(
+            outer, orx(mode_box_x), ory(list_top),
+            kLauncherSurfaceWidth - 2 * kLauncherPad, list_h, true);
 
         if (state.selected_index >= 0) {
             float highlight_target =
@@ -241,7 +298,8 @@ inline void launcher_paint(LauncherState &state) {
                     kLauncherHighlightOwner);
             }
 
-            float scroll_target = static_cast<float>(first) * kLauncherRowHeight;
+            float scroll_target =
+                static_cast<float>(first) * kLauncherRowHeight;
             if (state.scroll_offset_target < 0.0f) {
                 state.scroll_offset = scroll_target;
                 state.scroll_offset_target = scroll_target;
@@ -263,10 +321,9 @@ inline void launcher_paint(LauncherState &state) {
             float y = static_cast<float>(i) * kLauncherRowHeight -
                       state.scroll_offset;
 
-            Node *rowg =
-                node_add_group(list_clip, 0, y,
-                               kLauncherSurfaceWidth - 2 * kLauncherPad,
-                               kLauncherRowHeight, true);
+            Node *rowg = node_add_group(
+                list_clip, 0, y, kLauncherSurfaceWidth - 2 * kLauncherPad,
+                kLauncherRowHeight, true);
             auto lrx = [&](float v) { return v - mode_box_x; };
             auto lry = [&](float v) { return v - y; };
 
@@ -325,13 +382,13 @@ inline void launcher_paint(LauncherState &state) {
 
         if (state.selected_index >= 0) {
             constexpr float kTransparent2[4] = {0, 0, 0, 0};
-            node_add_rrect(
-                list_clip, content_x - mode_box_x,
-                state.highlight_offset - state.scroll_offset,
-                box_x + kLauncherSurfaceWidth - kLauncherPad - content_x,
-                kLauncherRowHeight, metrics::radius_sm,
-                kLauncherHighlightBorderWidth, kTransparent2,
-                rgba(palette::accent_alt));
+            node_add_rrect(list_clip, content_x - mode_box_x,
+                           state.highlight_offset - state.scroll_offset,
+                           box_x + kLauncherSurfaceWidth - kLauncherPad -
+                               content_x,
+                           kLauncherRowHeight, metrics::radius_sm,
+                           kLauncherHighlightBorderWidth, kTransparent2,
+                           rgba(palette::accent_alt));
         }
     }
 

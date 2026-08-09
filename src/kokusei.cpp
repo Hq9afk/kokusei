@@ -404,8 +404,14 @@ int main(int argc, char **argv) {
                     eglMakeCurrent(state.egl_display, state.egl_surface,
                                    state.egl_surface, state.egl_context);
                 }
-                if (want_bluetooth_panel)
+                if (want_bluetooth_panel) {
+                    // A panel toggled via IPC (no live click-time pill
+                    // center) must see the pill already force-expanded by
+                    // panel_pill() before its center is read, or the panel
+                    // locks onto the stale pre-open (narrower) pill center.
+                    bar_paint(state);
                     bluetooth_dispatch();
+                }
             });
         }
 
@@ -432,6 +438,13 @@ int main(int argc, char **argv) {
                 }
                 if (bar_detail::volume_pill_peek_expire(state))
                     bar_request_frame(state);
+                if (want_launcher && state.launcher.open) {
+                    state.launcher.cursor_blink_visible =
+                        !state.launcher.cursor_blink_visible;
+                    launcher_request_frame(state.launcher);
+                    eglMakeCurrent(state.egl_display, state.egl_surface,
+                                   state.egl_surface, state.egl_context);
+                }
             });
         }
 

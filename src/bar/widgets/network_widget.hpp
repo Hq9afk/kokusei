@@ -40,14 +40,24 @@ inline Pill wifi_pill(WaylandState &state) {
         state.wifi_icon_texture = make_icon_texture(glyph);
         state.wifi_icon_glyph_cached = glyph;
     }
-    return Pill{
-        PillId::Wifi, &state.wifi_icon_texture, wifi_label(state.network),
-        nullptr, [&state] {
-            close_other_overlays(state, PillId::Wifi);
-            network_panel_toggle(state.network_panel,
-                                 pill_center_x(state.capsule, PillId::Wifi));
-            if (state.network_panel.base.open)
-                network_scan(state.network);
-        }};
+    return Pill{PillId::Wifi, &state.wifi_icon_texture,
+                wifi_label(state.network), nullptr, [&state] {
+                    close_other_overlays(state, PillId::Wifi);
+                    // See bluetooth_widget.hpp's on_click: a click can land
+                    // before the pill's own hover-expand tween has settled -
+                    // snap it and force a repaint first so pill_center_x below
+                    // reads the final expanded center, not a stale pre-snap
+                    // one.
+                    if (!state.network_panel.base.open) {
+                        update_pill_expand(state.capsule, state.animations,
+                                           PillId::Wifi, true, true);
+                        bar_paint(state);
+                    }
+                    network_panel_toggle(
+                        state.network_panel,
+                        pill_center_x(state.capsule, PillId::Wifi));
+                    if (state.network_panel.base.open)
+                        network_scan(state.network);
+                }};
 }
 } // namespace bar_detail

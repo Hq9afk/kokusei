@@ -32,13 +32,23 @@ inline Pill volume_pill(WaylandState &state) {
         state.volume_icon_texture = make_icon_texture(glyph);
         state.volume_icon_glyph_cached = glyph;
     }
-    return Pill{
-        PillId::Volume, &state.volume_icon_texture,
-        volume_label(state.pipewire), nullptr, [&state] {
-            close_other_overlays(state, PillId::Volume);
-            volume_panel_toggle(state.volume_panel,
-                                pill_center_x(state.capsule, PillId::Volume));
-        }};
+    return Pill{PillId::Volume, &state.volume_icon_texture,
+                volume_label(state.pipewire), nullptr, [&state] {
+                    close_other_overlays(state, PillId::Volume);
+                    // See bluetooth_widget.hpp's on_click: a click can land
+                    // before the pill's own hover-expand tween has settled -
+                    // snap it and force a repaint first so pill_center_x below
+                    // reads the final expanded center, not a stale pre-snap
+                    // one.
+                    if (!state.volume_panel.base.open) {
+                        update_pill_expand(state.capsule, state.animations,
+                                           PillId::Volume, true, true);
+                        bar_paint(state);
+                    }
+                    volume_panel_toggle(
+                        state.volume_panel,
+                        pill_center_x(state.capsule, PillId::Volume));
+                }};
 }
 
 // `angleDelta.y > 0` in keqing-shell's VolumeWidget.qml means "scroll up" =
