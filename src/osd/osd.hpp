@@ -1,0 +1,368 @@
+#pragma once
+
+#include "../core/log.hpp"
+#include "../render/animation/animation.hpp"
+#include "../render/icon.hpp"
+#include "../render/icons.hpp"
+#include "../render/node.hpp"
+#include "../render/palette.hpp"
+#include "../render/renderer.hpp"
+#include "../render/scene.hpp"
+#include "../render/text.hpp"
+#include "../render/texture.hpp"
+#include "../wayland/frame_clock.hpp"
+#include "../wayland/layer_surface.hpp"
+#include "../wayland/output_scale.hpp"
+#include "osd_config.hpp"
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
+#include <EGL/egl.h>
+#include <GLES2/gl2.h>
+#include <wayland-client.h>
+#include <wayland-egl.h>
+
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cmath>
+#include <dirent.h>
+#include <fstream>
+#include <memory>
+#include <string>
+#include <sys/inotify.h>
+#include <unistd.h>
+
+enum class OsdKind { Volume, Mic, Brightness };
+
+struct OsdState {
+    wl_surface *surface = nullptr;
+    zwlr_layer_surface_v1 *layer_surface = nullptr;
+    wl_egl_window *egl_window = nullptr;
+    EGLSurface egl_surface = EGL_NO_SURFACE;
+    EGLDisplay egl_display = nullptr;
+    EGLContext egl_context = nullptr;
+    Renderer *renderer = nullptr;
+    bool configured = false;
+    OutputScale output_scale;
+    FrameClock frame_clock;
+    Scene scene;
+
+    OsdKind kind = OsdKind::Volume;
+    float level = 0.0f;
+    bool muted = false;
+    Texture icon_texture;
+    Texture label_texture;
+    bool visible = false;
+    std::chrono::steady_clock::time_point hide_at;
+
+    AnimationManager animations;
+    float opacity = 0.0f;
+    float bar_fill = 0.0f;
+    float icon_color_t = 0.0f;
+    std::chrono::steady_clock::time_point created_at =
+        std::chrono::steady_clock::now();
+};
+
+inline void osd_layer_surface_configure(void *data,
+                                        zwlr_layer_surface_v1 *layer_surface,
+                                        uint32_t serial, uint32_t, uint32_t) {
+    auto *state = static_cast<OsdState *>(data);
+    zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
+    state->configured = true;
+}
+
+inline void osd_layer_surface_closed(void *, zwlr_layer_surface_v1 *) {}
+
+inline constexpr zwlr_layer_surface_v1_listener osd_layer_surface_listener = {
+    .configure = osd_layer_surface_configure,
+    .closed = osd_layer_surface_closed,
+};
+
+inline bool osd_create_surface(OsdState &state, wl_compositor *compositor,
+                               zwlr_layer_shell_v1 *layer_shell) {
+    LayerSurfaceConfig cfg{
+        .layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
+        .name_space = "kokusei-osd",
+
+        .anchor = ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM,
+        .width = kOsdSurfaceWidth,
+        .height = kOsdSurfaceHeight,
+        .margin_bottom = 30,
+        .empty_input_region = true,
+    };
+    state.layer_surface =
+        layer_surface_create(state.surface, compositor, layer_shell, cfg,
+                             &osd_layer_surface_listener, &state);
+    if (!state.layer_surface)
+        return false;
+    state.output_scale.on_change = [&state](int32_t scale) {
+        if (state.egl_window)
+            wl_egl_window_resize(state.egl_window, kOsdSurfaceWidth * scale,
+                                 kOsdSurfaceHeight * scale, 0, 0);
+        if (state.frame_clock.surface)
+            request_frame(state.frame_clock);
+    };
+    output_scale_watch(state.output_scale, state.surface);
+    wl_surface_commit(state.surface);
+    return true;
+}
+
+inline void osd_paint(OsdState &state) {
+    eglMakeCurrent(state.egl_display, state.egl_surface, state.egl_surface,
+                   state.egl_context);
+    int32_t scale = state.output_scale.scale;
+    state.renderer->begin_frame(kOsdSurfaceWidth, kOsdSurfaceHeight, scale);
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    state.animations.tick(std::chrono::steady_clock::now());
+
+    std::array<Color, 6> frame_colors;
+
+    state.scene.rebuild();
+    if (state.opacity > 0.0f) {
+        frame_colors[0] = with_alpha(palette::overlay, state.opacity);
+        frame_colors[1] = with_alpha(palette::electro, state.opacity);
+        Node *bg = state.scene.root.claim_child();
+        bg->kind = NodeKind::RoundedRect;
+        bg->w = kOsdSurfaceWidth;
+        bg->h = kOsdSurfaceHeight;
+        bg->radius = kOsdSurfaceHeight / 2.0f;
+        bg->border_width = metrics::border_thin;
+        bg->fill = rgba(frame_colors[0]);
+        bg->border = rgba(frame_colors[1]);
+
+        float icon_y = (kOsdSurfaceHeight - KOKUSEI_ICON_PX) / 2.0f;
+        if (state.icon_texture.id) {
+            Color icon_color = lerp_color(palette::text, palette::text_muted,
+                                          state.icon_color_t);
+            frame_colors[2] = with_alpha(icon_color, state.opacity);
+            Node *icon = state.scene.root.claim_child();
+            icon->kind = NodeKind::Texture;
+            icon->x = kOsdContentMargin;
+            icon->y = icon_y;
+            icon->w = static_cast<float>(state.icon_texture.width) /
+                      static_cast<float>(state.icon_texture.scale);
+            icon->h = static_cast<float>(state.icon_texture.height) /
+                      static_cast<float>(state.icon_texture.scale);
+            icon->tex = &state.icon_texture;
+            icon->tint = rgba(frame_colors[2]);
+        }
+
+        float bar_x =
+            kOsdContentMargin +
+            (state.icon_texture.id ? KOKUSEI_ICON_PX + kOsdBarMargin : 0.0f);
+        float bar_w = kOsdSurfaceWidth - bar_x - kOsdBarMargin -
+                      kOsdLabelWidth - kOsdContentMargin;
+        float bar_y = kOsdSurfaceHeight / 2.0f - 3;
+
+        frame_colors[3] = with_alpha(palette::text_alpha10, state.opacity);
+        Node *track = state.scene.root.claim_child();
+        track->kind = NodeKind::RoundedRect;
+        track->x = bar_x;
+        track->y = bar_y;
+        track->w = bar_w;
+        track->h = 6;
+        track->radius = 3;
+        track->fill = rgba(frame_colors[3]);
+
+        const Color &fill_color =
+            state.muted ? palette::text_muted : palette::accent;
+        frame_colors[4] = with_alpha(fill_color, state.opacity);
+        float fill_w = bar_w * std::clamp(state.bar_fill, 0.0f, 1.0f);
+
+        Node *fill = state.scene.root.claim_child();
+        fill->kind = NodeKind::RoundedRect;
+        fill->x = bar_x;
+        fill->y = bar_y;
+        fill->w = fill_w;
+        fill->h = 6;
+        fill->radius = 3;
+        fill->fill = rgba(frame_colors[4]);
+
+        if (state.label_texture.id) {
+            float label_h = static_cast<float>(state.label_texture.height) /
+                            static_cast<float>(state.label_texture.scale);
+            float label_w = static_cast<float>(state.label_texture.width) /
+                            static_cast<float>(state.label_texture.scale);
+            Node *label = state.scene.root.claim_child();
+            label->kind = NodeKind::Texture;
+            label->x = kOsdSurfaceWidth - kOsdContentMargin - label_w;
+            label->y = (kOsdSurfaceHeight - label_h) / 2.0f;
+            label->w = label_w;
+            label->h = label_h;
+            label->tex = &state.label_texture;
+            frame_colors[5] = with_alpha(palette::text, state.opacity);
+            label->tint = rgba(frame_colors[5]);
+        }
+    }
+
+    state.scene.draw(*state.renderer);
+    eglSwapBuffers(state.egl_display, state.egl_surface);
+
+    if (state.animations.hasActive())
+        request_frame(state.frame_clock);
+}
+
+inline bool osd_init_egl(OsdState &state, Renderer &renderer,
+                         EGLDisplay display, EGLConfig config,
+                         EGLContext context) {
+    state.egl_display = display;
+    state.egl_context = context;
+    state.renderer = &renderer;
+    int32_t scale = state.output_scale.scale;
+    state.egl_window = wl_egl_window_create(
+        state.surface, kOsdSurfaceWidth * scale, kOsdSurfaceHeight * scale);
+    state.egl_surface = eglCreateWindowSurface(
+        display, config,
+        reinterpret_cast<EGLNativeWindowType>(state.egl_window), nullptr);
+    if (state.egl_surface == EGL_NO_SURFACE)
+        return false;
+    if (!eglMakeCurrent(display, state.egl_surface, state.egl_surface, context))
+        return false;
+    state.frame_clock.surface = state.surface;
+    state.frame_clock.draw = [&state] { osd_paint(state); };
+    return true;
+}
+
+inline void osd_request_frame(OsdState &state) {
+    if (state.egl_surface == EGL_NO_SURFACE)
+        return;
+    request_frame(state.frame_clock);
+}
+
+inline PangoFontDescription *osd_label_font() {
+    static PangoFontDescription *d =
+        pango_font_description_from_string("ComicShannsMono Nerd Font 15");
+    return d;
+}
+
+inline void osd_show(OsdState &state, OsdKind kind, float level, bool muted) {
+    auto now = std::chrono::steady_clock::now();
+    if (now - state.created_at < kOsdReadyDelay)
+        return;
+
+    state.kind = kind;
+    state.level = level;
+    state.muted = muted;
+    state.visible = true;
+    state.hide_at = now + kOsdVisibleFor;
+
+    const char *codepoint;
+    if (kind == OsdKind::Brightness) {
+        codepoint = icon::adjustments;
+    } else if (kind == OsdKind::Mic) {
+        codepoint = muted ? icon::mic_off : icon::mic_on;
+    } else if (muted) {
+        codepoint = icon::volume_mute;
+    } else if (level < 0.01f) {
+        codepoint = icon::volume_empty;
+    } else if (level < 0.5f) {
+        codepoint = icon::volume_low;
+    } else {
+        codepoint = icon::volume_high;
+    }
+    RasterizedText icon_text =
+        rasterize_icon(codepoint, state.output_scale.scale);
+    state.icon_texture = make_texture_from_raster(icon_text);
+
+    std::string label_str =
+        muted
+            ? "muted"
+            : std::to_string(static_cast<int>(std::lround(level * 100))) + "%";
+    RasterizedText label_text = rasterize_text_with(
+        label_str, osd_label_font(), state.output_scale.scale, kOsdLabelWidth);
+    state.label_texture = make_texture_from_raster(label_text);
+
+    state.animations.animate(
+        state.opacity, 1.0f, kOsdAnimNormal, Easing::EaseOutCubic,
+        [&state](float v) { state.opacity = v; }, {}, kOsdOwnerOpacity);
+    state.animations.animate(
+        state.bar_fill, std::clamp(level, 0.0f, 1.0f), kOsdAnimFast,
+        Easing::EaseOutCubic, [&state](float v) { state.bar_fill = v; }, {},
+        kOsdOwnerBarFill);
+    state.animations.animate(
+        state.icon_color_t, muted ? 1.0f : 0.0f, kOsdAnimFast, Easing::Linear,
+        [&state](float v) { state.icon_color_t = v; }, {}, kOsdOwnerIconColor);
+    osd_request_frame(state);
+}
+
+inline void osd_hide(OsdState &state) {
+    state.animations.animate(
+        state.opacity, 0.0f, kOsdAnimNormal, Easing::EaseOutCubic,
+        [&state](float v) { state.opacity = v; },
+        [&state] { state.visible = false; }, kOsdOwnerOpacity);
+    osd_request_frame(state);
+}
+
+namespace osd_detail {
+
+inline std::string find_backlight_device() {
+    DIR *dir = opendir("/sys/class/backlight");
+    if (!dir)
+        return {};
+    std::string name;
+    while (dirent *entry = readdir(dir)) {
+        if (entry->d_name[0] == '.')
+            continue;
+        name = entry->d_name;
+        break;
+    }
+    closedir(dir);
+    return name;
+}
+
+inline int read_int_file(const std::string &path) {
+    std::ifstream f(path);
+    int value = 0;
+    f >> value;
+    return value;
+}
+
+} // namespace osd_detail
+
+struct BrightnessBackend {
+    std::string device;
+    int max = 0;
+};
+
+inline void brightness_init(BrightnessBackend &backend) {
+    backend.device = osd_detail::find_backlight_device();
+    if (backend.device.empty()) {
+        klog("osd: no backlight device found, brightness OSD disabled");
+        return;
+    }
+    backend.max = osd_detail::read_int_file("/sys/class/backlight/" +
+                                            backend.device + "/max_brightness");
+    klog("osd: brightness device %s (max %d)", backend.device.c_str(),
+         backend.max);
+}
+
+inline float brightness_get(const BrightnessBackend &backend) {
+    if (backend.device.empty() || backend.max <= 0)
+        return 0.0f;
+    int current = osd_detail::read_int_file("/sys/class/backlight/" +
+                                            backend.device + "/brightness");
+    return static_cast<float>(current) / backend.max;
+}
+
+inline int brightness_watch_init(const BrightnessBackend &backend) {
+    if (backend.device.empty())
+        return -1;
+    int fd = inotify_init1(IN_NONBLOCK);
+    if (fd < 0)
+        return -1;
+    std::string path = "/sys/class/backlight/" + backend.device + "/brightness";
+    if (inotify_add_watch(fd, path.c_str(), IN_MODIFY) < 0) {
+        close(fd);
+        return -1;
+    }
+    return fd;
+}
+
+inline bool brightness_watch_poll(int fd) {
+    char buf[256];
+    bool changed = false;
+    while (read(fd, buf, sizeof(buf)) > 0)
+        changed = true;
+    return changed;
+}

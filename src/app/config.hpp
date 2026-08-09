@@ -1,0 +1,100 @@
+#pragma once
+
+#include <toml++/toml.hpp>
+
+#include "../render/palette.hpp"
+
+#include <cstdint>
+#include <cstdlib>
+#include <fstream>
+#include <string>
+#include <sys/inotify.h>
+#include <unistd.h>
+
+struct Config {
+    int32_t height = 35;
+
+    float bg[4] = {palette::overlay.r, palette::overlay.g, palette::overlay.b,
+                   palette::overlay.a};
+    std::string wallpaper_path = KOKUSEI_DEFAULT_WALLPAPER;
+    uint32_t idle_timeout_seconds = 300;
+    std::string idle_command;
+    std::string idle_resume_command;
+};
+
+inline std::string
+device_name(const std::string &hostname_path = "/etc/hostname") {
+    std::ifstream f(hostname_path);
+    std::string device;
+    if (f && std::getline(f, device) && !device.empty())
+        return device;
+    return "hq9afk";
+}
+
+inline std::string config_path() {
+    const char *home = getenv("HOME");
+    if (!home)
+        return "";
+    return std::string(home) + "/.config/kokusei/" + device_name() + ".toml";
+}
+
+inline Config load_config() {
+    Config cfg;
+    std::string path = config_path();
+    if (path.empty())
+        return cfg;
+    try {
+        toml::table tbl = toml::parse_file(path);
+        cfg.height = tbl["bar"]["height"].value_or(cfg.height);
+        cfg.bg[0] = tbl["bar"]["bg_r"].value_or(cfg.bg[0]);
+        cfg.bg[1] = tbl["bar"]["bg_g"].value_or(cfg.bg[1]);
+        cfg.bg[2] = tbl["bar"]["bg_b"].value_or(cfg.bg[2]);
+        cfg.bg[3] = tbl["bar"]["bg_a"].value_or(cfg.bg[3]);
+        cfg.wallpaper_path =
+            tbl["wallpaper"]["path"].value_or(cfg.wallpaper_path);
+        cfg.idle_timeout_seconds =
+            tbl["idle"]["timeout_seconds"].value_or(cfg.idle_timeout_seconds);
+        cfg.idle_command = tbl["idle"]["command"].value_or(cfg.idle_command);
+        cfg.idle_resume_command =
+            tbl["idle"]["resume_command"].value_or(cfg.idle_resume_command);
+    } catch (const toml::parse_error &) {
+
+    }
+    return cfg;
+}
+
+inline int config_watch_init(const std::string &path) {
+    if (path.empty())
+        return -1;
+    int fd = inotify_init1(IN_NONBLOCK);
+    if (fd < 0)
+        return -1;
+    if (inotify_add_watch(fd, path.c_str(), IN_MODIFY | IN_CLOSE_WRITE) < 0) {
+        close(fd);
+        return -1;
+    }
+    return fd;
+}
+
+struct ConfigWatchEvent {
+    bool changed = false;
+    bool removed = false;
+};
+
+inline ConfigWatchEvent config_watch_poll(int fd) {
+    char buf[4096] __attribute__((aligned(alignof(struct inotify_event))));
+    ConfigWatchEvent result;
+    ssize_t n;
+    while ((n = read(fd, buf, sizeof(buf))) > 0) {
+        for (char *p = buf; p < buf + n;) {
+            auto *ev = reinterpret_cast<struct inotify_event *>(p);
+            if (ev->mask & IN_IGNORED)
+                result.removed = true;
+            else
+                result.changed = true;
+            p += sizeof(struct inotify_event) + ev->len;
+        }
+    }
+    return result;
+}
+
