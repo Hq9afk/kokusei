@@ -36,4 +36,3 @@ inline bool single_instance_try_acquire() {
     }
     return true;
 }
-

@@ -29,4 +29,3 @@ void test_rfkill() {
     assert(read_sysfs_string(path) == "bluetooth");
     unlink(path.c_str());
 }
-

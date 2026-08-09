@@ -41,4 +41,3 @@ inline void request_frame(FrameClock &clock) {
                              &clock);
     clock.draw();
 }
-

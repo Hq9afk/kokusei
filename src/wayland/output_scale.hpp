@@ -37,4 +37,3 @@ inline const wl_surface_listener &listener() {
 inline void output_scale_watch(OutputScale &state, wl_surface *surface) {
     wl_surface_add_listener(surface, &output_scale_detail::listener(), &state);
 }
-

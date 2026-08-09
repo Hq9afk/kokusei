@@ -82,4 +82,3 @@ inline float draw_workspace_row(Node *root, WorkspaceWidgetState &wstate,
     return x + ws_row_w + kPillPad * 2 + kCapsuleGap;
 }
 }
-

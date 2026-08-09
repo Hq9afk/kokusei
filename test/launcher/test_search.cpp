@@ -83,4 +83,3 @@ void test_search() {
 
     unlink(visits.path.c_str());
 }
-

@@ -262,7 +262,7 @@ inline void fast_hide(LogoutState &state) {
     finish_close(state);
 }
 
-} // namespace logout_detail
+}
 
 inline RasterizedText
 rasterize_yujimai_glyph(const std::string &codepoint_utf8) {

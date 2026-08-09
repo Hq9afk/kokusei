@@ -86,4 +86,3 @@ inline constexpr const char *wifi2 = "\ueba5";
 inline constexpr const char *wifi_off = "\uecfa";
 
 }
-

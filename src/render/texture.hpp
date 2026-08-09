@@ -52,4 +52,3 @@ inline Texture make_texture_rgba(int width, int height, const uint8_t *rgba,
         glGenerateMipmap(GL_TEXTURE_2D);
     return tex;
 }
-

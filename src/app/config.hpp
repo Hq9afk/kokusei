@@ -97,4 +97,3 @@ inline ConfigWatchEvent config_watch_poll(int fd) {
     }
     return result;
 }
-

@@ -46,16 +46,6 @@ inline void notification_paint(NotificationState &state) {
                                                              entry.timeout_ms),
                                           0.0f, 1.0f)
                              : 0.0f;
-        // Both bars are full-width rrects sharing the card's own top-corner
-        // radius (so their corner curve is pixel-identical to the card's -
-        // same radius, same corner center formula), each cropped to its
-        // visible span by a rectangular clip group. A group clip is a plain
-        // scissor rect (see critical-knowledge.md §3), which is enough here:
-        // it never needs to cut *through* the curved region, only along a
-        // straight edge (the bar's bottom) or through the card's already-flat
-        // interior (the fill's dynamic left edge) - the curved top-left/
-        // top-right corners always stay wholly inside or wholly outside each
-        // clip rect.
         float bar_rrect_h = 2.0f * kNotificationCardRadius;
         blend.push_back(with_alpha(
             urgency_color, kNotificationProgressTrackOpacity * entry.opacity));

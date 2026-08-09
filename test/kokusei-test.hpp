@@ -27,4 +27,3 @@ void test_rfkill();
 void test_animation();
 void test_palette();
 void test_image_decode();
-

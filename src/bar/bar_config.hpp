@@ -7,4 +7,4 @@ constexpr float kPillPad = 10.0f;
 constexpr float kCapsuleGap = 10.0f;
 constexpr float kPillExpandMs = 150.0f;
 constexpr auto kPillCloseLingerMs = std::chrono::milliseconds(80);
-} // namespace bar_detail
+}

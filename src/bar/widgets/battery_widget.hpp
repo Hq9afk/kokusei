@@ -55,4 +55,3 @@ inline Pill battery_pill(WaylandState &state) {
                 battery_border_color(state.upower)};
 }
 }
-

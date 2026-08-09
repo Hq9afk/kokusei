@@ -112,4 +112,3 @@ void test_poll_source() {
         assert(calls_c == 1);
     }
 }
-

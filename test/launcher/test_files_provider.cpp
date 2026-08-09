@@ -51,4 +51,3 @@ void test_files_provider() {
 
     system(("rm -rf " + tmp_dir).c_str());
 }
-

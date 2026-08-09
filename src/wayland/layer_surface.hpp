@@ -52,4 +52,3 @@ inline zwlr_layer_surface_v1 *layer_surface_create(
 
     return layer_surface;
 }
-

@@ -152,4 +152,3 @@ class AnimationManager {
     std::vector<Entry> entries_;
     Id next_id_ = 1;
 };
-

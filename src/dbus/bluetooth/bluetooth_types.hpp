@@ -101,4 +101,4 @@ inline bool is_nearby_bucket(const BluetoothDeviceInfo &d) {
     return !d.connected && !d.paired && !d.trusted;
 }
 
-} // namespace bluetooth_detail
+}

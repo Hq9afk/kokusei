@@ -64,4 +64,3 @@ inline void visit_store_record(VisitStore &vs, const std::string &key) {
     for (const auto &[k, c] : vs.counts)
         f << k << '\t' << c << '\n';
 }
-

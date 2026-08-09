@@ -9,4 +9,3 @@ void test_icon_theme() {
     assert(icon_direct_path("firefox") == "");
     assert(icon_direct_path("") == "");
 }
-

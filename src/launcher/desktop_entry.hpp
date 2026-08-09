@@ -151,4 +151,3 @@ inline void desktop_entry_launch(const DesktopEntry &entry) {
         cmd = "kitty " + cmd;
     spawn_detached(cmd);
 }
-

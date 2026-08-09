@@ -85,4 +85,3 @@ inline void idle_set_inhibited(IdleState &state, wl_surface *surface,
         klog("idle: inhibit disabled");
     }
 }
-

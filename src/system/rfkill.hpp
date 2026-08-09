@@ -125,4 +125,3 @@ inline bool rfkill_set_bluetooth_soft_blocked(bool blocked) {
     }
     return true;
 }
-

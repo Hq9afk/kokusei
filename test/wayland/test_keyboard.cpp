@@ -37,4 +37,3 @@ void test_keyboard() {
     xkb_keymap_unref(keymap);
     xkb_context_unref(ctx);
 }
-

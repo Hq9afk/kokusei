@@ -43,12 +43,6 @@
 #include <unordered_map>
 #include <vector>
 
-// One entrance tween's live progress per character currently in `query`,
-// same index order as `query`'s codepoints. Pushed on KeyKind::Text, popped
-// (after cancelling its owners) on KeyKind::Backspace, see
-// launcher_handle_key_event. A std::deque, not a std::vector, so a
-// push_back/pop_back never relocates an existing entry an in-flight
-// AnimationManager setter still points at by reference.
 struct QueryCharAnim {
     float scale = 1.0f;
     float slide_x = 0.0f;
@@ -324,18 +318,6 @@ inline void launcher_query_changed(LauncherState &state) {
     state.cursor_blink_visible = true;
 }
 
-// Ported from keqing-shell's PasswordInput.qml: a new character starts
-// shrunk/offset and eases in (spring scale-pop, slide), matching that
-// component's per-dot NumberAnimations. Unlike PasswordInput.qml this skips
-// an opacity tween: the launcher surface itself already fades in as a whole
-// (kOverlayFadeMs, see launcher_toggle), and a character typed during that
-// window would have its own 0->1 opacity multiplied on top of the
-// surface's still-ramping opacity (Renderer::set_opacity multiplies every
-// node's alpha), double-blending it against the backdrop and making it
-// settle on a visibly different color than a character typed after the
-// surface has finished fading in. Scale and slide are pure geometry, so
-// they don't have this compounding problem and every character (including
-// the first) goes through the identical path here.
 inline void launcher_query_char_push(LauncherState &state) {
     size_t idx = state.query_char_anim.size();
     state.query_char_anim.push_back({0.0f, kLauncherQuerySlideOffsetPx});
@@ -356,9 +338,6 @@ inline void launcher_query_char_push(LauncherState &state) {
         {}, launcher_query_char_owner(idx, QueryCharProp::Slide));
 }
 
-// Matches PasswordInput.qml's instant dotModel.remove(), no exit animation.
-// Cancels the removed character's own tweens first, a still-running setter
-// must never be left pointing past the deque's new end.
 inline void launcher_query_char_pop(LauncherState &state) {
     if (state.query_char_anim.empty())
         return;

@@ -46,4 +46,3 @@ void test_config_watch() {
     close(fd);
     unlink(path.c_str());
 }
-

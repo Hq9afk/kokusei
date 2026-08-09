@@ -177,4 +177,3 @@ inline RasterizedText rasterize_text_small(const std::string &text,
     return rasterize_text_with(text, kokusei_font_description_small(), scale,
                                max_width_px);
 }
-

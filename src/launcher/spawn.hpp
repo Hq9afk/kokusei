@@ -23,4 +23,3 @@ inline void spawn_detached(const std::string &shell_command) {
     }
     waitpid(mid, nullptr, 0);
 }
-

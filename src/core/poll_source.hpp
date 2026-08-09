@@ -49,4 +49,3 @@ class FnPollSource : public PollSource {
     short events2_;
     DispatchFn fn_;
 };
-

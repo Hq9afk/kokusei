@@ -7,4 +7,3 @@ struct Workspace {
     std::string name;
     bool occupied = false;
 };
-

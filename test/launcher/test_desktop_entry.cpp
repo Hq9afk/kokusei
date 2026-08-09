@@ -46,4 +46,3 @@ void test_desktop_entry() {
         assert(!e.has_value());
     }
 }
-

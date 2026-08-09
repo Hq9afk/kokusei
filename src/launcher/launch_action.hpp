@@ -179,4 +179,3 @@ inline void launch_drun_app(const DesktopEntry &entry, VisitStore &visits) {
     desktop_entry_launch(entry);
     visit_store_record(visits, visit_store_app_key(entry.id));
 }
-

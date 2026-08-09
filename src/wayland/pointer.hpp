@@ -117,4 +117,3 @@ inline std::vector<PointerScroll> pointer_drain_scrolls(PointerState &state) {
     state.pending_scrolls.clear();
     return scrolls;
 }
-

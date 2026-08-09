@@ -48,4 +48,3 @@ void test_bluetooth() {
         assert(is_nearby_bucket(nearby));
     }
 }
-

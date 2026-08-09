@@ -43,4 +43,3 @@ inline GLuint gl_compile_program(const char *vs_src, const char *fs_src) {
     }
     return program;
 }
-

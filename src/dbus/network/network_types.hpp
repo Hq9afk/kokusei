@@ -113,7 +113,7 @@ inline std::string unescape_nmcli_field(const std::string &s) {
     return out;
 }
 
-} // namespace network_detail
+}
 
 struct NetworkDeviceStatus {
     bool wifi = false;

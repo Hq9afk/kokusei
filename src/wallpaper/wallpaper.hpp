@@ -176,9 +176,6 @@ inline void wallpaper_upload_pending(WallpaperState &wp) {
     wallpaper_request_frame(wp);
 }
 
-// Box-downsamples an RGBA8 buffer; dst must hold dw*dh*4 bytes. Coverage is
-// area-averaged per destination pixel, no new dependency (hand-rolled rather
-// than pulling in stb_image_resize2 as noctalia does).
 inline void box_downsample_rgba(const unsigned char *src, int sw, int sh,
                                 unsigned char *dst, int dw, int dh) {
     for (int y = 0; y < dh; ++y) {
@@ -212,9 +209,6 @@ inline void box_downsample_rgba(const unsigned char *src, int sw, int sh,
     }
 }
 
-// Resolves and mkdir()'s $XDG_CACHE_HOME/kokusei/wallpaper (falling back to
-// $HOME/.cache/kokusei/wallpaper), mirroring core/log.hpp's klog_open_file()
-// shape against XDG_CACHE_HOME instead of XDG_STATE_HOME.
 inline std::string wallpaper_cache_dir() {
     const char *cache_home = getenv("XDG_CACHE_HOME");
     std::string base = cache_home && *cache_home
@@ -232,10 +226,6 @@ inline std::string wallpaper_cache_dir() {
     return dir;
 }
 
-// Cache key is (path, mtime, target_w, target_h): the mtime invalidates the
-// entry when the file is replaced/edited, the target size invalidates it
-// when the output resolution changes (e.g. a different monitor). This is a
-// cache key, not a security boundary, so std::hash is enough.
 inline std::string wallpaper_cache_path(const std::string &path,
                                         time_t mtime, int target_w,
                                         int target_h) {
@@ -246,9 +236,6 @@ inline std::string wallpaper_cache_path(const std::string &path,
     return wallpaper_cache_dir() + "/" + std::to_string(hash) + ".rgba";
 }
 
-// Reads a wallpaper_cache_write()-produced file: two uint32_t (width,
-// height) followed by raw RGBA8 pixels. Returns nullptr on any mismatch
-// (missing file, truncated, wrong size for its own header).
 inline unsigned char *wallpaper_cache_read(const std::string &cache_path,
                                            int &out_width, int &out_height) {
     FILE *fp = fopen(cache_path.c_str(), "rb");
@@ -286,18 +273,6 @@ inline void wallpaper_cache_write(const std::string &cache_path, int width,
     fclose(fp);
 }
 
-// Decodes then, if target_w/target_h are known and smaller than the source,
-// downsamples in memory before the buffer ever reaches make_texture_rgba()
-// (matches noctalia's image_file_loader.cpp technique). target_w/target_h
-// <= 0 means the output size isn't known yet (e.g. before the layer
-// surface's first configure) and the full-resolution buffer is kept (and,
-// since there is no scaled size to key a cache entry on, this path is never
-// cached).
-// The downsample target preserves the source's own aspect ratio via the
-// same cover-fit scale wallpaper_paint() uses (max of the two per-axis
-// ratios), rather than target_w x target_h directly - squashing straight
-// to the output box's aspect ratio would bake a stretch into the texture
-// that wallpaper_paint()'s crop-to-cover math can no longer undo.
 inline unsigned char *wallpaper_decode_scaled(const std::string &path,
                                               int target_w, int target_h,
                                               int &out_width, int &out_height) {
@@ -339,10 +314,6 @@ inline unsigned char *wallpaper_decode_scaled(const std::string &path,
 
 inline void wallpaper_decode_async(WallpaperState &wp, std::string path) {
     uint64_t generation = ++wp.load_generation;
-    // Read on the calling thread (already the poll thread) before dispatch,
-    // not inside the worker, so the worker never touches wp concurrently.
-    // Caller must call this only after wp.configured (see kokusei.cpp),
-    // otherwise these are still 0 and no downsample happens.
     int target_w = wp.width * wp.output_scale.scale;
     int target_h = wp.height * wp.output_scale.scale;
     std::thread([&wp, path = std::move(path), generation, target_w, target_h] {
@@ -371,8 +342,6 @@ inline void wallpaper_decode_async(WallpaperState &wp, std::string path) {
 
 inline void wallpaper_load_async(WallpaperState &wp, std::string path) {
     uint64_t generation = ++wp.load_generation;
-    // Read on the calling thread (already the poll thread) before dispatch,
-    // not inside the worker, so the worker never touches wp concurrently.
     int target_w = wp.width * wp.output_scale.scale;
     int target_h = wp.height * wp.output_scale.scale;
     std::thread([&wp, path = std::move(path), generation, target_w, target_h] {
@@ -400,4 +369,3 @@ inline void wallpaper_load_async(WallpaperState &wp, std::string path) {
         });
     }).detach();
 }
-

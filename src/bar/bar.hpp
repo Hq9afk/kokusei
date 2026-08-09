@@ -149,10 +149,6 @@ struct WaylandState {
 };
 
 namespace bar_detail {
-// Every dynamic pill's on_click closes whichever of the other on-demand
-// overlays (logout, network/bluetooth/volume panel) is open before toggling
-// its own - `keep` is the pill about to be toggled, so its own overlay is
-// left alone.
 inline void close_other_overlays(WaylandState &state, PillId keep) {
     if (keep != PillId::Power && state.logout.base.open)
         logout_toggle(state.logout);
@@ -163,12 +159,8 @@ inline void close_other_overlays(WaylandState &state, PillId keep) {
     if (keep != PillId::Volume && state.volume_panel.base.open)
         volume_panel_toggle(state.volume_panel);
 }
-} // namespace bar_detail
+}
 
-// Forward-declared here (not just further down, near bar_request_frame)
-// because the dynamic pill widgets below call it directly from their
-// on_click handlers, to force a synchronous re-layout after an instant
-// hover-expand snap - see bluetooth_widget.hpp's on_click.
 inline void bar_paint(WaylandState &state);
 
 #include "widgets/battery_widget.hpp"
@@ -344,10 +336,6 @@ inline void bar_paint(WaylandState &state) {
                      : lingering ? state.capsule.label_linger_pill
                                  : hit_test_pills(state.capsule, state.pointer,
                                                   state.surface);
-    // ponytail: peek only wins the single shared "hovered" slot when
-    // nothing else already holds it; a simultaneous real hover elsewhere
-    // silently skips the peek expand. Per-pill peek flags would remove
-    // this if it turns out to matter in practice.
     if (hovered == PillId::None && state.volume_peek_active)
         hovered = PillId::Volume;
 

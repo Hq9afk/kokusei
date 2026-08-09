@@ -106,4 +106,3 @@ inline bool upower_init(UpowerState &state) {
         return false;
     }
 }
-

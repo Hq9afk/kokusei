@@ -23,4 +23,3 @@ void test_palette() {
     Color c = with_alpha(a, 0.75f);
     assert(c.r == a.r && c.g == a.g && c.b == a.b && c.a == 0.75f);
 }
-

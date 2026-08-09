@@ -148,4 +148,3 @@ inline Texture load_image_texture(const std::string &path) {
     delete[] data;
     return tex;
 }
-

@@ -33,4 +33,3 @@ void test_spawn_helpers() {
     reaped = waitpid(-1, nullptr, WNOHANG);
     assert(reaped == -1 && errno == ECHILD);
 }
-

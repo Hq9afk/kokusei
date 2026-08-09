@@ -46,4 +46,3 @@ search_apps(const std::vector<DesktopEntry> &entries,
     }
     return results;
 }
-

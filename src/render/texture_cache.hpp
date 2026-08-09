@@ -49,4 +49,3 @@ class TextureCache {
     std::unordered_map<std::string, Entry> index_;
     std::list<std::string> order_;
 };
-

@@ -189,4 +189,3 @@ inline ShojiEventResult shoji_poll(ShojiwmState &state) {
     }
     return updated ? ShojiEventResult::Updated : ShojiEventResult::None;
 }
-

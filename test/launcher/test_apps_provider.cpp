@@ -34,4 +34,3 @@ void test_apps_provider() {
     for (const auto &r : results)
         assert(r.entry->name != "Calculator");
 }
-

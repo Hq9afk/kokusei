@@ -14,4 +14,3 @@ struct Scene {
 
     void rebuild() { root.clear(); }
 };
-

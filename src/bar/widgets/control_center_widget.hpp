@@ -24,4 +24,4 @@ inline Pill control_center_pill(WaylandState &state) {
     return Pill{PillId::ControlCenter, &state.control_center_texture,
                 "Control Center"};
 }
-} // namespace bar_detail
+}

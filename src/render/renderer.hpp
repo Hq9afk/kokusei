@@ -204,4 +204,3 @@ class ScopedClip {
   private:
     Renderer &renderer_;
 };
-

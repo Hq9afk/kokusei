@@ -81,4 +81,3 @@ void test_submenu() {
     assert(moved);
     assert(s.screen == SubmenuScreen::Search);
 }
-

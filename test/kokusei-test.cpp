@@ -41,4 +41,3 @@ int main() {
     }
     std::printf("All %zu tests passed.\n", std::size(cases));
 }
-

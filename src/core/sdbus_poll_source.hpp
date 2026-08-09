@@ -12,4 +12,3 @@ inline FnPollSource sdbus_poll_source(sdbus::IConnection &bus,
                             std::move(on_ready));
     return FnPollSource(pd.fd, pd.events, std::move(on_ready));
 }
-

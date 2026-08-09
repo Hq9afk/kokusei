@@ -29,4 +29,3 @@ void test_visit_store() {
 
     unlink(path.c_str());
 }
-

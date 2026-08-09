@@ -134,9 +134,6 @@ inline void node_param_cb(void *data, int, uint32_t id, uint32_t index,
 inline void node_info_cb(void *data, const pw_node_info *info) {
     auto *entry = static_cast<PwNodeEntry *>(data);
     if (info->change_mask & PW_NODE_CHANGE_MASK_PROPS) {
-        // card.profile.device only appears here, in the fuller info props -
-        // the registry's initial `global` announcement props dict doesn't
-        // carry it (matches quickshell's PwNode::onInfo).
         const char *card_profile_device_str =
             info->props ? spa_dict_lookup(info->props, "card.profile.device")
                         : nullptr;
@@ -348,7 +345,7 @@ inline constexpr pw_registry_events kRegistryEvents = {
     .global_remove = registry_global_remove_cb,
 };
 
-} // namespace pw_detail
+}
 
 inline bool pipewire_init(PipewireState &state) {
     pw_init(nullptr, nullptr);
@@ -440,12 +437,6 @@ inline void set_node_muted(PwNodeEntry &entry, bool muted) {
                       0, pod);
 }
 
-// Card-backed nodes (a real ALSA/bluez5 device, not a bare stream) ignore a
-// direct pw_node_set_param write: WirePlumber's actual volume policy for
-// those lives on the parent Device's SPA_PARAM_Route, not the node's own
-// Props, so a raw node write gets echoed back by the node's own listener
-// (looking "confirmed") without ever reaching real hardware/wpctl. Route
-// index resolution mirrors quickshell's device.cpp.
 inline bool resolve_device_route(PipewireState &state, const PwNodeEntry &entry,
                                  pw_device *&device_proxy,
                                  int32_t &route_index) {
@@ -496,7 +487,7 @@ inline void set_device_route_muted(pw_device *device_proxy,
     pw_device_set_param(device_proxy, SPA_PARAM_Route, 0, route);
 }
 
-} // namespace pw_detail
+}
 
 inline void pipewire_set_node_volume(PipewireState &state, uint32_t id,
                                      float level) {
@@ -541,9 +532,6 @@ inline void pipewire_set_node_muted(PipewireState &state, uint32_t id,
         state.source_changed = true;
 }
 
-// Writes `default.audio.sink`/`default.audio.source` on the "default"
-// metadata object directly, same JSON shape quickshell's PwDefaultTracker
-// uses (spa json is a json superset, so a hand-built string is fine here).
 inline void pipewire_set_default(PipewireState &state, uint32_t node_id) {
     auto it = state.nodes.find(node_id);
     if (it == state.nodes.end() || !state.default_metadata)

@@ -166,4 +166,3 @@ inline pid_t async_process_cancel(AsyncProcess &proc) {
 inline bool async_process_is_alive(pid_t pid) {
     return pid > 0 && kill(pid, 0) == 0;
 }
-

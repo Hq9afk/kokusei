@@ -131,4 +131,3 @@ combined_drun_results(const std::vector<ScoredApp> &apps,
         out.push_back(decorated[i].result);
     return out;
 }
-

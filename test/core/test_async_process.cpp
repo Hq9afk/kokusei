@@ -92,4 +92,3 @@ void test_async_process() {
         assert(fds_after - fds_before < 5);
     }
 }
-

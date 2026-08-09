@@ -163,4 +163,3 @@ inline void node_draw(const Node &n, Renderer &renderer, float parent_x = 0,
             node_draw(*n.children[i], renderer, x, y);
     }
 }
-

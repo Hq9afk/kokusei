@@ -134,12 +134,6 @@ inline float draw_static_pill_row(Node *root, float x, float height,
 
 inline size_t pill_idx(PillId id) { return static_cast<size_t>(id); }
 
-// Pill x-coordinates live in the bar surface's own coordinate space, which
-// is inset by kPanelSideMargin on each side (the bar's layer surface has
-// margin_left/margin_right set to it). The on-demand panels are separate,
-// full-width layer surfaces with no such margin, so the bar-local center
-// needs that margin added back in to land under the pill in the panel's
-// coordinate space.
 inline float pill_center_x(const WidgetCapsuleState &capsule, PillId id) {
     return kPanelSideMargin + capsule.pill_expanded_center_x[pill_idx(id)];
 }
@@ -187,17 +181,6 @@ inline const Texture &ensure_label_texture(WidgetCapsuleState &capsule,
     return tex;
 }
 
-// `instant`: skip the hover-expand tween and snap pill_expand_t straight to
-// its target within this same call (AnimationManager::animate() calls its
-// setter immediately when duration_ms <= 0). Needed when a pill is being
-// force-expanded by panel_pill() because its own panel just opened via a
-// path with no real mouse hover behind it (e.g. an IPC verb) - a caller that
-// locks a panel's on-screen position off this same frame's
-// pill_expanded_center_x must see the pill already at its final expanded
-// width, not mid-tween, or the lock captures a still-growing (and thus
-// still-shifting, in a right-anchored row) center. A genuine mouse hover
-// (hovered_prev already true before this call) never reaches the animate()
-// call at all, this only affects the specific forced-open transition.
 inline void update_pill_expand(WidgetCapsuleState &capsule,
                                AnimationManager &animations, PillId id,
                                bool hovered_now, bool instant = false) {
@@ -305,4 +288,4 @@ inline void dispatch_pill_click(WidgetCapsuleState &capsule,
     if (action)
         action();
 }
-} // namespace bar_detail
+}

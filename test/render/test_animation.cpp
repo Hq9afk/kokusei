@@ -87,4 +87,3 @@ void test_animation() {
     test_cancel_for_owner();
     test_owner_reuse_cancels_prior();
 }
-

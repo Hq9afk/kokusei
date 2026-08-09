@@ -35,11 +35,6 @@ inline Pill volume_pill(WaylandState &state) {
     return Pill{PillId::Volume, &state.volume_icon_texture,
                 volume_label(state.pipewire), nullptr, [&state] {
                     close_other_overlays(state, PillId::Volume);
-                    // See bluetooth_widget.hpp's on_click: a click can land
-                    // before the pill's own hover-expand tween has settled -
-                    // snap it and force a repaint first so pill_center_x below
-                    // reads the final expanded center, not a stale pre-snap
-                    // one.
                     if (!state.volume_panel.base.open) {
                         update_pill_expand(state.capsule, state.animations,
                                            PillId::Volume, true, true);
@@ -51,9 +46,6 @@ inline Pill volume_pill(WaylandState &state) {
                 }};
 }
 
-// `angleDelta.y > 0` in keqing-shell's VolumeWidget.qml means "scroll up" =
-// louder; wl_pointer's vertical-scroll axis value carries the opposite
-// sign (positive = away from the user), so a negative `dy` here is "up".
 inline void volume_pill_handle_wheel(WaylandState &state, double dy) {
     bool sink_muted = false;
     float level = pipewire_sink_level(state.pipewire, sink_muted);
@@ -64,11 +56,6 @@ inline void volume_pill_handle_wheel(WaylandState &state, double dy) {
                                  next);
 }
 
-// Auto-expands the pill's label for `volumePeekMs` after the sink's
-// volume/mute changes externally (media keys, pavucontrol), mirroring
-// VolumeWidget.qml's Connections+Timer pair. Suppressed for the first
-// `volumePeekReadyDelayMs` after startup so the initial state read doesn't
-// itself trigger a peek.
 inline void volume_pill_peek_tick(WaylandState &state) {
     auto now = std::chrono::steady_clock::now();
     if (!state.volume_peek_ready) {
@@ -101,4 +88,4 @@ inline bool volume_pill_peek_expire(WaylandState &state) {
     return true;
 }
 
-} // namespace bar_detail
+}

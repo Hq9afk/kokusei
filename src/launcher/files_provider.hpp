@@ -189,4 +189,3 @@ inline std::vector<FileEntry> run_fd_search(const std::string &pattern,
         pattern, search_root, is_dir, max_results, depth, full_path));
     return fd_search_parse_output(raw, is_dir);
 }
-

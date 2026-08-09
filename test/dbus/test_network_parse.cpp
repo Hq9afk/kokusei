@@ -121,4 +121,3 @@ void test_network_parse() {
         assert(state.connected_signal() == 66);
     }
 }
-

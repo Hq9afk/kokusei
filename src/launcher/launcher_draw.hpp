@@ -3,9 +3,6 @@
 #include "launcher_state.hpp"
 
 namespace launcher_detail {
-// Byte length of the UTF-8 codepoint starting at `lead`, standard leading-byte
-// pattern (matches the continuation-byte skipping already used by elide() and
-// launcher_query_char_pop's backspace trim, just walked forward instead).
 inline size_t utf8_char_len(unsigned char lead) {
     if ((lead & 0x80) == 0x00)
         return 1;
@@ -136,7 +133,7 @@ inline int launcher_surface_height(int visible_rows) {
     return static_cast<int>(h);
 }
 
-} // namespace launcher_detail
+}
 
 inline void launcher_paint(LauncherState &state) {
     using namespace launcher_detail;
@@ -226,11 +223,6 @@ inline void launcher_paint(LauncherState &state) {
         float field_center_y =
             box_y + kLauncherPad + kLauncherSearchHeight / 2.0f;
 
-        // One texture per character, animated independently (fade + spring
-        // scale-pop + slide-in), ported from keqing-shell's PasswordInput.qml.
-        // Laid out in fixed monospace cells (the launcher's body font is
-        // ComicShannsMono) rather than real Pango shaping across separately
-        // rasterized glyphs, same fixed-slot idea already used for icon rows.
         float cell_w = 0.0f;
         if (const Texture *ref_tex = cached_text(state.tcache, "M", scale))
             cell_w =

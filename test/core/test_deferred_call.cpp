@@ -35,4 +35,3 @@ void test_deferred_call() {
     DeferredCall::drain();
     assert((order == std::vector<int>{1, 2}));
 }
-

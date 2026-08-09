@@ -33,4 +33,3 @@ inline float panel_clamp_scroll(float scroll_offset, float dy,
     float max_scroll = std::max(0.0f, content_height - visible_height);
     return std::clamp(scroll_offset + dy, 0.0f, max_scroll);
 }
-

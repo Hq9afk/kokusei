@@ -166,9 +166,6 @@ int main(int argc, char **argv) {
     }
 
     if (want_wallpaper) {
-        // Fired here, not before the wait loop above, so wp.width/height
-        // (set by the layer surface's first configure) are already known
-        // and the decode can downsample to the real output size.
         wallpaper_decode_async(state.wallpaper, state.cfg.wallpaper_path);
 
         if (wallpaper_init_egl(state.wallpaper, state.renderer,
@@ -405,10 +402,6 @@ int main(int argc, char **argv) {
                                    state.egl_surface, state.egl_context);
                 }
                 if (want_bluetooth_panel) {
-                    // A panel toggled via IPC (no live click-time pill
-                    // center) must see the pill already force-expanded by
-                    // panel_pill() before its center is read, or the panel
-                    // locks onto the stale pre-open (narrower) pill center.
                     bar_paint(state);
                     bluetooth_dispatch();
                 }

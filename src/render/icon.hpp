@@ -126,4 +126,3 @@ inline RasterizedText rasterize_icon(const std::string &codepoint_utf8,
     cairo_scaled_font_destroy(scaled_font);
     return result;
 }
-

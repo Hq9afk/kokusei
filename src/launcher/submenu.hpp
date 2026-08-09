@@ -194,4 +194,3 @@ inline bool submenu_go_back(SubmenuState &s, const DirLister &list_dir) {
         return false;
     }
 }
-

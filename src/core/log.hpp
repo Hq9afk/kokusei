@@ -50,4 +50,3 @@ inline void klog(const char *fmt, ...) {
         fflush(out);
     }
 }
-

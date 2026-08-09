@@ -148,11 +148,6 @@ inline void overlay_panel_toggle(OverlayPanelBase &base) {
     overlay_panel_request_frame(base);
 }
 
-// Shared "lock/unlock the panel's on-screen position around a toggle" shape
-// every on-demand panel (network/bluetooth/volume) repeats: capture the
-// pill's center synchronously at open time, clear it at close time, running
-// each panel's own side effects (discovery start/stop, scroll reset, ...) at
-// the matching point. Returns whether the panel is now opening.
 template <typename OnOpen, typename OnClose>
 inline bool panel_lock_toggle(OverlayPanelBase &base, float &locked_center_x,
                               float pill_center_x, OnOpen on_open,

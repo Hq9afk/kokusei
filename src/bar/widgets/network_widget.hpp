@@ -43,11 +43,6 @@ inline Pill wifi_pill(WaylandState &state) {
     return Pill{PillId::Wifi, &state.wifi_icon_texture,
                 wifi_label(state.network), nullptr, [&state] {
                     close_other_overlays(state, PillId::Wifi);
-                    // See bluetooth_widget.hpp's on_click: a click can land
-                    // before the pill's own hover-expand tween has settled -
-                    // snap it and force a repaint first so pill_center_x below
-                    // reads the final expanded center, not a stale pre-snap
-                    // one.
                     if (!state.network_panel.base.open) {
                         update_pill_expand(state.capsule, state.animations,
                                            PillId::Wifi, true, true);
@@ -60,4 +55,4 @@ inline Pill wifi_pill(WaylandState &state) {
                         network_scan(state.network);
                 }};
 }
-} // namespace bar_detail
+}

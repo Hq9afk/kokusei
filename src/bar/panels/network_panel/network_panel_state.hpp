@@ -191,7 +191,7 @@ inline float sub_panel_height(const std::string &mode) {
     return inner + 2.0f * kPanelPadding;
 }
 
-} // namespace network_panel_detail
+}
 
 inline bool network_panel_create_surface(NetworkPanelState &state,
                                          wl_compositor *compositor,

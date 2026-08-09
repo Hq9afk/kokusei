@@ -11,4 +11,3 @@ inline Pill power_pill(WaylandState &state) {
                }};
 }
 }
-

@@ -79,4 +79,3 @@ class DeferredCallPollSource : public PollSource {
         DeferredCall::drain();
     }
 };
-

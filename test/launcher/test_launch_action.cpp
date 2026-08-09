@@ -39,4 +39,3 @@ void test_launch_action() {
     assert(launch_non_drun(LauncherMode::Google, "") == false);
     assert(launch_non_drun(LauncherMode::Drun, "anything") == false);
 }
-

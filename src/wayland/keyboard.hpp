@@ -252,4 +252,3 @@ inline void keyboard_repeat_tick(KeyboardState &state) {
     for (uint64_t i = 0; i < std::min(expirations, kMaxCatchUp); ++i)
         state.pending.push_back(*ev);
 }
-

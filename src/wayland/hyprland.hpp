@@ -242,4 +242,3 @@ inline HyprEventResult hypr_poll_events(HyprlandState &state) {
     }
     return result;
 }
-

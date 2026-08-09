@@ -175,4 +175,3 @@ inline int run_ipc_client(int argc, char **argv) {
     fwrite(response.data(), 1, response.size(), stdout);
     return 0;
 }
-

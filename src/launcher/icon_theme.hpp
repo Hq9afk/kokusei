@@ -52,4 +52,3 @@ inline std::string resolve_app_icon_path(const std::string &icon_field) {
     }
     return "";
 }
-
