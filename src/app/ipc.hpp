@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../bar/bar.hpp"
 #include "../bar/panels/bluetooth_panel/bluetooth_panel_state.hpp"
 #include "../idle/idle.hpp"
 #include "../launcher/launcher_state.hpp"
@@ -58,9 +59,10 @@ struct IpcHandler {
 };
 
 inline std::vector<IpcHandler>
-ipc_handlers(wl_surface *bar_surface, IdleState &idle, LauncherState &launcher,
-             LogoutState &logout, BluetoothPanelState &bluetooth_panel,
-             BluetoothState &bluetooth, bool &running) {
+ipc_handlers(WaylandState &state, wl_surface *bar_surface, IdleState &idle,
+             LauncherState &launcher, LogoutState &logout,
+             BluetoothPanelState &bluetooth_panel, BluetoothState &bluetooth,
+             bool &running) {
     return {
         {"idle-inhibit on",
          [&idle, bar_surface] { idle_set_inhibited(idle, bar_surface, true); },
@@ -79,13 +81,18 @@ ipc_handlers(wl_surface *bar_surface, IdleState &idle, LauncherState &launcher,
              bluetooth_panel_toggle(bluetooth_panel, bluetooth);
          },
          "toggle the bluetooth panel"},
+        {"bar",
+         [&state] {
+             bar_detail::bar_autohide_set_enabled(state, !state.cfg.autohide);
+         },
+         "toggle the bar's autohide"},
         {"kill", [&running] { running = false; }, "gracefully quit kokusei"},
     };
 }
 
-inline void handle_ipc_accept(int listen_fd, wl_surface *bar_surface,
-                              IdleState &idle, LauncherState &launcher,
-                              LogoutState &logout,
+inline void handle_ipc_accept(int listen_fd, WaylandState &state,
+                              wl_surface *bar_surface, IdleState &idle,
+                              LauncherState &launcher, LogoutState &logout,
                               BluetoothPanelState &bluetooth_panel,
                               BluetoothState &bluetooth, bool &running) {
     int client_fd = accept(listen_fd, nullptr, nullptr);
@@ -101,8 +108,8 @@ inline void handle_ipc_accept(int listen_fd, wl_surface *bar_surface,
 
         klog("ipc: %s", cmd.c_str());
         std::vector<IpcHandler> handlers =
-            ipc_handlers(bar_surface, idle, launcher, logout, bluetooth_panel,
-                         bluetooth, running);
+            ipc_handlers(state, bar_surface, idle, launcher, logout,
+                         bluetooth_panel, bluetooth, running);
         if (cmd == "--help" || cmd == "help") {
             std::string help = "kokusei <verb>:\n";
             for (const IpcHandler &h : handlers)

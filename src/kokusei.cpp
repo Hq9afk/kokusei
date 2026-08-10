@@ -56,9 +56,8 @@ int main(int argc, char **argv) {
     state.cfg = load_config();
     if (state.cfg.autohide) {
         state.autohide.hidden = true;
-        state.autohide.height_px = static_cast<float>(bar_detail::kAutoHideStripPx);
-    } else {
-        state.autohide.height_px = static_cast<float>(state.cfg.height);
+        state.autohide.collapsed = true;
+        state.autohide.opacity = 0.0f;
     }
     state.config_watch_fd = config_watch_init(config_path());
     DeferredCall::init();
@@ -85,11 +84,16 @@ int main(int argc, char **argv) {
                   ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
                   ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT,
         .height = bar_detail::bar_current_height(state),
-        .margin_top = bar_detail::kBarTopMargin,
+        .margin_top = bar_detail::bar_autohide_geometry(
+                          state.cfg.autohide, state.autohide.collapsed,
+                          state.cfg.height)
+                          .margin_top,
         .margin_right = static_cast<int32_t>(kPanelSideMargin),
         .margin_left = static_cast<int32_t>(kPanelSideMargin),
-        .exclusive_zone =
-            bar_detail::bar_current_height(state) + bar_detail::kBarTopMargin,
+        .exclusive_zone = bar_detail::bar_autohide_geometry(
+                              state.cfg.autohide, state.autohide.collapsed,
+                              state.cfg.height)
+                              .exclusive_zone,
     };
     state.layer_surface =
         layer_surface_create(state.surface, state.compositor, state.layer_shell,
@@ -448,7 +452,7 @@ int main(int argc, char **argv) {
 
         if (ipc_fd >= 0) {
             fn_sources.emplace_back(ipc_fd, POLLIN, [&] {
-                handle_ipc_accept(ipc_fd, state.surface, state.idle,
+                handle_ipc_accept(ipc_fd, state, state.surface, state.idle,
                                   state.launcher, state.logout,
                                   state.bluetooth_panel, state.bluetooth,
                                   state.running);
@@ -681,23 +685,33 @@ int main(int argc, char **argv) {
                 }
                 bool autohide_changed = new_cfg.autohide != state.cfg.autohide;
                 bool height_changed = new_cfg.height != state.cfg.height;
-                if (autohide_changed && !new_cfg.autohide)
-                    state.autohide.hidden = false;
-                bool currently_shown =
-                    !new_cfg.autohide || !state.autohide.hidden;
-                if ((height_changed || autohide_changed) && currently_shown) {
-                    zwlr_layer_surface_v1_set_size(state.layer_surface, 0,
-                                                   new_cfg.height);
-                    zwlr_layer_surface_v1_set_exclusive_zone(
-                        state.layer_surface,
-                        new_cfg.height + bar_detail::kBarTopMargin);
-                    wl_surface_commit(state.surface);
-                    if (state.egl_window)
-                        wl_egl_window_resize(
-                            state.egl_window,
-                            state.width * state.output_scale.scale,
-                            new_cfg.height * state.output_scale.scale, 0, 0);
-                    state.autohide.height_px = static_cast<float>(new_cfg.height);
+                if (autohide_changed) {
+                    state.cfg.height = new_cfg.height;
+                    bar_detail::bar_autohide_set_enabled(state,
+                                                         new_cfg.autohide);
+                } else if (height_changed) {
+                    bool currently_shown =
+                        !state.cfg.autohide || !state.autohide.hidden;
+                    if (currently_shown) {
+                        bar_detail::BarGeometry g =
+                            bar_detail::bar_autohide_geometry(
+                                state.cfg.autohide, state.autohide.collapsed,
+                                new_cfg.height);
+                        zwlr_layer_surface_v1_set_size(state.layer_surface, 0,
+                                                       g.height);
+                        zwlr_layer_surface_v1_set_margin(
+                            state.layer_surface, g.margin_top,
+                            static_cast<int32_t>(kPanelSideMargin), 0,
+                            static_cast<int32_t>(kPanelSideMargin));
+                        zwlr_layer_surface_v1_set_exclusive_zone(
+                            state.layer_surface, g.exclusive_zone);
+                        wl_surface_commit(state.surface);
+                        if (state.egl_window)
+                            wl_egl_window_resize(
+                                state.egl_window,
+                                state.width * state.output_scale.scale,
+                                g.height * state.output_scale.scale, 0, 0);
+                    }
                 }
                 state.cfg = new_cfg;
                 bar_request_frame(state);

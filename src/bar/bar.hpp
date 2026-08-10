@@ -170,10 +170,45 @@ inline void close_other_overlays(WaylandState &state, PillId keep) {
         tray_menu_close(state.tray_menu);
 }
 
+struct BarGeometry {
+    int32_t height;
+    int32_t margin_top;
+    int32_t exclusive_zone;
+};
+
+inline BarGeometry bar_autohide_geometry(bool autohide, bool collapsed,
+                                         int32_t cfg_height) {
+    if (!autohide)
+        return {cfg_height, kBarTopMargin, cfg_height + kBarTopMargin};
+    if (collapsed)
+        return {kAutoHideStripPx, 0, 0};
+    return {kBarTopMargin + cfg_height, 0, 0};
+}
+
 inline int32_t bar_current_height(const WaylandState &state) {
-    if (!state.cfg.autohide)
-        return state.cfg.height;
-    return static_cast<int32_t>(state.autohide.height_px + 0.5f);
+    return bar_autohide_geometry(state.cfg.autohide, state.autohide.collapsed,
+                                 state.cfg.height)
+        .height;
+}
+
+inline void bar_autohide_apply_geometry(WaylandState &state, bool autohide,
+                                        bool collapsed) {
+    BarGeometry g = bar_autohide_geometry(autohide, collapsed, state.cfg.height);
+    bar_autohide_set_surface_geometry(
+        state.layer_surface, state.surface, state.egl_window, state.width,
+        g.height, g.margin_top, static_cast<int32_t>(kPanelSideMargin),
+        static_cast<int32_t>(kPanelSideMargin), g.exclusive_zone,
+        state.output_scale.scale);
+}
+
+inline void bar_autohide_set_enabled(WaylandState &state, bool enabled) {
+    if (enabled == state.cfg.autohide)
+        return;
+    state.cfg.autohide = enabled;
+    state.autohide.hidden = false;
+    state.autohide.collapsed = enabled && state.autohide.collapsed;
+    state.autohide.opacity = state.autohide.collapsed ? 0.0f : 1.0f;
+    bar_autohide_apply_geometry(state, enabled, state.autohide.collapsed);
 }
 }
 
@@ -309,8 +344,10 @@ inline bool init_egl(WaylandState &state) {
 }
 
 inline void dispatch_pill_click(WaylandState &state) {
-    bar_detail::dispatch_pill_click(state.capsule, state.pointer,
-                                    state.surface);
+    PointerState p = state.pointer;
+    if (state.cfg.autohide)
+        p.y -= bar_detail::kBarTopMargin;
+    bar_detail::dispatch_pill_click(state.capsule, p, state.surface);
 }
 
 inline void update_clock(WaylandState &state) {
@@ -331,33 +368,43 @@ inline void bar_paint(WaylandState &state) {
                           current_panel_pill != PillId::None;
         if (want_shown == state.autohide.hidden) {
             state.autohide.hidden = !want_shown;
-            float target = want_shown ? static_cast<float>(state.cfg.height)
-                                      : static_cast<float>(kAutoHideStripPx);
+            if (want_shown && state.autohide.collapsed) {
+                state.autohide.collapsed = false;
+                bar_autohide_apply_geometry(state, true, false);
+            }
+            float target = want_shown ? 1.0f : 0.0f;
             float duration = want_shown ? kAutoHideRevealMs : kAutoHideHideMs;
             state.animations.animate(
-                state.autohide.height_px, target, duration,
+                state.autohide.opacity, target, duration,
                 Easing::EaseOutCubic,
-                [&state](float v) {
-                    state.autohide.height_px = v;
-                    bar_autohide_apply_surface_state(
-                        state.layer_surface, state.surface, state.egl_window,
-                        state.width, static_cast<int32_t>(v + 0.5f),
-                        kBarTopMargin, state.output_scale.scale);
+                [&state](float v) { state.autohide.opacity = v; },
+                [&state] {
+                    if (state.autohide.hidden && !state.autohide.collapsed) {
+                        state.autohide.collapsed = true;
+                        bar_autohide_apply_geometry(state, true, true);
+                    }
                 },
-                {}, kAutoHideAnimOwner);
+                kAutoHideAnimOwner);
         }
     }
-    float height = static_cast<float>(bar_current_height(state));
+    int32_t surface_height = bar_current_height(state);
+    float content_y_offset =
+        state.cfg.autohide ? static_cast<float>(kBarTopMargin) : 0.0f;
+    float height = static_cast<float>(state.cfg.height);
 
     eglMakeCurrent(state.egl_display, state.egl_surface, state.egl_surface,
                    state.egl_context);
-    state.renderer.begin_frame(state.width, static_cast<int32_t>(height),
+    state.renderer.begin_frame(state.width, surface_height,
                                state.output_scale.scale);
+    state.renderer.set_opacity(state.cfg.autohide ? state.autohide.opacity
+                                                  : 1.0f);
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 
     state.scene.rebuild();
     Node *root = &state.scene.root;
+    Node *content = node_add_group(root, 0.0f, content_y_offset,
+                                   static_cast<float>(state.width), height);
 
     const float *white = rgba(palette::text);
     float pill_bg[4] = {state.cfg.bg[0], state.cfg.bg[1], state.cfg.bg[2],
@@ -373,27 +420,29 @@ inline void bar_paint(WaylandState &state) {
     bool lingering =
         state.capsule.label_linger_pill != PillId::None &&
         std::chrono::steady_clock::now() < state.capsule.label_linger_until;
+    PointerState hit_pointer = state.pointer;
+    hit_pointer.y -= content_y_offset;
     PillId hovered = current_panel_pill != PillId::None ? current_panel_pill
                      : lingering ? state.capsule.label_linger_pill
-                                 : hit_test_pills(state.capsule, state.pointer,
+                                 : hit_test_pills(state.capsule, hit_pointer,
                                                   state.surface);
     if (hovered == PillId::None && state.volume_peek_active)
         hovered = PillId::Volume;
 
     float x = 0.0f;
     std::vector<Pill> power_pills = {power_pill(state)};
-    x = draw_pills(root, state.capsule, state.animations, x, height,
+    x = draw_pills(content, state.capsule, state.animations, x, height,
                    power_pills, white, pill_bg, hovered, current_panel_pill);
 
     int active_id = state.active_workspace_id();
     const std::vector<Workspace> &ws_list = state.workspaces();
-    x = draw_workspace_row(root, state.workspace_widget, state.animations, x,
-                           height, ws_list, active_id, pill_bg);
+    x = draw_workspace_row(content, state.workspace_widget, state.animations,
+                           x, height, ws_list, active_id, pill_bg);
 
-    draw_static_pill_row(root, x, height, {&state.dock_texture}, white,
+    draw_static_pill_row(content, x, height, {&state.dock_texture}, white,
                          pill_bg);
 
-    draw_clock_pill(root, height, state.width, state.clock_texture, white,
+    draw_clock_pill(content, height, state.width, state.clock_texture, white,
                     pill_bg);
 
     std::vector<Pill> control_center_pills = {control_center_pill(state)};
@@ -416,23 +465,23 @@ inline void bar_paint(WaylandState &state) {
     float stub_x = batt_x - (stub_w > 0 ? kCapsuleGap : 0.0f) - stub_w;
 
     if (stub_w > 0) {
-        draw_pills(root, state.capsule, state.animations, stub_x, height,
+        draw_pills(content, state.capsule, state.animations, stub_x, height,
                    right_stub_pills, white, pill_bg, hovered,
                    current_panel_pill);
     }
     if (batt_w > 0) {
-        draw_pills(root, state.capsule, state.animations, batt_x, height,
+        draw_pills(content, state.capsule, state.animations, batt_x, height,
                    battery_pills, white, pill_bg, hovered);
         const UpowerState &u = state.upower;
         if (u.present && !u.charging && !u.full && u.percent <= 10) {
             const Rect &r = state.capsule.pill_rects[pill_idx(PillId::Battery)];
-            add_rrect_node(root, r.x, r.y, r.w, r.h, metrics::radius_md, 0.0f,
-                           rgba(palette::critical_alpha15),
+            add_rrect_node(content, r.x, r.y, r.w, r.h, metrics::radius_md,
+                           0.0f, rgba(palette::critical_alpha15),
                            rgba(palette::critical_alpha15));
         }
     }
     if (cc_w > 0) {
-        draw_pills(root, state.capsule, state.animations, cc_x, height,
+        draw_pills(content, state.capsule, state.animations, cc_x, height,
                    control_center_pills, white, pill_bg, hovered);
     }
 
