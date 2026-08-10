@@ -129,7 +129,8 @@ constexpr float kLauncherListGap =
 inline int launcher_surface_height(int visible_rows) {
     float h = kLauncherPad * 2.0f + kLauncherSearchHeight;
     if (visible_rows > 0)
-        h += kLauncherListGap + visible_rows * kLauncherRowHeight;
+        h += kLauncherListGap + visible_rows * kLauncherRowHeight +
+             (visible_rows - 1) * kLauncherRowSpacing;
     return static_cast<int>(h);
 }
 
@@ -275,9 +276,13 @@ inline void launcher_paint(LauncherState &state) {
             outer, orx(mode_box_x), ory(list_top),
             kLauncherSurfaceWidth - 2 * kLauncherPad, list_h, true);
 
+        constexpr float kRowPitch = kLauncherRowHeight + kLauncherRowSpacing;
+        float row_bg_x = content_x - mode_box_x;
+        float row_bg_w = box_x + kLauncherSurfaceWidth - kLauncherPad - content_x;
+
         if (state.selected_index >= 0) {
             float highlight_target =
-                static_cast<float>(state.selected_index) * kLauncherRowHeight;
+                static_cast<float>(state.selected_index) * kRowPitch;
             if (state.highlight_offset_target < 0.0f) {
                 state.highlight_offset = highlight_target;
                 state.highlight_offset_target = highlight_target;
@@ -290,8 +295,7 @@ inline void launcher_paint(LauncherState &state) {
                     kLauncherHighlightOwner);
             }
 
-            float scroll_target =
-                static_cast<float>(first) * kLauncherRowHeight;
+            float scroll_target = static_cast<float>(first) * kRowPitch;
             if (state.scroll_offset_target < 0.0f) {
                 state.scroll_offset = scroll_target;
                 state.scroll_offset_target = scroll_target;
@@ -310,14 +314,18 @@ inline void launcher_paint(LauncherState &state) {
 
         for (int i = 0; i < static_cast<int>(rows.size()); ++i) {
             bool is_selected = i == state.selected_index;
-            float y = static_cast<float>(i) * kLauncherRowHeight -
-                      state.scroll_offset;
+            float y = static_cast<float>(i) * kRowPitch - state.scroll_offset;
 
             Node *rowg = node_add_group(
                 list_clip, 0, y, kLauncherSurfaceWidth - 2 * kLauncherPad,
                 kLauncherRowHeight, true);
             auto lrx = [&](float v) { return v - mode_box_x; };
             auto lry = [&](float v) { return v - y; };
+
+            constexpr float kRowTransparent[4] = {0, 0, 0, 0};
+            node_add_rrect(rowg, row_bg_x, 0, row_bg_w, kLauncherRowHeight,
+                           metrics::radius_sm, 0.0f,
+                           rgba(palette::text_alpha03), kRowTransparent);
 
             float rowx = content_x + kLauncherPad;
             if (rows[i].icon_tex) {
@@ -365,7 +373,7 @@ inline void launcher_paint(LauncherState &state) {
             const Texture &bullet = state.bullet_tex[slot];
             if (!bullet.id)
                 continue;
-            float slot_y = static_cast<float>(slot) * kLauncherRowHeight;
+            float slot_y = static_cast<float>(slot) * kRowPitch;
             node_add_texture_rect(
                 list_clip, (mode_box_w - kLauncherBulletSize) / 2.0f,
                 slot_y + (kLauncherRowHeight - kLauncherBulletSize) / 2.0f,

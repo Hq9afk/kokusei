@@ -51,6 +51,10 @@ enum class PanelClickKind {
     SliderDrag,
     MuteToggle,
     DeviceSelect,
+    TrayActivate,
+    TrayOpenMenu,
+    TrayMenuBack,
+    TrayMenuEntry,
 };
 struct PanelClickRegion {
     PanelClickKind kind;

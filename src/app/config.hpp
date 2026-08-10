@@ -17,6 +17,7 @@ struct Config {
     float bg[4] = {palette::overlay.r, palette::overlay.g, palette::overlay.b,
                    palette::overlay.a};
     std::string wallpaper_path = KOKUSEI_DEFAULT_WALLPAPER;
+    bool autohide = false;
     uint32_t idle_timeout_seconds = 300;
     std::string idle_command;
     std::string idle_resume_command;
@@ -46,6 +47,7 @@ inline Config load_config() {
     try {
         toml::table tbl = toml::parse_file(path);
         cfg.height = tbl["bar"]["height"].value_or(cfg.height);
+        cfg.autohide = tbl["bar"]["autohide"].value_or(cfg.autohide);
         cfg.bg[0] = tbl["bar"]["bg_r"].value_or(cfg.bg[0]);
         cfg.bg[1] = tbl["bar"]["bg_g"].value_or(cfg.bg[1]);
         cfg.bg[2] = tbl["bar"]["bg_b"].value_or(cfg.bg[2]);

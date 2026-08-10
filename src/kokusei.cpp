@@ -54,6 +54,12 @@ int main(int argc, char **argv) {
 
     WaylandState state;
     state.cfg = load_config();
+    if (state.cfg.autohide) {
+        state.autohide.hidden = true;
+        state.autohide.height_px = static_cast<float>(bar_detail::kAutoHideStripPx);
+    } else {
+        state.autohide.height_px = static_cast<float>(state.cfg.height);
+    }
     state.config_watch_fd = config_watch_init(config_path());
     DeferredCall::init();
 
@@ -72,18 +78,18 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    constexpr int32_t kBarTopMargin = 10;
     LayerSurfaceConfig bar_cfg{
         .layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP,
         .name_space = "kokusei",
         .anchor = ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
                   ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
                   ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT,
-        .height = state.cfg.height,
-        .margin_top = kBarTopMargin,
+        .height = bar_detail::bar_current_height(state),
+        .margin_top = bar_detail::kBarTopMargin,
         .margin_right = static_cast<int32_t>(kPanelSideMargin),
         .margin_left = static_cast<int32_t>(kPanelSideMargin),
-        .exclusive_zone = state.cfg.height + kBarTopMargin,
+        .exclusive_zone =
+            bar_detail::bar_current_height(state) + bar_detail::kBarTopMargin,
     };
     state.layer_surface =
         layer_surface_create(state.surface, state.compositor, state.layer_shell,
@@ -91,7 +97,8 @@ int main(int argc, char **argv) {
     state.output_scale.on_change = [&state](int32_t scale) {
         if (state.egl_window)
             wl_egl_window_resize(state.egl_window, state.width * scale,
-                                 state.cfg.height * scale, 0, 0);
+                                 bar_detail::bar_current_height(state) * scale,
+                                 0, 0);
         if (state.frame_clock.surface)
             request_frame(state.frame_clock);
     };
@@ -140,6 +147,16 @@ int main(int argc, char **argv) {
     if (!want_volume_panel)
         klog("volume_panel: failed to create layer surface");
 
+    bool want_tray_panel = tray_panel_create_surface(
+        state.tray_panel, state.compositor, state.layer_shell);
+    if (!want_tray_panel)
+        klog("tray_panel: failed to create layer surface");
+
+    bool want_tray_menu = tray_menu_create_surface(
+        state.tray_menu, state.compositor, state.layer_shell);
+    if (!want_tray_menu)
+        klog("tray_menu: failed to create layer surface");
+
     while (state.running &&
            !(state.configured &&
              (!want_wallpaper || state.wallpaper.configured) &&
@@ -149,7 +166,9 @@ int main(int argc, char **argv) {
              (!want_logout || state.logout.base.configured) &&
              (!want_network_panel || state.network_panel.base.configured) &&
              (!want_bluetooth_panel || state.bluetooth_panel.base.configured) &&
-             (!want_volume_panel || state.volume_panel.base.configured))) {
+             (!want_volume_panel || state.volume_panel.base.configured) &&
+             (!want_tray_panel || state.tray_panel.base.configured) &&
+             (!want_tray_menu || state.tray_menu.base.configured))) {
         wl_display_dispatch(state.display);
     }
     if (!state.configured)
@@ -281,6 +300,31 @@ int main(int argc, char **argv) {
                            state.egl_surface, state.egl_context);
         }
     }
+    if (want_tray_panel) {
+        if (!tray_panel_init_egl(state.tray_panel, state.renderer, state.tray,
+                                 state.egl_display, state.egl_config,
+                                 state.egl_context)) {
+            klog("tray_panel: EGL surface init failed");
+            want_tray_panel = false;
+        } else {
+
+            tray_panel_request_frame(state.tray_panel, 0.0f, 0.0f, 0.0f);
+            eglMakeCurrent(state.egl_display, state.egl_surface,
+                           state.egl_surface, state.egl_context);
+        }
+    }
+    if (want_tray_menu) {
+        if (!tray_menu_init_egl(state.tray_menu, state.renderer, state.tray,
+                                state.egl_display, state.egl_config,
+                                state.egl_context)) {
+            klog("tray_menu: EGL surface init failed");
+            want_tray_menu = false;
+        } else {
+            tray_menu_request_frame(state.tray_menu);
+            eglMakeCurrent(state.egl_display, state.egl_surface,
+                           state.egl_surface, state.egl_context);
+        }
+    }
     brightness_init(state.brightness);
     state.brightness_watch_fd = brightness_watch_init(state.brightness);
     pipewire_init(state.pipewire);
@@ -293,6 +337,9 @@ int main(int argc, char **argv) {
         state.upower.bus && bluetooth_init(state.bluetooth, *state.upower.bus);
     if (!want_bluetooth)
         klog("bluetooth: no system bus available - bluetooth info unavailable");
+    bool want_tray = tray_init(state.tray);
+    if (!want_tray)
+        klog("tray: no session bus available - system tray unavailable");
 
     update_clock(state);
     init_stub_widgets(state);
@@ -349,7 +396,7 @@ int main(int argc, char **argv) {
                 network_panel_request_frame(
                     state.network_panel,
                     bar_detail::pill_center_x(state.capsule, PillId::Wifi),
-                    static_cast<float>(state.cfg.height), kBarTopMargin);
+                    static_cast<float>(state.cfg.height), bar_detail::kBarTopMargin);
             }
             eglMakeCurrent(state.egl_display, state.egl_surface,
                            state.egl_surface, state.egl_context);
@@ -367,7 +414,7 @@ int main(int argc, char **argv) {
                 bluetooth_panel_request_frame(
                     state.bluetooth_panel,
                     bar_detail::pill_center_x(state.capsule, PillId::Bluetooth),
-                    static_cast<float>(state.cfg.height), kBarTopMargin);
+                    static_cast<float>(state.cfg.height), bar_detail::kBarTopMargin);
             }
             eglMakeCurrent(state.egl_display, state.egl_surface,
                            state.egl_surface, state.egl_context);
@@ -379,8 +426,22 @@ int main(int argc, char **argv) {
                 volume_panel_request_frame(
                     state.volume_panel,
                     bar_detail::pill_center_x(state.capsule, PillId::Volume),
-                    static_cast<float>(state.cfg.height), kBarTopMargin);
+                    static_cast<float>(state.cfg.height), bar_detail::kBarTopMargin);
             }
+            eglMakeCurrent(state.egl_display, state.egl_surface,
+                           state.egl_surface, state.egl_context);
+        };
+
+        auto tray_dispatch = [&] {
+            bar_request_frame(state);
+            if (want_tray_panel) {
+                tray_panel_request_frame(
+                    state.tray_panel,
+                    bar_detail::pill_center_x(state.capsule, PillId::Tray),
+                    static_cast<float>(state.cfg.height), bar_detail::kBarTopMargin);
+            }
+            if (want_tray_menu)
+                tray_menu_request_frame(state.tray_menu);
             eglMakeCurrent(state.egl_display, state.egl_surface,
                            state.egl_surface, state.egl_context);
         };
@@ -508,6 +569,18 @@ int main(int argc, char **argv) {
             }));
         }
 
+        if (state.tray.bus != nullptr) {
+            fn_sources.push_back(sdbus_poll_source(*state.tray.bus, [&] {
+                int budget = 32;
+                while (budget-- > 0 && state.tray.bus->processPendingEvent()) {
+                }
+                if (state.tray.dirty) {
+                    state.tray.dirty = false;
+                    tray_dispatch();
+                }
+            }));
+        }
+
         if (state.network.device_proc.wake_fd >= 0)
             fn_sources.emplace_back(
                 state.network.device_proc.wake_fd, POLLIN, [&] {
@@ -606,17 +679,25 @@ int main(int argc, char **argv) {
                     wallpaper_load_async(state.wallpaper,
                                          new_cfg.wallpaper_path);
                 }
-                if (new_cfg.height != state.cfg.height) {
+                bool autohide_changed = new_cfg.autohide != state.cfg.autohide;
+                bool height_changed = new_cfg.height != state.cfg.height;
+                if (autohide_changed && !new_cfg.autohide)
+                    state.autohide.hidden = false;
+                bool currently_shown =
+                    !new_cfg.autohide || !state.autohide.hidden;
+                if ((height_changed || autohide_changed) && currently_shown) {
                     zwlr_layer_surface_v1_set_size(state.layer_surface, 0,
                                                    new_cfg.height);
                     zwlr_layer_surface_v1_set_exclusive_zone(
-                        state.layer_surface, new_cfg.height + kBarTopMargin);
+                        state.layer_surface,
+                        new_cfg.height + bar_detail::kBarTopMargin);
                     wl_surface_commit(state.surface);
                     if (state.egl_window)
                         wl_egl_window_resize(
                             state.egl_window,
                             state.width * state.output_scale.scale,
                             new_cfg.height * state.output_scale.scale, 0, 0);
+                    state.autohide.height_px = static_cast<float>(new_cfg.height);
                 }
                 state.cfg = new_cfg;
                 bar_request_frame(state);
@@ -724,6 +805,9 @@ int main(int argc, char **argv) {
         }
 
         for (const PointerClick &click : pointer_drain_clicks(state.pointer)) {
+            if (click.button != BTN_LEFT &&
+                !(want_tray_panel && click.surface == state.tray_panel.base.surface))
+                continue;
             if (!click.pressed) {
                 if (want_volume_panel && state.volume_panel.dragging) {
                     state.volume_panel.dragging.reset();
@@ -731,7 +815,28 @@ int main(int argc, char **argv) {
                 }
                 continue;
             }
-            if (want_logout && state.logout.base.open &&
+            if (want_tray_menu && state.tray_menu.base.open &&
+                click.surface != state.tray_menu.base.surface &&
+                click.surface != state.tray_panel.base.surface) {
+                tray_menu_close(state.tray_menu);
+                tray_menu_request_frame(state.tray_menu);
+                eglMakeCurrent(state.egl_display, state.egl_surface,
+                               state.egl_surface, state.egl_context);
+            }
+            if (want_tray_panel && state.tray_panel.base.open &&
+                click.surface == state.tray_panel.base.surface) {
+                tray_panel_handle_click(state.tray_panel, state.tray,
+                                        state.tray_menu, state.pointer.x,
+                                        state.pointer.y, click.button);
+                tray_dispatch();
+            } else if (want_tray_menu && state.tray_menu.base.open &&
+                       click.surface == state.tray_menu.base.surface) {
+                tray_menu_handle_click(state.tray_menu, state.tray,
+                                       state.pointer.x, state.pointer.y);
+                tray_menu_request_frame(state.tray_menu);
+                eglMakeCurrent(state.egl_display, state.egl_surface,
+                               state.egl_surface, state.egl_context);
+            } else if (want_logout && state.logout.base.open &&
                 click.surface == state.logout.base.surface) {
                 logout_handle_click(state.logout, state.pointer.x,
                                     state.pointer.y);
@@ -770,6 +875,8 @@ int main(int argc, char **argv) {
                     bluetooth_dispatch();
                 if (want_volume_panel)
                     volume_dispatch();
+                if (want_tray_panel)
+                    tray_dispatch();
                 if (want_logout) {
                     logout_request_frame(state.logout);
                     eglMakeCurrent(state.egl_display, state.egl_surface,

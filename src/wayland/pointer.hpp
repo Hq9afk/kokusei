@@ -8,6 +8,7 @@
 struct PointerClick {
     wl_surface *surface;
     bool pressed;
+    uint32_t button = BTN_LEFT;
 };
 
 struct PointerScroll {
@@ -54,11 +55,11 @@ inline void motion_cb(void *data, wl_pointer *, uint32_t, wl_fixed_t sx,
 inline void button_cb(void *data, wl_pointer *, uint32_t, uint32_t,
                       uint32_t button, uint32_t button_state) {
     auto *state = static_cast<PointerState *>(data);
-    if (button != BTN_LEFT)
+    if (button != BTN_LEFT && button != BTN_RIGHT)
         return;
     state->pending_clicks.push_back(
         {state->focused_surface,
-         button_state == WL_POINTER_BUTTON_STATE_PRESSED});
+         button_state == WL_POINTER_BUTTON_STATE_PRESSED, button});
 }
 inline void axis_cb(void *data, wl_pointer *, uint32_t, uint32_t axis,
                     wl_fixed_t value) {

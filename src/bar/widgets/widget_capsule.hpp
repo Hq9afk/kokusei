@@ -12,6 +12,7 @@
 #include "../bar_config.hpp"
 #include "../panels/bluetooth_panel/bluetooth_panel_state.hpp"
 #include "../panels/network_panel/network_panel_state.hpp"
+#include "../panels/tray_panel/tray_panel_state.hpp"
 #include "../panels/volume_panel/volume_panel_state.hpp"
 #include <wayland-client.h>
 
@@ -158,6 +159,7 @@ inline PillId hit_test_pills(const WidgetCapsuleState &capsule,
 inline PillId panel_pill(const NetworkPanelState &network_panel,
                          const BluetoothPanelState &bluetooth_panel,
                          const VolumePanelState &volume_panel,
+                         const TrayPanelState &tray_panel,
                          const LogoutState &logout) {
     if (network_panel.base.open)
         return PillId::Wifi;
@@ -165,6 +167,8 @@ inline PillId panel_pill(const NetworkPanelState &network_panel,
         return PillId::Bluetooth;
     if (volume_panel.base.open)
         return PillId::Volume;
+    if (tray_panel.base.open)
+        return PillId::Tray;
     if (logout.base.open && logout.opened_by_widget)
         return PillId::Power;
     return PillId::None;

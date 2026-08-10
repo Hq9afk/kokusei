@@ -35,8 +35,10 @@
 #include "../wayland/pointer.hpp"
 #include "../wayland/shojiwm.hpp"
 #include "../wayland/workspace.hpp"
+#include "bar_autohide.hpp"
 #include "panels/bluetooth_panel/bluetooth_panel.hpp"
 #include "panels/network_panel/network_panel.hpp"
+#include "panels/tray_panel/tray_panel.hpp"
 #include "panels/volume_panel/volume_panel.hpp"
 #include "widgets/clock_widget.hpp"
 #include "widgets/widget_capsule.hpp"
@@ -97,6 +99,7 @@ struct WaylandState {
 
     WidgetCapsuleState capsule;
     WorkspaceWidgetState workspace_widget;
+    AutoHideState autohide;
 
     AnimationManager animations;
 
@@ -111,6 +114,9 @@ struct WaylandState {
     BluetoothState bluetooth;
     BluetoothPanelState bluetooth_panel;
     VolumePanelState volume_panel;
+    TrayState tray;
+    TrayPanelState tray_panel;
+    TrayMenuState tray_menu;
     KeyboardState keyboard;
     PointerState pointer;
     SeatCapabilityState seat_caps;
@@ -158,6 +164,16 @@ inline void close_other_overlays(WaylandState &state, PillId keep) {
         bluetooth_panel_toggle(state.bluetooth_panel, state.bluetooth);
     if (keep != PillId::Volume && state.volume_panel.base.open)
         volume_panel_toggle(state.volume_panel);
+    if (keep != PillId::Tray && state.tray_panel.base.open)
+        tray_panel_toggle(state.tray_panel);
+    if (keep != PillId::Tray && state.tray_menu.base.open)
+        tray_menu_close(state.tray_menu);
+}
+
+inline int32_t bar_current_height(const WaylandState &state) {
+    if (!state.cfg.autohide)
+        return state.cfg.height;
+    return static_cast<int32_t>(state.autohide.height_px + 0.5f);
 }
 }
 
@@ -179,7 +195,8 @@ inline void layer_surface_configure(void *data,
     if (state->egl_window) {
         int32_t scale = state->output_scale.scale;
         wl_egl_window_resize(state->egl_window, state->width * scale,
-                             state->cfg.height * scale, 0, 0);
+                             bar_detail::bar_current_height(*state) * scale, 0,
+                             0);
     }
     state->configured = true;
 }
@@ -269,8 +286,9 @@ inline bool init_egl(WaylandState &state) {
         return false;
 
     int32_t scale = state.output_scale.scale;
-    state.egl_window = wl_egl_window_create(state.surface, state.width * scale,
-                                            state.cfg.height * scale);
+    state.egl_window = wl_egl_window_create(
+        state.surface, state.width * scale,
+        bar_detail::bar_current_height(state) * scale);
     state.egl_surface = eglCreateWindowSurface(
         state.egl_display, state.egl_config,
         reinterpret_cast<EGLNativeWindowType>(state.egl_window), nullptr);
@@ -304,9 +322,36 @@ inline void bar_paint(WaylandState &state) {
 
     state.animations.tick(std::chrono::steady_clock::now());
 
+    PillId current_panel_pill =
+        panel_pill(state.network_panel, state.bluetooth_panel,
+                   state.volume_panel, state.tray_panel, state.logout);
+
+    if (state.cfg.autohide) {
+        bool want_shown = state.pointer.focused_surface == state.surface ||
+                          current_panel_pill != PillId::None;
+        if (want_shown == state.autohide.hidden) {
+            state.autohide.hidden = !want_shown;
+            float target = want_shown ? static_cast<float>(state.cfg.height)
+                                      : static_cast<float>(kAutoHideStripPx);
+            float duration = want_shown ? kAutoHideRevealMs : kAutoHideHideMs;
+            state.animations.animate(
+                state.autohide.height_px, target, duration,
+                Easing::EaseOutCubic,
+                [&state](float v) {
+                    state.autohide.height_px = v;
+                    bar_autohide_apply_surface_state(
+                        state.layer_surface, state.surface, state.egl_window,
+                        state.width, static_cast<int32_t>(v + 0.5f),
+                        kBarTopMargin, state.output_scale.scale);
+                },
+                {}, kAutoHideAnimOwner);
+        }
+    }
+    float height = static_cast<float>(bar_current_height(state));
+
     eglMakeCurrent(state.egl_display, state.egl_surface, state.egl_surface,
                    state.egl_context);
-    state.renderer.begin_frame(state.width, state.cfg.height,
+    state.renderer.begin_frame(state.width, static_cast<int32_t>(height),
                                state.output_scale.scale);
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -317,11 +362,7 @@ inline void bar_paint(WaylandState &state) {
     const float *white = rgba(palette::text);
     float pill_bg[4] = {state.cfg.bg[0], state.cfg.bg[1], state.cfg.bg[2],
                         state.cfg.bg[3]};
-    float height = static_cast<float>(state.cfg.height);
 
-    PillId current_panel_pill =
-        panel_pill(state.network_panel, state.bluetooth_panel,
-                   state.volume_panel, state.logout);
     if (current_panel_pill == PillId::None &&
         state.capsule.panel_pill_prev != PillId::None) {
         state.capsule.label_linger_pill = state.capsule.panel_pill_prev;
