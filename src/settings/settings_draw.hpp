@@ -6,6 +6,7 @@
 
 namespace settings_detail {
 
+using panel_chrome_detail::cached_icon;
 using panel_chrome_detail::cached_text;
 
 inline void draw_field_row(SettingsState &state, Node *parent, int32_t scale,
@@ -66,28 +67,51 @@ inline void draw_toggle_row(SettingsState &state, Node *parent, int32_t scale,
          ""});
 }
 
-inline void draw_tab_bar(SettingsState &state, Node *parent, int32_t scale,
-                         float x, float y, float w) {
-    static const char *labels[kSettingsTabCount] = {"Bar", "Wallpaper", "Idle"};
-    float tab_w =
-        (w - kSettingsTabGap * (kSettingsTabCount - 1)) / kSettingsTabCount;
-    float tx = x;
+struct SettingsTabDef {
+    const char *label;
+    const char *icon;
+};
+
+inline void draw_nav_rail(SettingsState &state, Node *parent, int32_t scale,
+                          float x, float y, float w) {
+    static const SettingsTabDef tabs[kSettingsTabCount] = {
+        {"Bar", icon::layout_navbar},
+        {"Wallpaper", icon::wallpaper},
+        {"Idle", icon::moon_stars},
+    };
+    float row_y = y + kSettingsRailPadding;
     for (int i = 0; i < kSettingsTabCount; ++i) {
         bool active = static_cast<int>(state.active_tab) == i;
-        node_add_rrect(parent, tx, y, tab_w, kSettingsTabBarHeight,
+        const float *row_color =
+            active ? rgba(palette::accent) : rgba(palette::text_dim);
+        node_add_rrect(parent, x, row_y, w, kSettingsRailItemHeight,
                        metrics::radius_sm, 0.0f,
                        active ? rgba(palette::accent_alpha20) : kPanelNoBorder,
                        kPanelNoBorder);
-        const Texture *tex = cached_text(state.tcache, labels[i], scale);
-        if (tex)
+
+        float icon_x = x + kSettingsRailPadding;
+        const Texture *icon_tex =
+            cached_icon(state.tcache, tabs[i].icon, scale);
+        if (icon_tex)
             node_add_texture(
-                parent, tx + (tab_w - tex->width) / 2.0f,
-                y + (kSettingsTabBarHeight - tex->height) / 2.0f, *tex,
-                active ? rgba(palette::accent) : rgba(palette::text_dim));
+                parent, icon_x,
+                row_y + (kSettingsRailItemHeight - icon_tex->height) / 2.0f,
+                *icon_tex, row_color);
+
+        float label_x = icon_x + (icon_tex ? icon_tex->width : 0) +
+                        kSettingsRailIconLabelGap;
+        const Texture *label_tex =
+            cached_text(state.tcache, tabs[i].label, scale);
+        if (label_tex)
+            node_add_texture(
+                parent, label_x,
+                row_y + (kSettingsRailItemHeight - label_tex->height) / 2.0f,
+                *label_tex, row_color);
+
         state.click_regions.push_back({PanelClickKind::TabSelect,
-                                       {tx, y, tab_w, kSettingsTabBarHeight},
+                                       {x, row_y, w, kSettingsRailItemHeight},
                                        std::to_string(i)});
-        tx += tab_w + kSettingsTabGap;
+        row_y += kSettingsRailItemHeight + kSettingsRailItemGap;
     }
 }
 
@@ -117,7 +141,8 @@ inline void settings_paint(SettingsState &state, const Config &cfg) {
         float panel_h =
             std::min(static_cast<float>(state.base.height) - 80.0f, 680.0f);
         float panel_x = (static_cast<float>(state.base.width) - panel_w) / 2.0f;
-        float panel_y = (static_cast<float>(state.base.height) - panel_h) / 2.0f;
+        float panel_y =
+            (static_cast<float>(state.base.height) - panel_h) / 2.0f;
         state.panel_rect = {panel_x, panel_y, panel_w, panel_h};
 
         panel_draw_box(root, panel_x, panel_y, panel_w, panel_h,
@@ -132,11 +157,16 @@ inline void settings_paint(SettingsState &state, const Config &cfg) {
                       rgba(palette::text_alpha10));
         content_y += 1.0f + kPanelContentGap;
 
-        draw_tab_bar(state, root, scale, panel_x + kPanelPadding, content_y,
-                     panel_w - kPanelPadding * 2.0f);
-        content_y += kSettingsTabBarHeight + kSettingsSectionTopGap;
+        float rail_x = panel_x + kPanelPadding;
+        float rail_h = panel_y + panel_h - kPanelPadding - content_y;
+        draw_nav_rail(state, root, scale, rail_x, content_y,
+                      kSettingsRailWidth);
 
-        float label_x = panel_x + kPanelPadding;
+        float divider_x = rail_x + kSettingsRailWidth + kSettingsRailDividerGap;
+        node_add_rect(root, divider_x, content_y, 1.0f, rail_h,
+                      rgba(palette::text_alpha10));
+
+        float label_x = divider_x + kSettingsRailDividerGap;
         float field_x = label_x + kSettingsLabelWidth;
         float y = content_y;
 
@@ -190,5 +220,7 @@ inline void settings_paint(SettingsState &state, const Config &cfg) {
     }
 
     state.scene.draw(*state.renderer);
+    if (state.base.animations.hasActive())
+        overlay_panel_request_frame(state.base);
     eglSwapBuffers(state.base.egl_display, state.base.egl_surface);
 }
