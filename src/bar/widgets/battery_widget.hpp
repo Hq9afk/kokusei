@@ -44,14 +44,14 @@ inline std::string battery_label(const UpowerState &u) {
     return std::to_string(u.percent) + "%";
 }
 
-inline Pill battery_pill(WaylandState &state) {
-    const char *glyph = battery_icon_glyph(state.upower);
-    if (glyph != state.battery_icon_glyph) {
-        state.battery_icon_texture = make_icon_texture(glyph);
-        state.battery_icon_glyph = glyph;
+inline Pill battery_pill(MonitorOutput &mon) {
+    const UpowerState &u = mon.app->upower;
+    const char *glyph = battery_icon_glyph(u);
+    if (glyph != mon.battery_icon_glyph) {
+        mon.battery_icon_texture = make_icon_texture(glyph);
+        mon.battery_icon_glyph = glyph;
     }
-    return Pill{PillId::Battery, &state.battery_icon_texture,
-                battery_label(state.upower),
-                battery_border_color(state.upower)};
+    return Pill{PillId::Battery, &mon.battery_icon_texture, battery_label(u),
+                battery_border_color(u)};
 }
-}
+} // namespace bar_detail

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "notification_config.hpp"
+#include "../core/log.hpp"
 #include "../render/animation/animation.hpp"
 #include "../render/node.hpp"
 #include "../render/palette.hpp"
@@ -11,7 +11,7 @@
 #include "../wayland/frame_clock.hpp"
 #include "../wayland/layer_surface.hpp"
 #include "../wayland/output_scale.hpp"
-#include "../core/log.hpp"
+#include "notification_config.hpp"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
@@ -62,9 +62,10 @@ struct NotificationState {
     AnimationManager animations;
 };
 
-inline void notification_layer_surface_configure(
-    void *data, zwlr_layer_surface_v1 *layer_surface, uint32_t serial,
-    uint32_t , uint32_t ) {
+inline void
+notification_layer_surface_configure(void *data,
+                                     zwlr_layer_surface_v1 *layer_surface,
+                                     uint32_t serial, uint32_t, uint32_t) {
     auto *state = static_cast<NotificationState *>(data);
     zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
     state->configured = true;
@@ -77,11 +78,12 @@ inline constexpr zwlr_layer_surface_v1_listener
     notification_layer_surface_listener = {
         .configure = notification_layer_surface_configure,
         .closed = notification_layer_surface_closed,
-    };
+};
 
 inline bool notification_create_surface(NotificationState &state,
                                         wl_compositor *compositor,
-                                        zwlr_layer_shell_v1 *layer_shell) {
+                                        zwlr_layer_shell_v1 *layer_shell,
+                                        wl_output *output = nullptr) {
     LayerSurfaceConfig cfg{
         .layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP,
         .name_space = "kokusei-notification",
@@ -93,9 +95,9 @@ inline bool notification_create_surface(NotificationState &state,
         .margin_bottom = 10,
         .empty_input_region = true,
     };
-    state.layer_surface =
-        layer_surface_create(state.surface, compositor, layer_shell, cfg,
-                             &notification_layer_surface_listener, &state);
+    state.layer_surface = layer_surface_create(
+        state.surface, compositor, layer_shell, cfg,
+        &notification_layer_surface_listener, &state, output);
     if (!state.layer_surface)
         return false;
     state.output_scale.on_change = [&state](int32_t scale) {
@@ -114,8 +116,8 @@ inline bool notification_create_surface(NotificationState &state,
 namespace notification_detail {
 
 inline PangoFontDescription *font_app_name() {
-    static PangoFontDescription *d = pango_font_description_from_string(
-        "ComicShannsMono Nerd Font Bold 13");
+    static PangoFontDescription *d =
+        pango_font_description_from_string("ComicShannsMono Nerd Font Bold 13");
     return d;
 }
 
@@ -149,46 +151,44 @@ inline float texture_height(const Texture &tex) {
                   : 0.0f;
 }
 
-}
+} // namespace notification_detail
 
 inline float notification_entry_height(const NotificationEntry &entry) {
-    float content_h = std::max(
-        kNotificationUrgencyDotSize,
-        notification_detail::texture_height(entry.app_name_texture));
+    float content_h =
+        std::max(kNotificationUrgencyDotSize,
+                 notification_detail::texture_height(entry.app_name_texture));
     if (entry.summary_texture.id)
         content_h += kNotificationContentSpacing +
-                    notification_detail::texture_height(entry.summary_texture);
+                     notification_detail::texture_height(entry.summary_texture);
     if (entry.body_texture.id)
         content_h += kNotificationContentSpacing +
-                    notification_detail::texture_height(entry.body_texture);
+                     notification_detail::texture_height(entry.body_texture);
     return content_h + kNotificationCardPadding * 2.0f;
 }
 
 inline void notification_apply_content(NotificationEntry &entry,
                                        const std::string &app_name,
                                        const std::string &summary,
-                                       const std::string &body,
-                                       uint8_t urgency,
+                                       const std::string &body, uint8_t urgency,
                                        int32_t expire_timeout_ms,
                                        int32_t scale) {
     entry.urgency = urgency;
-    entry.timeout_ms = notification_detail::resolve_timeout_ms(expire_timeout_ms);
+    entry.timeout_ms =
+        notification_detail::resolve_timeout_ms(expire_timeout_ms);
     entry.expires_at = std::chrono::steady_clock::now() +
                        std::chrono::milliseconds(entry.timeout_ms);
 
     int content_width = kNotificationSurfaceWidth -
                         static_cast<int>(kNotificationCardPadding * 2.0f);
-    RasterizedText app_name_text =
-        rasterize_text_with(app_name.empty() ? "Notification" : app_name,
-                            notification_detail::font_app_name(), scale,
-                            content_width);
+    RasterizedText app_name_text = rasterize_text_with(
+        app_name.empty() ? "Notification" : app_name,
+        notification_detail::font_app_name(), scale, content_width);
     entry.app_name_texture = make_texture_from_raster(app_name_text);
 
     entry.summary_texture = Texture{};
     if (!summary.empty()) {
-        RasterizedText summary_text =
-            rasterize_text_with(summary, notification_detail::font_summary(),
-                                scale, content_width);
+        RasterizedText summary_text = rasterize_text_with(
+            summary, notification_detail::font_summary(), scale, content_width);
         entry.summary_texture = make_texture_from_raster(summary_text);
     }
 
@@ -216,12 +216,12 @@ inline uint64_t exit_owner(uint32_t id) {
     return (static_cast<uint64_t>(id) << 2) | 2;
 }
 
-}
+} // namespace notification_detail
 
 inline void notification_start_exit(NotificationState &state, uint32_t id) {
-    auto it = std::find_if(
-        state.entries.begin(), state.entries.end(),
-        [id](const NotificationEntry &e) { return e.id == id; });
+    auto it =
+        std::find_if(state.entries.begin(), state.entries.end(),
+                     [id](const NotificationEntry &e) { return e.id == id; });
     if (it == state.entries.end() || it->exiting)
         return;
     it->exiting = true;
@@ -250,9 +250,9 @@ inline void notification_start_exit(NotificationState &state, uint32_t id) {
 
 inline void notification_paint(NotificationState &state);
 
-inline bool notification_init_egl(NotificationState &state,
-                                  Renderer &renderer, EGLDisplay display,
-                                  EGLConfig config, EGLContext context) {
+inline bool notification_init_egl(NotificationState &state, Renderer &renderer,
+                                  EGLDisplay display, EGLConfig config,
+                                  EGLContext context) {
     state.egl_display = display;
     state.egl_context = context;
     state.renderer = &renderer;
@@ -265,8 +265,7 @@ inline bool notification_init_egl(NotificationState &state,
         reinterpret_cast<EGLNativeWindowType>(state.egl_window), nullptr);
     if (state.egl_surface == EGL_NO_SURFACE)
         return false;
-    if (!eglMakeCurrent(display, state.egl_surface, state.egl_surface,
-                        context))
+    if (!eglMakeCurrent(display, state.egl_surface, state.egl_surface, context))
         return false;
     state.frame_clock.surface = state.surface;
     state.frame_clock.draw = [&state] { notification_paint(state); };
@@ -294,8 +293,8 @@ inline void notification_push(NotificationState &state,
                               const std::string &app_name,
                               const std::string &summary,
                               const std::string &body,
-                              int32_t expire_timeout_ms = -1,
-                              uint32_t id = 0, uint8_t urgency = 1) {
+                              int32_t expire_timeout_ms = -1, uint32_t id = 0,
+                              uint8_t urgency = 1) {
     if (id == 0)
         id = state.next_id++;
     else if (id >= state.next_id)
@@ -340,13 +339,12 @@ inline bool notification_init(NotificationState &state) {
         state.object
             ->addVTable(
                 sdbus::registerMethod("Notify").implementedAs(
-                    [&state](
-                        const std::string &app_name, uint32_t replaces_id,
-                        const std::string & ,
-                        const std::string &summary, const std::string &body,
-                        const std::vector<std::string> & ,
-                        const std::map<std::string, sdbus::Variant> &hints,
-                        int32_t expire_timeout) -> uint32_t {
+                    [&state](const std::string &app_name, uint32_t replaces_id,
+                             const std::string &, const std::string &summary,
+                             const std::string &body,
+                             const std::vector<std::string> &,
+                             const std::map<std::string, sdbus::Variant> &hints,
+                             int32_t expire_timeout) -> uint32_t {
                         uint8_t urgency = 1;
                         auto hint_it = hints.find("urgency");
                         if (hint_it != hints.end()) {

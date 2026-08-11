@@ -181,13 +181,14 @@ inline void draw_slider(Node *clip, std::vector<PanelClickRegion> &regions,
     regions.push_back({PanelClickKind::SliderDrag, rect_absolute, tag});
 }
 
-}
+} // namespace volume_panel_detail
 
 inline bool volume_panel_create_surface(VolumePanelState &state,
                                         wl_compositor *compositor,
-                                        zwlr_layer_shell_v1 *layer_shell) {
+                                        zwlr_layer_shell_v1 *layer_shell,
+                                        wl_output *output = nullptr) {
     return overlay_panel_create_surface(state.base, compositor, layer_shell,
-                                        "kokusei-volume-panel");
+                                        "kokusei-volume-panel", output);
 }
 
 inline void volume_panel_paint(VolumePanelState &state, PipewireState &pw,
@@ -256,7 +257,7 @@ inline uint32_t resolve_tag_id(const PipewireState &pw,
     return 0;
 }
 
-}
+} // namespace volume_panel_detail
 
 inline void volume_panel_handle_pointer_move(VolumePanelState &state,
                                              PipewireState &pw, double px) {

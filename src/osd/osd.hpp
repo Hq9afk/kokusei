@@ -78,7 +78,8 @@ inline constexpr zwlr_layer_surface_v1_listener osd_layer_surface_listener = {
 };
 
 inline bool osd_create_surface(OsdState &state, wl_compositor *compositor,
-                               zwlr_layer_shell_v1 *layer_shell) {
+                               zwlr_layer_shell_v1 *layer_shell,
+                               wl_output *output = nullptr) {
     LayerSurfaceConfig cfg{
         .layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
         .name_space = "kokusei-osd",
@@ -91,7 +92,7 @@ inline bool osd_create_surface(OsdState &state, wl_compositor *compositor,
     };
     state.layer_surface =
         layer_surface_create(state.surface, compositor, layer_shell, cfg,
-                             &osd_layer_surface_listener, &state);
+                             &osd_layer_surface_listener, &state, output);
     if (!state.layer_surface)
         return false;
     state.output_scale.on_change = [&state](int32_t scale) {
@@ -318,7 +319,7 @@ inline int read_int_file(const std::string &path) {
     return value;
 }
 
-}
+} // namespace osd_detail
 
 struct BrightnessBackend {
     std::string device;

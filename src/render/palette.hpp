@@ -70,5 +70,6 @@ namespace metrics {
 inline constexpr float radius_md = 10.0f;
 inline constexpr float radius_sm = 5.0f;
 inline constexpr float border_thin = 2.0f;
+inline constexpr float border_thick = 4.0f;
 
 }

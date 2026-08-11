@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../core/deferred_call.hpp"
+#include "../core/log.hpp"
 #include "../render/image.hpp"
 #include "../render/node.hpp"
 #include "../render/palette.hpp"
@@ -9,8 +11,6 @@
 #include "../wayland/frame_clock.hpp"
 #include "../wayland/layer_surface.hpp"
 #include "../wayland/output_scale.hpp"
-#include "../core/deferred_call.hpp"
-#include "../core/log.hpp"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
@@ -73,11 +73,12 @@ inline constexpr zwlr_layer_surface_v1_listener
     wallpaper_layer_surface_listener = {
         .configure = wallpaper_layer_surface_configure,
         .closed = wallpaper_layer_surface_closed,
-    };
+};
 
 inline bool wallpaper_create_surface(WallpaperState &wp,
                                      wl_compositor *compositor,
-                                     zwlr_layer_shell_v1 *layer_shell) {
+                                     zwlr_layer_shell_v1 *layer_shell,
+                                     wl_output *output = nullptr) {
     LayerSurfaceConfig cfg{
         .layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND,
         .name_space = "kokusei-wallpaper",
@@ -88,7 +89,7 @@ inline bool wallpaper_create_surface(WallpaperState &wp,
     };
     wp.layer_surface =
         layer_surface_create(wp.surface, compositor, layer_shell, cfg,
-                             &wallpaper_layer_surface_listener, &wp);
+                             &wallpaper_layer_surface_listener, &wp, output);
     if (!wp.layer_surface)
         return false;
     wp.output_scale.on_change = [&wp](int32_t scale) {
@@ -108,10 +109,10 @@ inline void wallpaper_paint(WallpaperState &wp) {
         return;
 
     eglMakeCurrent(wp.egl_display, wp.egl_surface, wp.egl_surface,
-                  wp.egl_context);
+                   wp.egl_context);
     wp.renderer->begin_frame(wp.width, wp.height, wp.output_scale.scale);
     glClearColor(palette::base.r, palette::base.g, palette::base.b,
-                palette::base.a);
+                 palette::base.a);
     glClear(GL_COLOR_BUFFER_BIT);
 
     wp.scene.rebuild();
@@ -142,8 +143,8 @@ inline bool wallpaper_init_egl(WallpaperState &wp, Renderer &renderer,
     wp.egl_context = context;
     wp.renderer = &renderer;
     int32_t scale = wp.output_scale.scale;
-    wp.egl_window = wl_egl_window_create(wp.surface, wp.width * scale,
-                                         wp.height * scale);
+    wp.egl_window =
+        wl_egl_window_create(wp.surface, wp.width * scale, wp.height * scale);
     wp.egl_surface = eglCreateWindowSurface(
         display, config, reinterpret_cast<EGLNativeWindowType>(wp.egl_window),
         nullptr);
@@ -166,7 +167,7 @@ inline void wallpaper_upload_pending(WallpaperState &wp) {
     if (!wp.pending_pixels || wp.egl_surface == EGL_NO_SURFACE)
         return;
     eglMakeCurrent(wp.egl_display, wp.egl_surface, wp.egl_surface,
-                  wp.egl_context);
+                   wp.egl_context);
     wp.texture = make_texture_rgba(wp.pending_width, wp.pending_height,
                                    wp.pending_pixels, true);
     delete[] wp.pending_pixels;
@@ -189,7 +190,8 @@ inline void box_downsample_rgba(const unsigned char *src, int sw, int sh,
             long sum[4] = {0, 0, 0, 0};
             int count = 0;
             for (int sy = y0; sy < y1 && sy < sh; ++sy) {
-                const unsigned char *row = src + static_cast<size_t>(sy) * sw * 4;
+                const unsigned char *row =
+                    src + static_cast<size_t>(sy) * sw * 4;
                 for (int sx = x0; sx < x1 && sx < sw; ++sx) {
                     const unsigned char *px = row + static_cast<size_t>(sx) * 4;
                     sum[0] += px[0];
@@ -211,10 +213,10 @@ inline void box_downsample_rgba(const unsigned char *src, int sw, int sh,
 
 inline std::string wallpaper_cache_dir() {
     const char *cache_home = getenv("XDG_CACHE_HOME");
-    std::string base = cache_home && *cache_home
-                           ? std::string(cache_home)
-                           : std::string(getenv("HOME") ? getenv("HOME") : "") +
-                                 "/.cache";
+    std::string base =
+        cache_home && *cache_home
+            ? std::string(cache_home)
+            : std::string(getenv("HOME") ? getenv("HOME") : "") + "/.cache";
     for (size_t pos = 1; pos <= base.size(); ++pos) {
         if (pos == base.size() || base[pos] == '/')
             mkdir(base.substr(0, pos).c_str(), 0755);
@@ -226,12 +228,10 @@ inline std::string wallpaper_cache_dir() {
     return dir;
 }
 
-inline std::string wallpaper_cache_path(const std::string &path,
-                                        time_t mtime, int target_w,
-                                        int target_h) {
+inline std::string wallpaper_cache_path(const std::string &path, time_t mtime,
+                                        int target_w, int target_h) {
     std::string key = path + ":" + std::to_string(mtime) + ":" +
-                      std::to_string(target_w) + "x" +
-                      std::to_string(target_h);
+                      std::to_string(target_w) + "x" + std::to_string(target_h);
     size_t hash = std::hash<std::string>{}(key);
     return wallpaper_cache_dir() + "/" + std::to_string(hash) + ".rgba";
 }
@@ -277,10 +277,12 @@ inline unsigned char *wallpaper_decode_scaled(const std::string &path,
                                               int target_w, int target_h,
                                               int &out_width, int &out_height) {
     struct stat st{};
-    bool cacheable = target_w > 0 && target_h > 0 && stat(path.c_str(), &st) == 0;
+    bool cacheable =
+        target_w > 0 && target_h > 0 && stat(path.c_str(), &st) == 0;
     std::string cache_path;
     if (cacheable) {
-        cache_path = wallpaper_cache_path(path, st.st_mtime, target_w, target_h);
+        cache_path =
+            wallpaper_cache_path(path, st.st_mtime, target_w, target_h);
         if (unsigned char *cached =
                 wallpaper_cache_read(cache_path, out_width, out_height)) {
             klog("wallpaper: cache hit '%s' (%dx%d)", path.c_str(), out_width,
@@ -360,7 +362,7 @@ inline void wallpaper_load_async(WallpaperState &wp, std::string path) {
             }
             if (data) {
                 eglMakeCurrent(wp.egl_display, wp.egl_surface, wp.egl_surface,
-                              wp.egl_context);
+                               wp.egl_context);
                 wp.texture = make_texture_rgba(width, height, data, true);
                 delete[] data;
                 klog("wallpaper: uploaded %dx%d texture", width, height);

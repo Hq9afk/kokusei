@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../core/log.hpp"
 #include "../render/animation/animation.hpp"
 #include "../wayland/frame_clock.hpp"
 #include "../wayland/layer_surface.hpp"
@@ -14,6 +15,7 @@ constexpr uint64_t kOverlayFadeOwner = 1;
 constexpr uint64_t kPanelHeightAnimOwner = 2;
 
 struct OverlayPanelBase {
+    const char *name_space = nullptr;
     wl_compositor *compositor = nullptr;
     wl_surface *surface = nullptr;
     zwlr_layer_surface_v1 *layer_surface = nullptr;
@@ -64,8 +66,10 @@ inline void overlay_panel_update_input_region(OverlayPanelBase &base) {
 inline bool overlay_panel_create_surface(OverlayPanelBase &base,
                                          wl_compositor *compositor,
                                          zwlr_layer_shell_v1 *layer_shell,
-                                         const char *name_space) {
+                                         const char *name_space,
+                                         wl_output *output = nullptr) {
     base.compositor = compositor;
+    base.name_space = name_space;
     LayerSurfaceConfig cfg{
         .layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
         .name_space = name_space,
@@ -76,7 +80,7 @@ inline bool overlay_panel_create_surface(OverlayPanelBase &base,
     };
     base.layer_surface =
         layer_surface_create(base.surface, compositor, layer_shell, cfg,
-                             &overlay_panel_listener, &base);
+                             &overlay_panel_listener, &base, output);
     if (!base.layer_surface)
         return false;
 
@@ -129,6 +133,8 @@ inline void overlay_panel_toggle(OverlayPanelBase &base) {
             ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);
         overlay_panel_update_input_region(base);
         wl_surface_commit(base.surface);
+        klog("panel: %s acquired exclusive keyboard interactivity",
+             base.name_space ? base.name_space : "?");
     }
 
     base.animations.animate(
@@ -143,6 +149,8 @@ inline void overlay_panel_toggle(OverlayPanelBase &base) {
                 ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
             overlay_panel_update_input_region(base);
             wl_surface_commit(base.surface);
+            klog("panel: %s released exclusive keyboard interactivity",
+                 base.name_space ? base.name_space : "?");
         },
         kOverlayFadeOwner);
     overlay_panel_request_frame(base);

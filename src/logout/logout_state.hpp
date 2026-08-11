@@ -262,7 +262,7 @@ inline void fast_hide(LogoutState &state) {
     finish_close(state);
 }
 
-}
+} // namespace logout_detail
 
 inline RasterizedText
 rasterize_yujimai_glyph(const std::string &codepoint_utf8) {
@@ -315,9 +315,10 @@ rasterize_yujimai_glyph(const std::string &codepoint_utf8) {
 }
 
 inline bool logout_create_surface(LogoutState &state, wl_compositor *compositor,
-                                  zwlr_layer_shell_v1 *layer_shell) {
+                                  zwlr_layer_shell_v1 *layer_shell,
+                                  wl_output *output = nullptr) {
     return overlay_panel_create_surface(state.base, compositor, layer_shell,
-                                        "kokusei-logout");
+                                        "kokusei-logout", output);
 }
 
 inline void logout_paint(LogoutState &state);

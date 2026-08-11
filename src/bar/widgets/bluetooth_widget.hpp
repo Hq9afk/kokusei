@@ -27,23 +27,23 @@ inline std::string bluetooth_label(const BluetoothState &b) {
     return "Idle";
 }
 
-inline Pill bluetooth_pill(WaylandState &state) {
-    const char *glyph = bluetooth_icon_glyph(state.bluetooth);
-    if (glyph != state.bluetooth_icon_glyph_cached) {
-        state.bluetooth_icon_texture = make_icon_texture(glyph);
-        state.bluetooth_icon_glyph_cached = glyph;
+inline Pill bluetooth_pill(MonitorOutput &mon) {
+    const char *glyph = bluetooth_icon_glyph(mon.app->bluetooth);
+    if (glyph != mon.bluetooth_icon_glyph_cached) {
+        mon.bluetooth_icon_texture = make_icon_texture(glyph);
+        mon.bluetooth_icon_glyph_cached = glyph;
     }
-    return Pill{PillId::Bluetooth, &state.bluetooth_icon_texture,
-                bluetooth_label(state.bluetooth), nullptr, [&state] {
-                    close_other_overlays(state, PillId::Bluetooth);
-                    if (!state.bluetooth_panel.base.open) {
-                        update_pill_expand(state.capsule, state.animations,
+    return Pill{PillId::Bluetooth, &mon.bluetooth_icon_texture,
+                bluetooth_label(mon.app->bluetooth), nullptr, [&mon] {
+                    close_other_overlays(mon, PillId::Bluetooth);
+                    if (!mon.bluetooth_panel.base.open) {
+                        update_pill_expand(mon.capsule, mon.animations,
                                            PillId::Bluetooth, true, true);
-                        bar_paint(state);
+                        bar_paint(mon);
                     }
                     bluetooth_panel_toggle(
-                        state.bluetooth_panel, state.bluetooth,
-                        pill_center_x(state.capsule, PillId::Bluetooth));
+                        mon.bluetooth_panel, mon.app->bluetooth,
+                        pill_center_x(mon.capsule, PillId::Bluetooth));
                 }};
 }
-}
+} // namespace bar_detail

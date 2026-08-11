@@ -34,25 +34,25 @@ inline std::string wifi_label(const NetworkState &n) {
     return label.empty() ? "Wi-Fi" : label;
 }
 
-inline Pill wifi_pill(WaylandState &state) {
-    const char *glyph = wifi_icon_glyph(state.network);
-    if (glyph != state.wifi_icon_glyph_cached) {
-        state.wifi_icon_texture = make_icon_texture(glyph);
-        state.wifi_icon_glyph_cached = glyph;
+inline Pill wifi_pill(MonitorOutput &mon) {
+    const char *glyph = wifi_icon_glyph(mon.app->network);
+    if (glyph != mon.wifi_icon_glyph_cached) {
+        mon.wifi_icon_texture = make_icon_texture(glyph);
+        mon.wifi_icon_glyph_cached = glyph;
     }
-    return Pill{PillId::Wifi, &state.wifi_icon_texture,
-                wifi_label(state.network), nullptr, [&state] {
-                    close_other_overlays(state, PillId::Wifi);
-                    if (!state.network_panel.base.open) {
-                        update_pill_expand(state.capsule, state.animations,
+    return Pill{PillId::Wifi, &mon.wifi_icon_texture,
+                wifi_label(mon.app->network), nullptr, [&mon] {
+                    close_other_overlays(mon, PillId::Wifi);
+                    if (!mon.network_panel.base.open) {
+                        update_pill_expand(mon.capsule, mon.animations,
                                            PillId::Wifi, true, true);
-                        bar_paint(state);
+                        bar_paint(mon);
                     }
                     network_panel_toggle(
-                        state.network_panel,
-                        pill_center_x(state.capsule, PillId::Wifi));
-                    if (state.network_panel.base.open)
-                        network_scan(state.network);
+                        mon.network_panel,
+                        pill_center_x(mon.capsule, PillId::Wifi));
+                    if (mon.network_panel.base.open)
+                        network_scan(mon.app->network);
                 }};
 }
-}
+} // namespace bar_detail

@@ -191,13 +191,14 @@ inline float sub_panel_height(const std::string &mode) {
     return inner + 2.0f * kPanelPadding;
 }
 
-}
+} // namespace network_panel_detail
 
 inline bool network_panel_create_surface(NetworkPanelState &state,
                                          wl_compositor *compositor,
-                                         zwlr_layer_shell_v1 *layer_shell) {
+                                         zwlr_layer_shell_v1 *layer_shell,
+                                         wl_output *output = nullptr) {
     return overlay_panel_create_surface(state.base, compositor, layer_shell,
-                                        "kokusei-network-panel");
+                                        "kokusei-network-panel", output);
 }
 
 inline void network_panel_paint(NetworkPanelState &state, NetworkState &net,

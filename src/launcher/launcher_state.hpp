@@ -13,6 +13,7 @@
 #include "../render/renderer.hpp"
 #include "../render/scene.hpp"
 #include "../render/text.hpp"
+#include "../render/text_field.hpp"
 #include "../render/texture.hpp"
 #include "../render/texture_cache.hpp"
 #include "../wayland/frame_clock.hpp"
@@ -135,7 +136,8 @@ inline void launcher_update_input_region(LauncherState &state) {
 
 inline bool launcher_create_surface(LauncherState &state,
                                     wl_compositor *compositor,
-                                    zwlr_layer_shell_v1 *layer_shell) {
+                                    zwlr_layer_shell_v1 *layer_shell,
+                                    wl_output *output = nullptr) {
     state.compositor = compositor;
     LayerSurfaceConfig cfg{
         .layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
@@ -147,7 +149,7 @@ inline bool launcher_create_surface(LauncherState &state,
     };
     state.layer_surface =
         layer_surface_create(state.surface, compositor, layer_shell, cfg,
-                             &launcher_layer_surface_listener, &state);
+                             &launcher_layer_surface_listener, &state, output);
     if (!state.layer_surface)
         return false;
     state.output_scale.on_change = [&state](int32_t scale) {
@@ -502,11 +504,7 @@ inline void launcher_handle_key_event(LauncherState &state,
         if (state.submenu.screen != SubmenuScreen::Search)
             submenu_close(state.submenu);
 
-        while (!state.query.empty() &&
-               (static_cast<unsigned char>(state.query.back()) & 0xC0) == 0x80)
-            state.query.pop_back();
-        if (!state.query.empty())
-            state.query.pop_back();
+        text_field_backspace(state.query);
         launcher_query_char_pop(state);
         launcher_query_changed(state);
         break;

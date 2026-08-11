@@ -37,7 +37,7 @@ struct TrayMenuState {
 namespace tray_menu_detail {
 
 inline std::vector<MenuEntry> *current_menu_level(TrayState &tray,
-                                                   TrayMenuState &state) {
+                                                  TrayMenuState &state) {
     auto it = tray.menu_cache.find(state.item_key);
     if (it == tray.menu_cache.end())
         return nullptr;
@@ -57,11 +57,12 @@ inline std::vector<MenuEntry> *current_menu_level(TrayState &tray,
     return level;
 }
 
-}
+} // namespace tray_menu_detail
 
 inline bool tray_menu_create_surface(TrayMenuState &state,
                                      wl_compositor *compositor,
-                                     zwlr_layer_shell_v1 *layer_shell) {
+                                     zwlr_layer_shell_v1 *layer_shell,
+                                     wl_output *output = nullptr) {
     state.base.compositor = compositor;
     LayerSurfaceConfig cfg{
         .layer = ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY,
@@ -74,13 +75,14 @@ inline bool tray_menu_create_surface(TrayMenuState &state,
     };
     state.base.layer_surface =
         layer_surface_create(state.base.surface, compositor, layer_shell, cfg,
-                             &overlay_panel_listener, &state.base);
+                             &overlay_panel_listener, &state.base, output);
     if (!state.base.layer_surface)
         return false;
 
     state.base.output_scale.on_change = [&state](int32_t scale) {
         if (state.base.egl_window)
-            wl_egl_window_resize(state.base.egl_window, state.base.width * scale,
+            wl_egl_window_resize(state.base.egl_window,
+                                 state.base.width * scale,
                                  state.base.height * scale, 0, 0);
         if (state.base.frame_clock.surface)
             request_frame(state.base.frame_clock);

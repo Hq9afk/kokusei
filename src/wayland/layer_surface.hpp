@@ -18,13 +18,15 @@ struct LayerSurfaceConfig {
     bool empty_input_region = false;
 };
 
-inline zwlr_layer_surface_v1 *layer_surface_create(
-    wl_surface *&out_surface, wl_compositor *compositor,
-    zwlr_layer_shell_v1 *layer_shell, const LayerSurfaceConfig &cfg,
-    const zwlr_layer_surface_v1_listener *listener, void *listener_data) {
+inline zwlr_layer_surface_v1 *
+layer_surface_create(wl_surface *&out_surface, wl_compositor *compositor,
+                     zwlr_layer_shell_v1 *layer_shell,
+                     const LayerSurfaceConfig &cfg,
+                     const zwlr_layer_surface_v1_listener *listener,
+                     void *listener_data, wl_output *output = nullptr) {
     out_surface = wl_compositor_create_surface(compositor);
     zwlr_layer_surface_v1 *layer_surface =
-        zwlr_layer_shell_v1_get_layer_surface(layer_shell, out_surface, nullptr,
+        zwlr_layer_shell_v1_get_layer_surface(layer_shell, out_surface, output,
                                               cfg.layer, cfg.name_space);
     if (!layer_surface)
         return nullptr;

@@ -9,7 +9,6 @@
 #include "idle/idle.hpp"
 #include "notification/notification_draw.hpp"
 #include "render/image.hpp"
-#include "wallpaper/wallpaper.hpp"
 #include "wayland/hyprland.hpp"
 #include "wayland/layer_surface.hpp"
 #include "wayland/shojiwm.hpp"
@@ -38,6 +37,20 @@ inline void daemonize() {
     freopen("/dev/null", "w", stderr);
 }
 
+inline MonitorOutput *find_monitor_for_surface(WaylandState &app,
+                                               wl_surface *surface) {
+    for (auto &mon : app.outputs) {
+        if (surface == mon->surface ||
+            surface == mon->tray_panel.base.surface ||
+            surface == mon->tray_menu.base.surface ||
+            surface == mon->network_panel.base.surface ||
+            surface == mon->bluetooth_panel.base.surface ||
+            surface == mon->volume_panel.base.surface)
+            return mon.get();
+    }
+    return nullptr;
+}
+
 int main(int argc, char **argv) {
 
     bool want_daemonize = argc == 1;
@@ -52,205 +65,101 @@ int main(int argc, char **argv) {
     if (want_daemonize)
         daemonize();
 
-    WaylandState state;
-    state.cfg = load_config();
-    if (state.cfg.autohide) {
-        state.autohide.hidden = true;
-        state.autohide.collapsed = true;
-        state.autohide.opacity = 0.0f;
-    }
-    state.config_watch_fd = config_watch_init(config_path());
+    WaylandState app;
+    app.cfg = load_config();
+    app.config_watch_fd = config_watch_init(config_path());
     DeferredCall::init();
 
-    state.display = wl_display_connect(nullptr);
-    if (!state.display) {
+    app.display = wl_display_connect(nullptr);
+    if (!app.display) {
         klog("failed to connect to Wayland display");
         return 1;
     }
 
-    wl_registry *registry = wl_display_get_registry(state.display);
-    wl_registry_add_listener(registry, &registry_listener, &state);
-    wl_display_roundtrip(state.display);
+    wl_registry *registry = wl_display_get_registry(app.display);
+    wl_registry_add_listener(registry, &registry_listener, &app);
+    wl_display_roundtrip(app.display);
+    // Second roundtrip: flushes each wl_output's initial event burst
+    // (geometry/mode/scale/name/done), which the first roundtrip only
+    // guarantees requesting, not receiving.
+    wl_display_roundtrip(app.display);
 
-    if (!state.compositor || !state.layer_shell) {
+    if (!app.compositor || !app.layer_shell) {
         klog("compositor is missing wl_compositor or zwlr_layer_shell_v1");
         return 1;
     }
-
-    LayerSurfaceConfig bar_cfg{
-        .layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP,
-        .name_space = "kokusei",
-        .anchor = ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
-                  ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
-                  ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT,
-        .height = bar_detail::bar_current_height(state),
-        .margin_top = bar_detail::bar_autohide_geometry(
-                          state.cfg.autohide, state.autohide.collapsed,
-                          state.cfg.height)
-                          .margin_top,
-        .margin_right = static_cast<int32_t>(kPanelSideMargin),
-        .margin_left = static_cast<int32_t>(kPanelSideMargin),
-        .exclusive_zone = bar_detail::bar_autohide_geometry(
-                              state.cfg.autohide, state.autohide.collapsed,
-                              state.cfg.height)
-                              .exclusive_zone,
-    };
-    state.layer_surface =
-        layer_surface_create(state.surface, state.compositor, state.layer_shell,
-                             bar_cfg, &layer_surface_listener, &state);
-    state.output_scale.on_change = [&state](int32_t scale) {
-        if (state.egl_window)
-            wl_egl_window_resize(state.egl_window, state.width * scale,
-                                 bar_detail::bar_current_height(state) * scale,
-                                 0, 0);
-        if (state.frame_clock.surface)
-            request_frame(state.frame_clock);
-    };
-    output_scale_watch(state.output_scale, state.surface);
-    wl_surface_commit(state.surface);
-
-    bool want_wallpaper = !state.cfg.wallpaper_path.empty();
-    if (want_wallpaper &&
-        !wallpaper_create_surface(state.wallpaper, state.compositor,
-                                  state.layer_shell)) {
-        klog("wallpaper: failed to create layer surface");
-        want_wallpaper = false;
-    }
-    bool want_notification = notification_create_surface(
-        state.notification, state.compositor, state.layer_shell);
-    if (!want_notification)
-        klog("notification: failed to create layer surface");
-
-    bool want_osd =
-        osd_create_surface(state.osd, state.compositor, state.layer_shell);
-    if (!want_osd)
-        klog("osd: failed to create layer surface");
-
-    bool want_launcher = launcher_create_surface(
-        state.launcher, state.compositor, state.layer_shell);
-    if (!want_launcher)
-        klog("launcher: failed to create layer surface");
-
-    bool want_logout = logout_create_surface(state.logout, state.compositor,
-                                             state.layer_shell);
-    if (!want_logout)
-        klog("logout: failed to create layer surface");
-
-    bool want_network_panel = network_panel_create_surface(
-        state.network_panel, state.compositor, state.layer_shell);
-    if (!want_network_panel)
-        klog("network_panel: failed to create layer surface");
-
-    bool want_bluetooth_panel = bluetooth_panel_create_surface(
-        state.bluetooth_panel, state.compositor, state.layer_shell);
-    if (!want_bluetooth_panel)
-        klog("bluetooth_panel: failed to create layer surface");
-
-    bool want_volume_panel = volume_panel_create_surface(
-        state.volume_panel, state.compositor, state.layer_shell);
-    if (!want_volume_panel)
-        klog("volume_panel: failed to create layer surface");
-
-    bool want_tray_panel = tray_panel_create_surface(
-        state.tray_panel, state.compositor, state.layer_shell);
-    if (!want_tray_panel)
-        klog("tray_panel: failed to create layer surface");
-
-    bool want_tray_menu = tray_menu_create_surface(
-        state.tray_menu, state.compositor, state.layer_shell);
-    if (!want_tray_menu)
-        klog("tray_menu: failed to create layer surface");
-
-    while (state.running &&
-           !(state.configured &&
-             (!want_wallpaper || state.wallpaper.configured) &&
-             (!want_notification || state.notification.configured) &&
-             (!want_osd || state.osd.configured) &&
-             (!want_launcher || state.launcher.configured) &&
-             (!want_logout || state.logout.base.configured) &&
-             (!want_network_panel || state.network_panel.base.configured) &&
-             (!want_bluetooth_panel || state.bluetooth_panel.base.configured) &&
-             (!want_volume_panel || state.volume_panel.base.configured) &&
-             (!want_tray_panel || state.tray_panel.base.configured) &&
-             (!want_tray_menu || state.tray_menu.base.configured))) {
-        wl_display_dispatch(state.display);
-    }
-    if (!state.configured)
+    if (app.outputs.empty()) {
+        klog("no wl_output advertised by the compositor");
         return 1;
+    }
 
-    if (!init_egl(state)) {
+    if (!bootstrap_egl(app)) {
         klog("EGL init failed");
         return 1;
     }
 
-    if (!state.renderer.init()) {
+    MonitorOutput &first = *app.outputs.front();
+    monitor_output_create_surfaces(app, first);
+    monitor_output_wait_configured(app, first);
+    if (!bar_init_egl(first, app.renderer, app.egl_display, app.egl_config,
+                      app.egl_context)) {
+        klog("EGL init failed");
+        return 1;
+    }
+    if (!app.renderer.init()) {
         klog("renderer init failed");
         return 1;
     }
+    monitor_output_finish_egl(app, first);
+    first.activated = true;
 
-    if (want_wallpaper) {
-        wallpaper_decode_async(state.wallpaper, state.cfg.wallpaper_path);
+    bool want_launcher = launcher_create_surface(
+        app.launcher, app.compositor, app.layer_shell, first.output.wl);
+    if (!want_launcher)
+        klog("launcher: failed to create layer surface");
 
-        if (wallpaper_init_egl(state.wallpaper, state.renderer,
-                               state.egl_display, state.egl_config,
-                               state.egl_context)) {
-            wallpaper_request_frame(state.wallpaper);
-            wallpaper_upload_pending(state.wallpaper);
-        } else {
-            klog("wallpaper: EGL surface init failed");
-        }
+    bool want_logout = logout_create_surface(app.logout, app.compositor,
+                                             app.layer_shell, first.output.wl);
+    if (!want_logout)
+        klog("logout: failed to create layer surface");
 
-        eglMakeCurrent(state.egl_display, state.egl_surface, state.egl_surface,
-                       state.egl_context);
+    bool want_notification = notification_create_surface(
+        app.notification, app.compositor, app.layer_shell, first.output.wl);
+    if (!want_notification)
+        klog("notification: failed to create layer surface");
+
+    bool want_settings = settings_create_surface(
+        app.settings, app.compositor, app.layer_shell, first.output.wl);
+    if (!want_settings)
+        klog("settings: failed to create layer surface");
+
+    while (!((!want_launcher || app.launcher.configured) &&
+             (!want_logout || app.logout.base.configured) &&
+             (!want_notification || app.notification.configured) &&
+             (!want_settings || app.settings.base.configured))) {
+        wl_display_dispatch(app.display);
     }
 
-    if (want_notification) {
-        if (!notification_init_egl(state.notification, state.renderer,
-                                   state.egl_display, state.egl_config,
-                                   state.egl_context)) {
-            klog("notification: EGL surface init failed");
-            want_notification = false;
-        } else {
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
-        }
-    }
-    if (want_notification)
-        notification_init(state.notification);
-
-    if (want_osd) {
-        if (!osd_init_egl(state.osd, state.renderer, state.egl_display,
-                          state.egl_config, state.egl_context)) {
-            klog("osd: EGL surface init failed");
-            want_osd = false;
-        } else {
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
-        }
-    }
     if (want_launcher) {
-        if (!launcher_init_egl(state.launcher, state.renderer,
-                               state.egl_display, state.egl_config,
-                               state.egl_context)) {
+        if (!launcher_init_egl(app.launcher, app.renderer, app.egl_display,
+                               app.egl_config, app.egl_context)) {
             klog("launcher: EGL surface init failed");
             want_launcher = false;
         } else {
-
-            launcher_request_frame(state.launcher);
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
+            launcher_request_frame(app.launcher);
+            eglMakeCurrent(app.egl_display, first.egl_surface,
+                           first.egl_surface, app.egl_context);
         }
     }
     if (want_logout) {
-        if (!logout_init_egl(state.logout, state.renderer, state.egl_display,
-                             state.egl_config, state.egl_context)) {
+        if (!logout_init_egl(app.logout, app.renderer, app.egl_display,
+                             app.egl_config, app.egl_context)) {
             klog("logout: EGL surface init failed");
             want_logout = false;
         } else {
-
-            logout_request_frame(state.logout);
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
+            logout_request_frame(app.logout);
+            eglMakeCurrent(app.egl_display, first.egl_surface,
+                           first.egl_surface, app.egl_context);
 
             const char *logo_candidates[] = {KOKUSEI_LOGOUT_LOGO,
                                              "assets/logo.png"};
@@ -261,109 +170,80 @@ int main(int argc, char **argv) {
                     break;
                 }
             }
-            state.logout.logo_tex = load_image_texture(logo_path);
+            app.logout.logo_tex = load_image_texture(logo_path);
         }
     }
-    if (want_network_panel) {
-        if (!network_panel_init_egl(state.network_panel, state.renderer,
-                                    state.network, state.egl_display,
-                                    state.egl_config, state.egl_context)) {
-            klog("network_panel: EGL surface init failed");
-            want_network_panel = false;
+    if (want_notification) {
+        if (!notification_init_egl(app.notification, app.renderer,
+                                   app.egl_display, app.egl_config,
+                                   app.egl_context)) {
+            klog("notification: EGL surface init failed");
+            want_notification = false;
         } else {
+            eglMakeCurrent(app.egl_display, first.egl_surface,
+                           first.egl_surface, app.egl_context);
+        }
+    }
+    if (want_notification)
+        notification_init(app.notification);
 
-            network_panel_request_frame(state.network_panel, 0.0f, 0.0f, 0.0f);
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
+    if (want_settings) {
+        if (!settings_init_egl(app.settings, app.cfg, app.renderer,
+                               app.egl_display, app.egl_config,
+                               app.egl_context)) {
+            klog("settings: EGL surface init failed");
+            want_settings = false;
+        } else {
+            eglMakeCurrent(app.egl_display, first.egl_surface,
+                           first.egl_surface, app.egl_context);
+            app.settings_bound_output = first.output.wl;
         }
     }
-    if (want_bluetooth_panel) {
-        if (!bluetooth_panel_init_egl(state.bluetooth_panel, state.renderer,
-                                      state.bluetooth, state.egl_display,
-                                      state.egl_config, state.egl_context)) {
-            klog("bluetooth_panel: EGL surface init failed");
-            want_bluetooth_panel = false;
-        } else {
+    app.settings_enabled = want_settings;
 
-            bluetooth_panel_request_frame(state.bluetooth_panel, 0.0f, 0.0f,
-                                          0.0f);
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
-        }
-    }
-    if (want_volume_panel) {
-        if (!volume_panel_init_egl(state.volume_panel, state.renderer,
-                                   state.pipewire, state.egl_display,
-                                   state.egl_config, state.egl_context)) {
-            klog("volume_panel: EGL surface init failed");
-            want_volume_panel = false;
-        } else {
+    // Any monitor the compositor advertised alongside the first one at
+    // startup - the first monitor above bootstrapped the shared EGL context
+    // and renderer, the rest just reuse them.
+    for (size_t i = 1; i < app.outputs.size(); ++i)
+        monitor_output_activate(app, *app.outputs[i]);
 
-            volume_panel_request_frame(state.volume_panel, 0.0f, 0.0f, 0.0f);
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
-        }
-    }
-    if (want_tray_panel) {
-        if (!tray_panel_init_egl(state.tray_panel, state.renderer, state.tray,
-                                 state.egl_display, state.egl_config,
-                                 state.egl_context)) {
-            klog("tray_panel: EGL surface init failed");
-            want_tray_panel = false;
-        } else {
-
-            tray_panel_request_frame(state.tray_panel, 0.0f, 0.0f, 0.0f);
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
-        }
-    }
-    if (want_tray_menu) {
-        if (!tray_menu_init_egl(state.tray_menu, state.renderer, state.tray,
-                                state.egl_display, state.egl_config,
-                                state.egl_context)) {
-            klog("tray_menu: EGL surface init failed");
-            want_tray_menu = false;
-        } else {
-            tray_menu_request_frame(state.tray_menu);
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
-        }
-    }
-    brightness_init(state.brightness);
-    state.brightness_watch_fd = brightness_watch_init(state.brightness);
-    pipewire_init(state.pipewire);
-    upower_init(state.upower);
+    brightness_init(app.brightness);
+    app.brightness_watch_fd = brightness_watch_init(app.brightness);
+    pipewire_init(app.pipewire);
+    upower_init(app.upower);
     bool want_network =
-        state.upower.bus && network_init(state.network, *state.upower.bus);
+        app.upower.bus && network_init(app.network, *app.upower.bus);
     if (!want_network)
         klog("network: no system bus available - network info unavailable");
     bool want_bluetooth =
-        state.upower.bus && bluetooth_init(state.bluetooth, *state.upower.bus);
+        app.upower.bus && bluetooth_init(app.bluetooth, *app.upower.bus);
     if (!want_bluetooth)
         klog("bluetooth: no system bus available - bluetooth info unavailable");
-    bool want_tray = tray_init(state.tray);
+    bool want_tray = tray_init(app.tray);
     if (!want_tray)
         klog("tray: no session bus available - system tray unavailable");
 
-    update_clock(state);
-    init_stub_widgets(state);
+    for (auto &mon : app.outputs) {
+        update_clock(*mon);
+        init_stub_widgets(*mon);
+    }
 
-    if (shoji_init(state.shoji)) {
-        state.compositor_backend = WaylandState::CompositorBackend::ShojiWM;
-    } else if (hypr_init(state.hypr)) {
-        state.compositor_backend = WaylandState::CompositorBackend::Hyprland;
+    if (shoji_init(app.shoji)) {
+        app.compositor_backend = WaylandState::CompositorBackend::ShojiWM;
+    } else if (hypr_init(app.hypr)) {
+        app.compositor_backend = WaylandState::CompositorBackend::Hyprland;
     }
     klog("compositor backend: %s",
-         state.compositor_backend == WaylandState::CompositorBackend::ShojiWM
+         app.compositor_backend == WaylandState::CompositorBackend::ShojiWM
              ? "shojiwm"
-         : state.compositor_backend == WaylandState::CompositorBackend::Hyprland
+         : app.compositor_backend == WaylandState::CompositorBackend::Hyprland
              ? "hyprland"
              : "none");
 
-    state.idle.timeout_seconds = state.cfg.idle_timeout_seconds;
-    state.idle.on_idle_command = state.cfg.idle_command;
-    state.idle.on_resume_command = state.cfg.idle_resume_command;
-    idle_init(state.idle);
+    app.idle.timeout_seconds = app.cfg.idle_timeout_seconds;
+    app.idle.on_idle_command = app.cfg.idle_command;
+    app.idle.on_resume_command = app.cfg.idle_resume_command;
+    idle_init(app.idle);
 
     int ipc_fd = open_ipc_socket();
 
@@ -377,99 +257,103 @@ int main(int argc, char **argv) {
         klog("timerfd_create: %s", strerror(errno));
     }
 
-    klog("started: %dx%d bar, ipc_fd=%d, timer_fd=%d", state.width,
-         state.cfg.height, ipc_fd, timer_fd);
-    bar_request_frame(state);
+    klog("started: %zu monitor(s), bar height=%d, ipc_fd=%d, timer_fd=%d",
+         app.outputs.size(), app.cfg.height, ipc_fd, timer_fd);
+    for (auto &mon : app.outputs)
+        bar_request_frame(*mon);
 
-    while (state.running) {
-        wl_display_flush(state.display);
+    while (app.running) {
+        wl_display_flush(app.display);
 
         std::vector<FnPollSource> fn_sources;
 
-        auto network_notify = [&state](const std::string &summary,
-                                       const std::string &body) {
-            notification_push(state.notification, "Network", summary, body,
-                              6000);
+        auto rest_egl_current = [&app] {
+            if (!app.outputs.empty())
+                eglMakeCurrent(
+                    app.egl_display, app.outputs.front()->egl_surface,
+                    app.outputs.front()->egl_surface, app.egl_context);
+        };
+
+        auto settings_commit = [&app](Config c) {
+            bar_detail::save_and_apply_config_update(app, c);
+        };
+
+        auto network_notify = [&app](const std::string &summary,
+                                     const std::string &body) {
+            notification_push(app.notification, "Network", summary, body, 6000);
         };
 
         auto network_dispatch = [&](bool changed) {
             if (!changed)
                 return;
-            bar_request_frame(state);
-            if (want_network_panel) {
+            for (auto &mon : app.outputs) {
+                bar_request_frame(*mon);
                 network_panel_request_frame(
-                    state.network_panel,
-                    bar_detail::pill_center_x(state.capsule, PillId::Wifi),
-                    static_cast<float>(state.cfg.height), bar_detail::kBarTopMargin);
+                    mon->network_panel,
+                    bar_detail::pill_center_x(mon->capsule, PillId::Wifi),
+                    static_cast<float>(app.cfg.height),
+                    bar_detail::kBarTopMargin);
             }
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
+            rest_egl_current();
         };
 
-        auto bluetooth_notify = [&state](const std::string &summary,
-                                         const std::string &body) {
-            notification_push(state.notification, "Bluetooth", summary, body,
+        auto bluetooth_notify = [&app](const std::string &summary,
+                                       const std::string &body) {
+            notification_push(app.notification, "Bluetooth", summary, body,
                               6000);
         };
 
         auto bluetooth_dispatch = [&] {
-            bar_request_frame(state);
-            if (want_bluetooth_panel) {
+            for (auto &mon : app.outputs) {
+                bar_request_frame(*mon);
                 bluetooth_panel_request_frame(
-                    state.bluetooth_panel,
-                    bar_detail::pill_center_x(state.capsule, PillId::Bluetooth),
-                    static_cast<float>(state.cfg.height), bar_detail::kBarTopMargin);
+                    mon->bluetooth_panel,
+                    bar_detail::pill_center_x(mon->capsule, PillId::Bluetooth),
+                    static_cast<float>(app.cfg.height),
+                    bar_detail::kBarTopMargin);
             }
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
+            rest_egl_current();
         };
 
         auto volume_dispatch = [&] {
-            bar_request_frame(state);
-            if (want_volume_panel) {
+            for (auto &mon : app.outputs) {
+                bar_request_frame(*mon);
                 volume_panel_request_frame(
-                    state.volume_panel,
-                    bar_detail::pill_center_x(state.capsule, PillId::Volume),
-                    static_cast<float>(state.cfg.height), bar_detail::kBarTopMargin);
+                    mon->volume_panel,
+                    bar_detail::pill_center_x(mon->capsule, PillId::Volume),
+                    static_cast<float>(app.cfg.height),
+                    bar_detail::kBarTopMargin);
             }
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
+            rest_egl_current();
         };
 
         auto tray_dispatch = [&] {
-            bar_request_frame(state);
-            if (want_tray_panel) {
+            for (auto &mon : app.outputs) {
+                bar_request_frame(*mon);
                 tray_panel_request_frame(
-                    state.tray_panel,
-                    bar_detail::pill_center_x(state.capsule, PillId::Tray),
-                    static_cast<float>(state.cfg.height), bar_detail::kBarTopMargin);
+                    mon->tray_panel,
+                    bar_detail::pill_center_x(mon->capsule, PillId::Tray),
+                    static_cast<float>(app.cfg.height),
+                    bar_detail::kBarTopMargin);
+                tray_menu_request_frame(mon->tray_menu);
             }
-            if (want_tray_menu)
-                tray_menu_request_frame(state.tray_menu);
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
+            rest_egl_current();
         };
 
         if (ipc_fd >= 0) {
             fn_sources.emplace_back(ipc_fd, POLLIN, [&] {
-                handle_ipc_accept(ipc_fd, state, state.surface, state.idle,
-                                  state.launcher, state.logout,
-                                  state.bluetooth_panel, state.bluetooth,
-                                  state.running);
+                handle_ipc_accept(ipc_fd, app, app.idle, app.launcher,
+                                  app.logout, app.running);
                 if (want_launcher) {
-                    launcher_request_frame(state.launcher);
-                    eglMakeCurrent(state.egl_display, state.egl_surface,
-                                   state.egl_surface, state.egl_context);
+                    launcher_request_frame(app.launcher);
+                    rest_egl_current();
                 }
                 if (want_logout) {
-                    logout_request_frame(state.logout);
-                    eglMakeCurrent(state.egl_display, state.egl_surface,
-                                   state.egl_surface, state.egl_context);
+                    logout_request_frame(app.logout);
+                    rest_egl_current();
                 }
-                if (want_bluetooth_panel) {
-                    bar_paint(state);
-                    bluetooth_dispatch();
-                }
+                bar_paint(first);
+                bluetooth_dispatch();
             });
         }
 
@@ -477,186 +361,205 @@ int main(int argc, char **argv) {
             fn_sources.emplace_back(timer_fd, POLLIN, [&] {
                 uint64_t expirations;
                 read(timer_fd, &expirations, sizeof(expirations));
-                update_clock(state);
-                bar_request_frame(state);
-                if (notification_sweep_expired(state.notification))
-                    notification_request_frame(state.notification);
-                if (state.osd.visible &&
-                    std::chrono::steady_clock::now() >= state.osd.hide_at) {
-                    osd_hide(state.osd);
+                for (auto &mon : app.outputs) {
+                    update_clock(*mon);
+                    bar_request_frame(*mon);
+                    if (bar_detail::volume_pill_peek_expire(*mon))
+                        bar_request_frame(*mon);
                 }
+                if (notification_sweep_expired(app.notification))
+                    notification_request_frame(app.notification);
                 if (want_network) {
                     network_dispatch(network_tick(
-                        state.network, std::chrono::steady_clock::now()));
+                        app.network, std::chrono::steady_clock::now()));
                 }
                 if (want_bluetooth) {
-                    bluetooth_tick(state.bluetooth, bluetooth_notify,
+                    bluetooth_tick(app.bluetooth, bluetooth_notify,
                                    std::chrono::steady_clock::now(),
                                    bluetooth_dispatch);
                 }
-                if (bar_detail::volume_pill_peek_expire(state))
-                    bar_request_frame(state);
-                if (want_launcher && state.launcher.open) {
-                    state.launcher.cursor_blink_visible =
-                        !state.launcher.cursor_blink_visible;
-                    launcher_request_frame(state.launcher);
-                    eglMakeCurrent(state.egl_display, state.egl_surface,
-                                   state.egl_surface, state.egl_context);
+                if (want_launcher && app.launcher.open) {
+                    app.launcher.cursor_blink_visible =
+                        !app.launcher.cursor_blink_visible;
+                    launcher_request_frame(app.launcher);
+                    rest_egl_current();
+                }
+                if (want_settings &&
+                    app.settings.focused_field != SettingsFieldId::None) {
+                    app.settings.field_buffer.cursor_blink_visible =
+                        !app.settings.field_buffer.cursor_blink_visible;
+                    settings_request_frame(app.settings);
+                    rest_egl_current();
                 }
             });
         }
 
-        int compositor_fd = (state.compositor_backend ==
+        for (auto &mon : app.outputs) {
+            if (!mon->osd.visible ||
+                std::chrono::steady_clock::now() < mon->osd.hide_at)
+                continue;
+            osd_hide(mon->osd);
+        }
+
+        int compositor_fd = (app.compositor_backend ==
                              WaylandState::CompositorBackend::Hyprland)
-                                ? state.hypr.event_fd
-                            : (state.compositor_backend ==
+                                ? app.hypr.event_fd
+                            : (app.compositor_backend ==
                                WaylandState::CompositorBackend::ShojiWM)
-                                ? state.shoji.fd
+                                ? app.shoji.fd
                                 : -1;
         if (compositor_fd >= 0) {
             fn_sources.emplace_back(compositor_fd, POLLIN, [&] {
-                if (state.compositor_backend ==
+                auto redraw_all = [&app] {
+                    for (auto &mon : app.outputs)
+                        bar_request_frame(*mon);
+                };
+                if (app.compositor_backend ==
                     WaylandState::CompositorBackend::Hyprland) {
-                    HyprEventResult r = hypr_poll_events(state.hypr);
+                    HyprEventResult r = hypr_poll_events(app.hypr);
                     if (r == HyprEventResult::Disconnected) {
-                        close(state.hypr.event_fd);
-                        state.hypr.event_fd = -1;
-                        state.compositor_backend =
+                        close(app.hypr.event_fd);
+                        app.hypr.event_fd = -1;
+                        app.compositor_backend =
                             WaylandState::CompositorBackend::None;
                         klog("hyprland: event socket disconnected");
                     } else if (r == HyprEventResult::StructuralChanged) {
-                        hypr_refresh(state.hypr);
-                        bar_request_frame(state);
+                        hypr_refresh(app.hypr);
+                        redraw_all();
                     } else if (r == HyprEventResult::ActiveChanged) {
-                        bar_request_frame(state);
+                        redraw_all();
                     }
-                } else if (state.compositor_backend ==
+                } else if (app.compositor_backend ==
                            WaylandState::CompositorBackend::ShojiWM) {
-                    ShojiEventResult r = shoji_poll(state.shoji);
+                    ShojiEventResult r = shoji_poll(app.shoji);
                     if (r == ShojiEventResult::Disconnected) {
-                        close(state.shoji.fd);
-                        state.shoji.fd = -1;
-                        state.compositor_backend =
+                        close(app.shoji.fd);
+                        app.shoji.fd = -1;
+                        app.compositor_backend =
                             WaylandState::CompositorBackend::None;
                         klog("shojiwm: event socket disconnected");
                     } else if (r == ShojiEventResult::Updated) {
-                        bar_request_frame(state);
+                        redraw_all();
                     }
                 }
             });
         }
 
-        if (state.notification.bus != nullptr) {
-            fn_sources.push_back(
-                sdbus_poll_source(*state.notification.bus, [&] {
-                    int budget = 32;
-                    while (budget-- > 0 &&
-                           state.notification.bus->processPendingEvent()) {
-                    }
-                    notification_request_frame(state.notification);
-                }));
-        }
-
-        if (state.upower.bus != nullptr) {
-            fn_sources.push_back(sdbus_poll_source(*state.upower.bus, [&] {
+        if (app.notification.bus != nullptr) {
+            fn_sources.push_back(sdbus_poll_source(*app.notification.bus, [&] {
                 int budget = 32;
                 while (budget-- > 0 &&
-                       state.upower.bus->processPendingEvent()) {
+                       app.notification.bus->processPendingEvent()) {
                 }
-                if (state.upower.dirty) {
-                    state.upower.dirty = false;
-                    bar_request_frame(state);
-                }
-
-                network_dispatch(state.network.dirty);
-                state.network.dirty = false;
+                notification_request_frame(app.notification);
             }));
         }
 
-        if (state.tray.bus != nullptr) {
-            fn_sources.push_back(sdbus_poll_source(*state.tray.bus, [&] {
+        if (app.upower.bus != nullptr) {
+            fn_sources.push_back(sdbus_poll_source(*app.upower.bus, [&] {
                 int budget = 32;
-                while (budget-- > 0 && state.tray.bus->processPendingEvent()) {
+                while (budget-- > 0 && app.upower.bus->processPendingEvent()) {
                 }
-                if (state.tray.dirty) {
-                    state.tray.dirty = false;
+                if (app.upower.dirty) {
+                    app.upower.dirty = false;
+                    for (auto &mon : app.outputs)
+                        bar_request_frame(*mon);
+                }
+
+                network_dispatch(app.network.dirty);
+                app.network.dirty = false;
+            }));
+        }
+
+        if (app.tray.bus != nullptr) {
+            fn_sources.push_back(sdbus_poll_source(*app.tray.bus, [&] {
+                int budget = 32;
+                while (budget-- > 0 && app.tray.bus->processPendingEvent()) {
+                }
+                if (app.tray.dirty) {
+                    app.tray.dirty = false;
                     tray_dispatch();
                 }
             }));
         }
 
-        if (state.network.device_proc.wake_fd >= 0)
+        if (app.network.device_proc.wake_fd >= 0)
             fn_sources.emplace_back(
-                state.network.device_proc.wake_fd, POLLIN, [&] {
+                app.network.device_proc.wake_fd, POLLIN, [&] {
                     network_dispatch(
-                        network_poll_device(state.network, network_notify));
+                        network_poll_device(app.network, network_notify));
                 });
-        if (state.network.profile_proc.wake_fd >= 0)
+        if (app.network.profile_proc.wake_fd >= 0)
             fn_sources.emplace_back(
-                state.network.profile_proc.wake_fd, POLLIN,
-                [&] { network_dispatch(network_poll_profile(state.network)); });
-        if (state.network.quick_scan_proc.wake_fd >= 0)
+                app.network.profile_proc.wake_fd, POLLIN,
+                [&] { network_dispatch(network_poll_profile(app.network)); });
+        if (app.network.quick_scan_proc.wake_fd >= 0)
             fn_sources.emplace_back(
-                state.network.quick_scan_proc.wake_fd, POLLIN, [&] {
-                    network_dispatch(network_poll_quick_scan(state.network));
+                app.network.quick_scan_proc.wake_fd, POLLIN, [&] {
+                    network_dispatch(network_poll_quick_scan(app.network));
                 });
-        if (state.network.scan_proc.wake_fd >= 0)
+        if (app.network.scan_proc.wake_fd >= 0)
+            fn_sources.emplace_back(app.network.scan_proc.wake_fd, POLLIN, [&] {
+                network_dispatch(
+                    network_poll_scan(app.network, network_notify));
+            });
+        if (app.network.connect_proc.wake_fd >= 0)
             fn_sources.emplace_back(
-                state.network.scan_proc.wake_fd, POLLIN, [&] {
+                app.network.connect_proc.wake_fd, POLLIN, [&] {
                     network_dispatch(
-                        network_poll_scan(state.network, network_notify));
+                        network_poll_connect(app.network, network_notify));
                 });
-        if (state.network.connect_proc.wake_fd >= 0)
+        if (app.network.disconnect_proc.wake_fd >= 0)
             fn_sources.emplace_back(
-                state.network.connect_proc.wake_fd, POLLIN, [&] {
+                app.network.disconnect_proc.wake_fd, POLLIN, [&] {
                     network_dispatch(
-                        network_poll_connect(state.network, network_notify));
+                        network_poll_disconnect(app.network, network_notify));
                 });
-        if (state.network.disconnect_proc.wake_fd >= 0)
+        if (app.network.forget_proc.wake_fd >= 0)
             fn_sources.emplace_back(
-                state.network.disconnect_proc.wake_fd, POLLIN, [&] {
+                app.network.forget_proc.wake_fd, POLLIN,
+                [&] { network_dispatch(network_poll_forget(app.network)); });
+        if (app.network.connectivity_proc.wake_fd >= 0)
+            fn_sources.emplace_back(
+                app.network.connectivity_proc.wake_fd, POLLIN, [&] {
                     network_dispatch(
-                        network_poll_disconnect(state.network, network_notify));
-                });
-        if (state.network.forget_proc.wake_fd >= 0)
-            fn_sources.emplace_back(
-                state.network.forget_proc.wake_fd, POLLIN,
-                [&] { network_dispatch(network_poll_forget(state.network)); });
-        if (state.network.connectivity_proc.wake_fd >= 0)
-            fn_sources.emplace_back(
-                state.network.connectivity_proc.wake_fd, POLLIN, [&] {
-                    network_dispatch(network_poll_connectivity(state.network,
-                                                               network_notify));
+                        network_poll_connectivity(app.network, network_notify));
                 });
 
-        int pipewire_fd_value = pipewire_fd(state.pipewire);
+        int pipewire_fd_value = pipewire_fd(app.pipewire);
         if (pipewire_fd_value >= 0) {
             fn_sources.emplace_back(pipewire_fd_value, POLLIN, [&] {
-                PipewireChange change = pipewire_poll(state.pipewire);
+                PipewireChange change = pipewire_poll(app.pipewire);
                 if (change.sink) {
                     bool muted = false;
-                    float level = pipewire_sink_level(state.pipewire, muted);
-                    osd_show(state.osd, OsdKind::Volume, level, muted);
-                    osd_request_frame(state.osd);
-                    bar_detail::volume_pill_peek_tick(state);
+                    float level = pipewire_sink_level(app.pipewire, muted);
+                    for (auto &mon : app.outputs) {
+                        osd_show(mon->osd, OsdKind::Volume, level, muted);
+                        osd_request_frame(mon->osd);
+                        bar_detail::volume_pill_peek_tick(*mon);
+                    }
                 }
                 if (change.source) {
                     bool muted = false;
-                    float level = pipewire_source_level(state.pipewire, muted);
-                    osd_show(state.osd, OsdKind::Mic, level, muted);
-                    osd_request_frame(state.osd);
+                    float level = pipewire_source_level(app.pipewire, muted);
+                    for (auto &mon : app.outputs) {
+                        osd_show(mon->osd, OsdKind::Mic, level, muted);
+                        osd_request_frame(mon->osd);
+                    }
                 }
                 if (change.sink || change.source)
                     volume_dispatch();
             });
         }
 
-        if (state.brightness_watch_fd >= 0) {
-            fn_sources.emplace_back(state.brightness_watch_fd, POLLIN, [&] {
-                if (brightness_watch_poll(state.brightness_watch_fd)) {
-                    float level = brightness_get(state.brightness);
-                    osd_show(state.osd, OsdKind::Brightness, level, false);
-                    osd_request_frame(state.osd);
+        if (app.brightness_watch_fd >= 0) {
+            fn_sources.emplace_back(app.brightness_watch_fd, POLLIN, [&] {
+                if (brightness_watch_poll(app.brightness_watch_fd)) {
+                    float level = brightness_get(app.brightness);
+                    for (auto &mon : app.outputs) {
+                        osd_show(mon->osd, OsdKind::Brightness, level, false);
+                        osd_request_frame(mon->osd);
+                    }
                 }
             });
         }
@@ -666,81 +569,47 @@ int main(int argc, char **argv) {
                                     [] { DeferredCall::drain(); });
         }
 
-        if (state.config_watch_fd >= 0) {
-            fn_sources.emplace_back(state.config_watch_fd, POLLIN, [&] {
-                ConfigWatchEvent ev = config_watch_poll(state.config_watch_fd);
+        if (app.config_watch_fd >= 0) {
+            fn_sources.emplace_back(app.config_watch_fd, POLLIN, [&] {
+                ConfigWatchEvent ev = config_watch_poll(app.config_watch_fd);
                 if (ev.removed) {
-                    close(state.config_watch_fd);
-                    state.config_watch_fd = config_watch_init(config_path());
+                    close(app.config_watch_fd);
+                    app.config_watch_fd = config_watch_init(config_path());
                 }
                 if (!ev.changed)
                     return;
-                Config new_cfg = load_config();
-                state.idle.timeout_seconds = new_cfg.idle_timeout_seconds;
-                state.idle.on_idle_command = new_cfg.idle_command;
-                state.idle.on_resume_command = new_cfg.idle_resume_command;
-                if (new_cfg.wallpaper_path != state.cfg.wallpaper_path) {
-                    wallpaper_load_async(state.wallpaper,
-                                         new_cfg.wallpaper_path);
+                if (app.config_own_write_pending) {
+                    // The settings panel just wrote this file itself -
+                    // apply_config_update() already ran, skip the echo.
+                    app.config_own_write_pending = false;
+                    return;
                 }
-                bool autohide_changed = new_cfg.autohide != state.cfg.autohide;
-                bool height_changed = new_cfg.height != state.cfg.height;
-                if (autohide_changed) {
-                    state.cfg.height = new_cfg.height;
-                    bar_detail::bar_autohide_set_enabled(state,
-                                                         new_cfg.autohide);
-                } else if (height_changed) {
-                    bool currently_shown =
-                        !state.cfg.autohide || !state.autohide.hidden;
-                    if (currently_shown) {
-                        bar_detail::BarGeometry g =
-                            bar_detail::bar_autohide_geometry(
-                                state.cfg.autohide, state.autohide.collapsed,
-                                new_cfg.height);
-                        zwlr_layer_surface_v1_set_size(state.layer_surface, 0,
-                                                       g.height);
-                        zwlr_layer_surface_v1_set_margin(
-                            state.layer_surface, g.margin_top,
-                            static_cast<int32_t>(kPanelSideMargin), 0,
-                            static_cast<int32_t>(kPanelSideMargin));
-                        zwlr_layer_surface_v1_set_exclusive_zone(
-                            state.layer_surface, g.exclusive_zone);
-                        wl_surface_commit(state.surface);
-                        if (state.egl_window)
-                            wl_egl_window_resize(
-                                state.egl_window,
-                                state.width * state.output_scale.scale,
-                                g.height * state.output_scale.scale, 0, 0);
-                    }
-                }
-                state.cfg = new_cfg;
-                bar_request_frame(state);
+                bar_detail::apply_config_update(app, load_config());
             });
         }
 
         auto launcher_search_dispatch = [&] {
-            if (launcher_search_poll(state.launcher) && want_launcher) {
-                launcher_request_frame(state.launcher);
-                eglMakeCurrent(state.egl_display, state.egl_surface,
-                               state.egl_surface, state.egl_context);
+            if (launcher_search_poll(app.launcher) && want_launcher) {
+                launcher_request_frame(app.launcher);
+                rest_egl_current();
             }
         };
-        if (state.launcher.search_dirs_proc.wake_fd >= 0)
-            fn_sources.emplace_back(state.launcher.search_dirs_proc.wake_fd,
+        if (app.launcher.search_dirs_proc.wake_fd >= 0)
+            fn_sources.emplace_back(app.launcher.search_dirs_proc.wake_fd,
                                     POLLIN, launcher_search_dispatch);
-        if (state.launcher.search_files_proc.wake_fd >= 0)
-            fn_sources.emplace_back(state.launcher.search_files_proc.wake_fd,
+        if (app.launcher.search_files_proc.wake_fd >= 0)
+            fn_sources.emplace_back(app.launcher.search_files_proc.wake_fd,
                                     POLLIN, launcher_search_dispatch);
 
-        if (state.keyboard.repeat_timer_fd >= 0) {
+        if (app.keyboard.repeat_timer_fd >= 0) {
 
-            fn_sources.emplace_back(
-                state.keyboard.repeat_timer_fd, POLLIN,
-                [&] { keyboard_repeat_tick(state.keyboard); });
+            fn_sources.emplace_back(app.keyboard.repeat_timer_fd, POLLIN, [&] {
+                keyboard_repeat_tick(app.keyboard);
+            });
         }
 
         std::vector<pollfd> fds;
-        fds.push_back({.fd = wl_display_get_fd(state.display),
+        fds.push_back({.fd = wl_display_get_fd(app.display),
                        .events = POLLIN,
                        .revents = 0});
         struct SourceRange {
@@ -754,19 +623,30 @@ int main(int argc, char **argv) {
                 ranges.push_back({&src, start});
         }
 
-        int poll_timeout_ms = launcher_poll_timeout_ms(state.launcher);
+        int poll_timeout_ms = launcher_poll_timeout_ms(app.launcher);
         if (poll(fds.data(), fds.size(), poll_timeout_ms) < 0)
             break;
 
         if (fds[0].revents & POLLIN) {
-            wl_display_dispatch(state.display);
+            wl_display_dispatch(app.display);
 
-            if (state.pointer.dirty) {
-                state.pointer.dirty = false;
-                bar_request_frame(state);
-                if (want_volume_panel && state.volume_panel.dragging) {
-                    volume_panel_handle_pointer_move(
-                        state.volume_panel, state.pipewire, state.pointer.x);
+            if (app.pointer.dirty) {
+                app.pointer.dirty = false;
+                for (auto &mon : app.outputs)
+                    bar_request_frame(*mon);
+                if (app.pointer.focused_surface) {
+                    if (MonitorOutput *m = find_monitor_for_surface(
+                            app, app.pointer.focused_surface))
+                        app.last_pointer_monitor = m;
+                }
+                MonitorOutput *dragging_mon = nullptr;
+                for (auto &mon : app.outputs)
+                    if (mon->volume_panel.dragging)
+                        dragging_mon = mon.get();
+                if (dragging_mon) {
+                    volume_panel_handle_pointer_move(dragging_mon->volume_panel,
+                                                     app.pipewire,
+                                                     app.pointer.x);
                     volume_dispatch();
                 }
             }
@@ -774,154 +654,161 @@ int main(int argc, char **argv) {
         for (SourceRange &r : ranges)
             r.src->dispatch(fds, r.start);
 
-        std::vector<KeyEvent> key_events =
-            keyboard_drain_events(state.keyboard);
-        if (want_launcher && state.launcher.open && !key_events.empty()) {
-            for (const KeyEvent &event : key_events)
-                launcher_handle_key_event(state.launcher, event);
-            launcher_request_frame(state.launcher);
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
-        } else if (want_logout && state.logout.base.open &&
-                   !key_events.empty()) {
-            for (const KeyEvent &event : key_events)
-                logout_handle_key_event(state.logout, event);
-            logout_request_frame(state.logout);
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
-        } else if (want_network_panel && state.network_panel.base.open &&
-                   !key_events.empty()) {
-            for (const KeyEvent &event : key_events)
-                network_panel_handle_key_event(state.network_panel,
-                                               state.network, event);
-            network_dispatch(true);
-        } else if (want_bluetooth_panel && state.bluetooth_panel.base.open &&
-                   !key_events.empty()) {
-            for (const KeyEvent &event : key_events)
-                bluetooth_panel_handle_key_event(state.bluetooth_panel,
-                                                 state.bluetooth, event);
-            bluetooth_dispatch();
-        } else if (want_volume_panel && state.volume_panel.base.open &&
-                   !key_events.empty()) {
-            for (const KeyEvent &event : key_events)
-                volume_panel_handle_key_event(state.volume_panel,
-                                              state.pipewire, event);
-            volume_dispatch();
+        // Keyboard focus is exclusive to a single surface at a time, but
+        // ponytail: since each monitor's panels are independent, this
+        // priority chain only reaches the first open one it finds if two
+        // different monitors' panels are somehow open at once - full
+        // per-surface keyboard-focus tracking would be needed to fix that,
+        // not worth it unless it's actually hit in practice.
+        std::vector<KeyEvent> key_events = keyboard_drain_events(app.keyboard);
+        if (!key_events.empty()) {
+            if (want_launcher && app.launcher.open) {
+                for (const KeyEvent &event : key_events)
+                    launcher_handle_key_event(app.launcher, event);
+                launcher_request_frame(app.launcher);
+                rest_egl_current();
+            } else if (want_settings && app.settings.base.open) {
+                for (const KeyEvent &event : key_events)
+                    settings_handle_key_event(app.settings, app.cfg,
+                                              settings_commit, event);
+                settings_request_frame(app.settings);
+                rest_egl_current();
+            } else if (want_logout && app.logout.base.open) {
+                for (const KeyEvent &event : key_events)
+                    logout_handle_key_event(app.logout, event);
+                logout_request_frame(app.logout);
+                rest_egl_current();
+            } else {
+                for (auto &mon : app.outputs) {
+                    if (mon->network_panel.base.open) {
+                        for (const KeyEvent &event : key_events)
+                            network_panel_handle_key_event(mon->network_panel,
+                                                           app.network, event);
+                        network_dispatch(true);
+                        break;
+                    }
+                    if (mon->bluetooth_panel.base.open) {
+                        for (const KeyEvent &event : key_events)
+                            bluetooth_panel_handle_key_event(
+                                mon->bluetooth_panel, app.bluetooth, event);
+                        bluetooth_dispatch();
+                        break;
+                    }
+                    if (mon->volume_panel.base.open) {
+                        for (const KeyEvent &event : key_events)
+                            volume_panel_handle_key_event(mon->volume_panel,
+                                                          app.pipewire, event);
+                        volume_dispatch();
+                        break;
+                    }
+                }
+            }
         }
 
         if (want_launcher)
-            launcher_search_start_pending(state.launcher);
+            launcher_search_start_pending(app.launcher);
 
-        if (want_launcher && launcher_tick(state.launcher)) {
-            launcher_request_frame(state.launcher);
-            eglMakeCurrent(state.egl_display, state.egl_surface,
-                           state.egl_surface, state.egl_context);
+        if (want_launcher && launcher_tick(app.launcher)) {
+            launcher_request_frame(app.launcher);
+            rest_egl_current();
         }
 
-        for (const PointerClick &click : pointer_drain_clicks(state.pointer)) {
+        for (const PointerClick &click : pointer_drain_clicks(app.pointer)) {
+            MonitorOutput *mon = find_monitor_for_surface(app, click.surface);
             if (click.button != BTN_LEFT &&
-                !(want_tray_panel && click.surface == state.tray_panel.base.surface))
+                !(mon && click.surface == mon->tray_panel.base.surface))
                 continue;
             if (!click.pressed) {
-                if (want_volume_panel && state.volume_panel.dragging) {
-                    state.volume_panel.dragging.reset();
-                    volume_dispatch();
+                for (auto &m : app.outputs) {
+                    if (m->volume_panel.dragging) {
+                        m->volume_panel.dragging.reset();
+                        volume_dispatch();
+                    }
                 }
                 continue;
             }
-            if (want_tray_menu && state.tray_menu.base.open &&
-                click.surface != state.tray_menu.base.surface &&
-                click.surface != state.tray_panel.base.surface) {
-                tray_menu_close(state.tray_menu);
-                tray_menu_request_frame(state.tray_menu);
-                eglMakeCurrent(state.egl_display, state.egl_surface,
-                               state.egl_surface, state.egl_context);
+            if (mon && mon->tray_menu.base.open &&
+                click.surface != mon->tray_menu.base.surface &&
+                click.surface != mon->tray_panel.base.surface) {
+                tray_menu_close(mon->tray_menu);
+                tray_menu_request_frame(mon->tray_menu);
+                rest_egl_current();
             }
-            if (want_tray_panel && state.tray_panel.base.open &&
-                click.surface == state.tray_panel.base.surface) {
-                tray_panel_handle_click(state.tray_panel, state.tray,
-                                        state.tray_menu, state.pointer.x,
-                                        state.pointer.y, click.button);
+            if (mon && click.surface == mon->tray_panel.base.surface) {
+                tray_panel_handle_click(mon->tray_panel, app.tray,
+                                        mon->tray_menu, click.x,
+                                        click.y, click.button);
                 tray_dispatch();
-            } else if (want_tray_menu && state.tray_menu.base.open &&
-                       click.surface == state.tray_menu.base.surface) {
-                tray_menu_handle_click(state.tray_menu, state.tray,
-                                       state.pointer.x, state.pointer.y);
-                tray_menu_request_frame(state.tray_menu);
-                eglMakeCurrent(state.egl_display, state.egl_surface,
-                               state.egl_surface, state.egl_context);
-            } else if (want_logout && state.logout.base.open &&
-                click.surface == state.logout.base.surface) {
-                logout_handle_click(state.logout, state.pointer.x,
-                                    state.pointer.y);
-                logout_request_frame(state.logout);
-                eglMakeCurrent(state.egl_display, state.egl_surface,
-                               state.egl_surface, state.egl_context);
-            } else if (want_network_panel && state.network_panel.base.open &&
-                       click.surface == state.network_panel.base.surface) {
-                network_panel_handle_click(state.network_panel, state.network,
-                                           state.pointer.x, state.pointer.y);
+            } else if (mon && click.surface == mon->tray_menu.base.surface) {
+                tray_menu_handle_click(mon->tray_menu, app.tray, click.x,
+                                       click.y);
+                tray_menu_request_frame(mon->tray_menu);
+                rest_egl_current();
+            } else if (want_logout &&
+                       click.surface == app.logout.base.surface) {
+                logout_handle_click(app.logout, click.x, click.y);
+                logout_request_frame(app.logout);
+                rest_egl_current();
+            } else if (mon &&
+                       click.surface == mon->network_panel.base.surface) {
+                network_panel_handle_click(mon->network_panel, app.network,
+                                           click.x, click.y);
                 network_dispatch(true);
-            } else if (want_bluetooth_panel &&
-                       state.bluetooth_panel.base.open &&
-                       click.surface == state.bluetooth_panel.base.surface) {
-                bluetooth_panel_handle_click(state.bluetooth_panel,
-                                             state.bluetooth, state.pointer.x,
-                                             state.pointer.y);
+            } else if (mon &&
+                       click.surface == mon->bluetooth_panel.base.surface) {
+                bluetooth_panel_handle_click(mon->bluetooth_panel,
+                                             app.bluetooth, click.x,
+                                             click.y);
                 bluetooth_dispatch();
-            } else if (want_volume_panel && state.volume_panel.base.open &&
-                       click.surface == state.volume_panel.base.surface) {
-                volume_panel_handle_click(state.volume_panel, state.pipewire,
-                                          state.pointer.x, state.pointer.y);
+            } else if (mon && click.surface == mon->volume_panel.base.surface) {
+                volume_panel_handle_click(mon->volume_panel, app.pipewire,
+                                          click.x, click.y);
                 volume_dispatch();
-            } else if (want_launcher && state.launcher.open &&
-                       click.surface == state.launcher.surface) {
-                launcher_handle_click(state.launcher, state.pointer.x,
-                                      state.pointer.y);
-                launcher_request_frame(state.launcher);
-                eglMakeCurrent(state.egl_display, state.egl_surface,
-                               state.egl_surface, state.egl_context);
-            } else if (click.surface == state.surface) {
-                dispatch_pill_click(state);
+            } else if (want_launcher && click.surface == app.launcher.surface) {
+                launcher_handle_click(app.launcher, click.x,
+                                      click.y);
+                launcher_request_frame(app.launcher);
+                rest_egl_current();
+            } else if (want_settings &&
+                       click.surface == app.settings.base.surface) {
+                settings_handle_click(app.settings, app.cfg, settings_commit,
+                                      click.x, click.y);
+                settings_request_frame(app.settings);
+                rest_egl_current();
+            } else if (mon && click.surface == mon->surface) {
+                dispatch_pill_click(*mon, click.x, click.y);
                 network_dispatch(true);
-
-                if (want_bluetooth_panel)
-                    bluetooth_dispatch();
-                if (want_volume_panel)
-                    volume_dispatch();
-                if (want_tray_panel)
-                    tray_dispatch();
+                bluetooth_dispatch();
+                volume_dispatch();
+                tray_dispatch();
                 if (want_logout) {
-                    logout_request_frame(state.logout);
-                    eglMakeCurrent(state.egl_display, state.egl_surface,
-                                   state.egl_surface, state.egl_context);
+                    logout_request_frame(app.logout);
+                    rest_egl_current();
                 }
             }
         }
 
-        for (const PointerScroll &scroll :
-             pointer_drain_scrolls(state.pointer)) {
-            if (want_network_panel && state.network_panel.base.open &&
-                scroll.surface == state.network_panel.base.surface) {
-                network_panel_handle_scroll(state.network_panel, state.network,
+        for (const PointerScroll &scroll : pointer_drain_scrolls(app.pointer)) {
+            MonitorOutput *mon = find_monitor_for_surface(app, scroll.surface);
+            if (mon && scroll.surface == mon->network_panel.base.surface) {
+                network_panel_handle_scroll(mon->network_panel, app.network,
                                             scroll.dy);
                 network_dispatch(true);
-            } else if (want_bluetooth_panel &&
-                       state.bluetooth_panel.base.open &&
-                       scroll.surface == state.bluetooth_panel.base.surface) {
-                bluetooth_panel_handle_scroll(state.bluetooth_panel,
-                                              state.bluetooth, scroll.dy);
+            } else if (mon &&
+                       scroll.surface == mon->bluetooth_panel.base.surface) {
+                bluetooth_panel_handle_scroll(mon->bluetooth_panel,
+                                              app.bluetooth, scroll.dy);
                 bluetooth_dispatch();
-            } else if (want_volume_panel && state.volume_panel.base.open &&
-                       scroll.surface == state.volume_panel.base.surface) {
-                volume_panel_handle_scroll(state.volume_panel, state.pipewire,
+            } else if (mon &&
+                       scroll.surface == mon->volume_panel.base.surface) {
+                volume_panel_handle_scroll(mon->volume_panel, app.pipewire,
                                            scroll.dy);
                 volume_dispatch();
-            } else if (scroll.surface == state.surface &&
-                       bar_detail::hit_test_pills(state.capsule, state.pointer,
-                                                  state.surface) ==
+            } else if (mon && scroll.surface == mon->surface &&
+                       bar_detail::hit_test_pills(mon->capsule, app.pointer,
+                                                  mon->surface) ==
                            PillId::Volume) {
-                bar_detail::volume_pill_handle_wheel(state, scroll.dy);
+                bar_detail::volume_pill_handle_wheel(*mon, scroll.dy);
             }
         }
     }

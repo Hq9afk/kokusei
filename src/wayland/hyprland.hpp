@@ -14,14 +14,15 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <unordered_map>
 #include <vector>
 
 struct HyprlandState {
     std::string request_socket_path;
     std::string event_socket_path;
     int event_fd = -1;
-    std::vector<Workspace> workspaces;
-    int active_id = -1;
+    std::unordered_map<std::string, MonitorWorkspaces> by_monitor;
+    std::string focused_monitor;
 };
 
 namespace hypr_detail {
@@ -99,13 +100,12 @@ inline std::vector<std::string> split(const std::string &s, char delim) {
     return parts;
 }
 
-}
+} // namespace hypr_detail
 
 inline void hypr_refresh(HyprlandState &state) {
     using nlohmann::json;
 
-    state.workspaces.clear();
-    state.active_id = -1;
+    state.by_monitor.clear();
     if (state.request_socket_path.empty())
         return;
 
@@ -120,11 +120,16 @@ inline void hypr_refresh(HyprlandState &state) {
             if (ws.id < 0)
                 continue;
             ws.occupied = w.value("windows", 0) > 0;
-            state.workspaces.push_back(std::move(ws));
+            std::string monitor = w.value("monitor", std::string());
+            state.by_monitor[monitor].workspaces.push_back(std::move(ws));
         }
-        std::sort(
-            state.workspaces.begin(), state.workspaces.end(),
-            [](const Workspace &a, const Workspace &b) { return a.id < b.id; });
+        for (auto &entry : state.by_monitor) {
+            std::sort(entry.second.workspaces.begin(),
+                      entry.second.workspaces.end(),
+                      [](const Workspace &a, const Workspace &b) {
+                          return a.id < b.id;
+                      });
+        }
     } catch (const json::exception &e) {
         klog("hyprland: failed to parse j/workspaces: %s", e.what());
     }
@@ -134,11 +139,11 @@ inline void hypr_refresh(HyprlandState &state) {
     try {
         json arr = json::parse(monitors_reply);
         for (auto &m : arr) {
-            if (m.value("focused", false)) {
-                state.active_id =
-                    m.value("activeWorkspace", json::object()).value("id", -1);
-                break;
-            }
+            std::string name = m.value("name", std::string());
+            state.by_monitor[name].active_id =
+                m.value("activeWorkspace", json::object()).value("id", -1);
+            if (m.value("focused", false))
+                state.focused_monitor = name;
         }
     } catch (const json::exception &e) {
         klog("hyprland: failed to parse j/monitors: %s", e.what());
@@ -221,14 +226,19 @@ inline HyprEventResult hypr_poll_events(HyprlandState &state) {
         if (event == "focusedmonv2") {
             auto parts = hypr_detail::split(data, ',');
             if (parts.size() >= 2) {
-                state.active_id = atoi(parts[1].c_str());
+                state.focused_monitor = parts[0];
+                state.by_monitor[state.focused_monitor].active_id =
+                    atoi(parts[1].c_str());
                 if (result == HyprEventResult::None)
                     result = HyprEventResult::ActiveChanged;
             }
         } else if (event == "workspacev2") {
+            // No monitor field on this event - it always applies to whichever
+            // monitor last reported focus via focusedmonv2.
             auto parts = hypr_detail::split(data, ',');
-            if (!parts.empty()) {
-                state.active_id = atoi(parts[0].c_str());
+            if (!parts.empty() && !state.focused_monitor.empty()) {
+                state.by_monitor[state.focused_monitor].active_id =
+                    atoi(parts[0].c_str());
                 if (result == HyprEventResult::None)
                     result = HyprEventResult::ActiveChanged;
             }

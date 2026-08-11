@@ -2,11 +2,14 @@
 
 #include <toml++/toml.hpp>
 
+#include "../core/log.hpp"
 #include "../render/palette.hpp"
 
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <sys/inotify.h>
 #include <unistd.h>
@@ -60,9 +63,51 @@ inline Config load_config() {
         cfg.idle_resume_command =
             tbl["idle"]["resume_command"].value_or(cfg.idle_resume_command);
     } catch (const toml::parse_error &) {
-
     }
     return cfg;
+}
+
+inline bool write_file_atomic(const std::string &path,
+                              const std::string &content) {
+    std::string tmp_path = path + ".tmp";
+    {
+        std::ofstream f(tmp_path, std::ios::trunc);
+        if (!f || !(f << content))
+            return false;
+    }
+    if (rename(tmp_path.c_str(), path.c_str()) != 0) {
+        unlink(tmp_path.c_str());
+        return false;
+    }
+    return true;
+}
+
+inline void save_config(const Config &cfg) {
+    std::string path = config_path();
+    if (path.empty())
+        return;
+    toml::table tbl;
+    tbl.insert_or_assign("bar", toml::table{
+                                    {"height", cfg.height},
+                                    {"autohide", cfg.autohide},
+                                    {"bg_r", cfg.bg[0]},
+                                    {"bg_g", cfg.bg[1]},
+                                    {"bg_b", cfg.bg[2]},
+                                    {"bg_a", cfg.bg[3]},
+                                });
+    tbl.insert_or_assign("wallpaper",
+                         toml::table{{"path", cfg.wallpaper_path}});
+    tbl.insert_or_assign(
+        "idle",
+        toml::table{
+            {"timeout_seconds", static_cast<int64_t>(cfg.idle_timeout_seconds)},
+            {"command", cfg.idle_command},
+            {"resume_command", cfg.idle_resume_command},
+        });
+    std::ostringstream ss;
+    ss << tbl;
+    if (!write_file_atomic(path, ss.str()))
+        klog("config: failed to save %s", path.c_str());
 }
 
 inline int config_watch_init(const std::string &path) {

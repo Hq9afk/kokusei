@@ -65,13 +65,14 @@ inline const Texture *item_icon_texture(TrayPanelState &state,
     return it->second.id ? &it->second : nullptr;
 }
 
-}
+} // namespace tray_panel_detail
 
 inline bool tray_panel_create_surface(TrayPanelState &state,
                                       wl_compositor *compositor,
-                                      zwlr_layer_shell_v1 *layer_shell) {
+                                      zwlr_layer_shell_v1 *layer_shell,
+                                      wl_output *output = nullptr) {
     return overlay_panel_create_surface(state.base, compositor, layer_shell,
-                                        "kokusei-tray-panel");
+                                        "kokusei-tray-panel", output);
 }
 
 inline void tray_panel_paint(TrayPanelState &state, TrayState &tray,
@@ -92,16 +93,16 @@ inline bool tray_panel_init_egl(TrayPanelState &state, Renderer &renderer,
     return true;
 }
 
-inline void tray_panel_request_frame(TrayPanelState &state,
-                                     float pill_center_x, float bar_height,
-                                     float bar_top_margin) {
+inline void tray_panel_request_frame(TrayPanelState &state, float pill_center_x,
+                                     float bar_height, float bar_top_margin) {
     state.pending_pill_center_x = pill_center_x;
     state.pending_bar_height = bar_height;
     state.pending_bar_top_margin = bar_top_margin;
     overlay_panel_request_frame(state.base);
 }
 
-inline void tray_panel_toggle(TrayPanelState &state, float pill_center_x = -1.0f) {
+inline void tray_panel_toggle(TrayPanelState &state,
+                              float pill_center_x = -1.0f) {
     panel_lock_toggle(
         state.base, state.locked_center_x, pill_center_x,
         [&state] { state.visible_height = -1.0f; },

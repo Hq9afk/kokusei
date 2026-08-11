@@ -139,13 +139,14 @@ inline float panel_height(const std::vector<PanelRow> &rows) {
     return std::min(kPanelMaxHeight, h);
 }
 
-}
+} // namespace bluetooth_panel_detail
 
 inline bool bluetooth_panel_create_surface(BluetoothPanelState &state,
                                            wl_compositor *compositor,
-                                           zwlr_layer_shell_v1 *layer_shell) {
+                                           zwlr_layer_shell_v1 *layer_shell,
+                                           wl_output *output = nullptr) {
     return overlay_panel_create_surface(state.base, compositor, layer_shell,
-                                        "kokusei-bluetooth-panel");
+                                        "kokusei-bluetooth-panel", output);
 }
 
 inline void bluetooth_panel_paint(BluetoothPanelState &state,

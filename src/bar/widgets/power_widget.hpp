@@ -3,11 +3,11 @@
 #include "widget_capsule.hpp"
 
 namespace bar_detail {
-inline Pill power_pill(WaylandState &state) {
-    return Pill{PillId::Power, &state.power_texture, "Power Menu", nullptr,
-               [&state] {
-                   close_other_overlays(state, PillId::Power);
-                   logout_toggle(state.logout, true);
-               }};
+inline Pill power_pill(MonitorOutput &mon) {
+    return Pill{PillId::Power, &mon.power_texture, "Power Menu", nullptr,
+                [&mon] {
+                    close_other_overlays(mon, PillId::Power);
+                    logout_toggle(mon.app->logout, true);
+                }};
 }
-}
+} // namespace bar_detail

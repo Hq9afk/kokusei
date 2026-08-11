@@ -55,6 +55,9 @@ enum class PanelClickKind {
     TrayOpenMenu,
     TrayMenuBack,
     TrayMenuEntry,
+    TabSelect,
+    ToggleFlip,
+    FieldFocus,
 };
 struct PanelClickRegion {
     PanelClickKind kind;
@@ -88,11 +91,12 @@ inline const Texture *cached_text_clipped(TextureCache &cache,
                      [&] { return rasterize_text(s, scale, max_width_px); });
 }
 
-}
+} // namespace panel_chrome_detail
 
-inline Node *panel_draw_box(Node *parent, float x, float y, float w, float h) {
+inline Node *panel_draw_box(Node *parent, float x, float y, float w, float h,
+                            float border_width = metrics::border_thin) {
     return node_add_rrect(parent, x, y, w, h, metrics::radius_md,
-                          metrics::border_thin, rgba(palette::overlay),
+                          border_width, rgba(palette::overlay),
                           rgba(palette::accent));
 }
 

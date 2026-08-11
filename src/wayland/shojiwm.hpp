@@ -12,12 +12,12 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <unordered_map>
 #include <vector>
 
 struct ShojiwmState {
     int fd = -1;
-    std::vector<Workspace> workspaces;
-    int active_id = -1;
+    std::unordered_map<std::string, MonitorWorkspaces> by_monitor;
 };
 
 namespace shoji_detail {
@@ -46,70 +46,34 @@ inline bool send_line(int fd, const std::string &line) {
     return true;
 }
 
-}
+} // namespace shoji_detail
 
 inline void shoji_apply_snapshot(ShojiwmState &state,
                                  const nlohmann::json &payload) {
     using nlohmann::json;
-    std::string current_monitor =
-        payload.value("currentMonitor", std::string());
-
-    json monitor_workspaces = json::array();
-    bool found_monitor = false;
     auto monitors_it = payload.find("monitors");
-    if (monitors_it != payload.end()) {
-        for (auto &mon : *monitors_it) {
-            if (mon.value("name", std::string()) == current_monitor) {
-                monitor_workspaces = mon.value("workspaces", json::array());
-                found_monitor = true;
-                break;
-            }
-        }
-    }
-    if (!found_monitor) {
-        klog("shojiwm: no monitor named '%s' in snapshot",
-             current_monitor.c_str());
+    if (monitors_it == payload.end()) {
+        klog("shojiwm: snapshot has no 'monitors' field");
         return;
     }
 
-    std::vector<int> new_ids;
-    std::vector<bool> new_occupied;
-    int new_active_id = -1;
-    for (auto &ws : monitor_workspaces) {
-        int id = ws.value("index", -1);
-        if (id < 0)
-            continue;
-        new_ids.push_back(id);
-        new_occupied.push_back(ws.value("windowCount", 0) > 0);
-        if (ws.value("active", false))
-            new_active_id = id;
-    }
-
-    bool structural = new_ids.size() != state.workspaces.size();
-    if (!structural) {
-        for (size_t i = 0; i < new_ids.size(); ++i) {
-            if (state.workspaces[i].id != new_ids[i]) {
-                structural = true;
-                break;
-            }
+    for (auto &mon : *monitors_it) {
+        std::string name = mon.value("name", std::string());
+        MonitorWorkspaces &mw = state.by_monitor[name];
+        mw.workspaces.clear();
+        mw.active_id = -1;
+        for (auto &ws : mon.value("workspaces", json::array())) {
+            int id = ws.value("index", -1);
+            if (id < 0)
+                continue;
+            Workspace w;
+            w.id = id;
+            w.occupied = ws.value("windowCount", 0) > 0;
+            mw.workspaces.push_back(w);
+            if (ws.value("active", false))
+                mw.active_id = id;
         }
     }
-
-    if (structural) {
-        std::vector<Workspace> rebuilt;
-        for (size_t i = 0; i < new_ids.size(); ++i) {
-            Workspace ws;
-            ws.id = new_ids[i];
-            ws.occupied = new_occupied[i];
-            rebuilt.push_back(std::move(ws));
-        }
-        state.workspaces = std::move(rebuilt);
-    } else {
-
-        for (size_t i = 0; i < new_ids.size(); ++i)
-            state.workspaces[i].occupied = new_occupied[i];
-    }
-    state.active_id = new_active_id;
 }
 
 inline bool shoji_init(ShojiwmState &state) {

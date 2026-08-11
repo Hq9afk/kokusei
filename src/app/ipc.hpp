@@ -2,10 +2,10 @@
 
 #include "../bar/bar.hpp"
 #include "../bar/panels/bluetooth_panel/bluetooth_panel_state.hpp"
+#include "../core/log.hpp"
 #include "../idle/idle.hpp"
 #include "../launcher/launcher_state.hpp"
 #include "../logout/logout_state.hpp"
-#include "../core/log.hpp"
 
 #include <cerrno>
 #include <cstdio>
@@ -58,11 +58,15 @@ struct IpcHandler {
     const char *description;
 };
 
+// The idle-inhibit anchor and the "bluetooth" verb both need *a* surface/panel
+// to act on; both use the first monitor's, mirroring how launcher/logout are
+// already single-instance on the first monitor (see
+// local/plan/multi-monitor-support.md).
 inline std::vector<IpcHandler>
-ipc_handlers(WaylandState &state, wl_surface *bar_surface, IdleState &idle,
-             LauncherState &launcher, LogoutState &logout,
-             BluetoothPanelState &bluetooth_panel, BluetoothState &bluetooth,
-             bool &running) {
+ipc_handlers(WaylandState &state, IdleState &idle, LauncherState &launcher,
+             LogoutState &logout, bool &running) {
+    wl_surface *bar_surface =
+        state.outputs.empty() ? nullptr : state.outputs.front()->surface;
     return {
         {"idle-inhibit on",
          [&idle, bar_surface] { idle_set_inhibited(idle, bar_surface, true); },
@@ -76,11 +80,26 @@ ipc_handlers(WaylandState &state, wl_surface *bar_surface, IdleState &idle,
          "toggle the launcher, searching from /"},
         {"logout", [&logout] { logout_toggle(logout); },
          "toggle the logout overlay"},
-        {"bluetooth",
-         [&bluetooth_panel, &bluetooth] {
-             bluetooth_panel_toggle(bluetooth_panel, bluetooth);
+        {"settings",
+         [&state] {
+             if (!state.settings.base.open && state.settings_enabled) {
+                 MonitorOutput *target = bar_detail::settings_target_monitor(state);
+                 if (target && target->output.wl != state.settings_bound_output)
+                     bar_detail::settings_retarget(state, *target);
+             }
+             settings_toggle(state.settings, state.cfg, [&state](Config c) {
+                 bar_detail::save_and_apply_config_update(state, c);
+             });
          },
-         "toggle the bluetooth panel"},
+         "toggle the settings panel"},
+        {"bluetooth",
+         [&state] {
+             if (state.outputs.empty())
+                 return;
+             MonitorOutput &mon = *state.outputs.front();
+             bluetooth_panel_toggle(mon.bluetooth_panel, state.bluetooth);
+         },
+         "toggle the bluetooth panel (first monitor)"},
         {"bar",
          [&state] {
              bar_detail::bar_autohide_set_enabled(state, !state.cfg.autohide);
@@ -91,10 +110,8 @@ ipc_handlers(WaylandState &state, wl_surface *bar_surface, IdleState &idle,
 }
 
 inline void handle_ipc_accept(int listen_fd, WaylandState &state,
-                              wl_surface *bar_surface, IdleState &idle,
-                              LauncherState &launcher, LogoutState &logout,
-                              BluetoothPanelState &bluetooth_panel,
-                              BluetoothState &bluetooth, bool &running) {
+                              IdleState &idle, LauncherState &launcher,
+                              LogoutState &logout, bool &running) {
     int client_fd = accept(listen_fd, nullptr, nullptr);
     if (client_fd < 0)
         return;
@@ -108,8 +125,7 @@ inline void handle_ipc_accept(int listen_fd, WaylandState &state,
 
         klog("ipc: %s", cmd.c_str());
         std::vector<IpcHandler> handlers =
-            ipc_handlers(state, bar_surface, idle, launcher, logout,
-                         bluetooth_panel, bluetooth, running);
+            ipc_handlers(state, idle, launcher, logout, running);
         if (cmd == "--help" || cmd == "help") {
             std::string help = "kokusei <verb>:\n";
             for (const IpcHandler &h : handlers)
