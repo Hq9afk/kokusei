@@ -191,7 +191,7 @@ struct BarGeometry {
 inline BarGeometry bar_autohide_geometry(bool autohide, bool collapsed,
                                          int32_t cfg_height) {
     if (!autohide)
-        return {cfg_height, kBarTopMargin, cfg_height + kBarTopMargin};
+        return {cfg_height, kBarTopMargin, cfg_height};
     if (collapsed)
         return {kAutoHideStripPx, 0, 0};
     return {kBarTopMargin + cfg_height, 0, 0};
