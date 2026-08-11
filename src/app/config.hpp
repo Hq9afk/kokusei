@@ -3,7 +3,6 @@
 #include <toml++/toml.hpp>
 
 #include "../core/log.hpp"
-#include "../render/palette.hpp"
 
 #include <cstdint>
 #include <cstdio>
@@ -14,35 +13,54 @@
 #include <string>
 #include <sys/inotify.h>
 #include <unistd.h>
+#include <vector>
 
 inline std::string default_wallpaper_dir() {
     const char *home = getenv("HOME");
     return std::string(home ? home : "") + "/Pictures";
 }
 
-struct Config {
-    int32_t height = 35;
+struct MonitorOverride {
+    bool enabled = false;
+    bool osd = true;
+    bool notifications = true;
+    bool autohide = false;
+};
 
-    float bg[4] = {palette::overlay.r, palette::overlay.g, palette::overlay.b,
-                   palette::overlay.a};
+struct Config {
     std::string wallpaper_path = KOKUSEI_DEFAULT_WALLPAPER;
     std::string wallpaper_dir = default_wallpaper_dir();
-    std::map<std::string, std::string> wallpaper_paths;
+
+    std::map<std::string, std::vector<std::string>> wallpaper_columns;
+    std::map<std::string, int> wallpaper_column_counts;
     std::map<std::string, std::string> wallpaper_fill_modes;
     bool autohide = false;
+    bool default_osd_enabled = true;
+    bool default_notifications_enabled = true;
+    std::map<std::string, MonitorOverride> monitor_overrides;
     uint32_t idle_timeout_seconds = 300;
     std::string idle_command;
     std::string idle_resume_command;
 };
 
-// Per-monitor wallpaper lookups: fall back to the global default when a
-// monitor has no explicit entry.
-inline std::string wallpaper_effective_path(const Config &cfg,
+inline int wallpaper_effective_column_count(const Config &cfg,
                                             const std::string &monitor_name) {
-    auto it = cfg.wallpaper_paths.find(monitor_name);
-    if (it != cfg.wallpaper_paths.end() && !it->second.empty())
-        return it->second;
-    return cfg.wallpaper_path;
+    auto it = cfg.wallpaper_column_counts.find(monitor_name);
+    return it != cfg.wallpaper_column_counts.end() && it->second > 0
+              ? it->second
+              : 1;
+}
+
+inline std::string wallpaper_effective_column_path(const Config &cfg,
+                                                    const std::string &monitor_name,
+                                                    int column_index) {
+    auto it = cfg.wallpaper_columns.find(monitor_name);
+    if (it != cfg.wallpaper_columns.end() &&
+        column_index >= 0 &&
+        static_cast<size_t>(column_index) < it->second.size() &&
+        !it->second[static_cast<size_t>(column_index)].empty())
+        return it->second[static_cast<size_t>(column_index)];
+    return column_index == 0 ? cfg.wallpaper_path : "";
 }
 
 inline std::string
@@ -54,20 +72,35 @@ wallpaper_effective_fill_mode(const Config &cfg,
     return "crop";
 }
 
-inline std::string
-device_name(const std::string &hostname_path = "/etc/hostname") {
-    std::ifstream f(hostname_path);
-    std::string device;
-    if (f && std::getline(f, device) && !device.empty())
-        return device;
-    return "hq9afk";
+inline bool osd_effective_enabled(const Config &cfg,
+                                  const std::string &monitor_name) {
+    auto it = cfg.monitor_overrides.find(monitor_name);
+    if (it != cfg.monitor_overrides.end() && it->second.enabled)
+        return it->second.osd;
+    return cfg.default_osd_enabled;
+}
+
+inline bool notifications_effective_enabled(const Config &cfg,
+                                            const std::string &monitor_name) {
+    auto it = cfg.monitor_overrides.find(monitor_name);
+    if (it != cfg.monitor_overrides.end() && it->second.enabled)
+        return it->second.notifications;
+    return cfg.default_notifications_enabled;
+}
+
+inline bool autohide_effective_enabled(const Config &cfg,
+                                       const std::string &monitor_name) {
+    auto it = cfg.monitor_overrides.find(monitor_name);
+    if (it != cfg.monitor_overrides.end() && it->second.enabled)
+        return it->second.autohide;
+    return cfg.autohide;
 }
 
 inline std::string config_path() {
     const char *home = getenv("HOME");
     if (!home)
         return "";
-    return std::string(home) + "/.config/kokusei/" + device_name() + ".toml";
+    return std::string(home) + "/.config/kokusei/config.toml";
 }
 
 inline Config load_config() {
@@ -77,25 +110,51 @@ inline Config load_config() {
         return cfg;
     try {
         toml::table tbl = toml::parse_file(path);
-        cfg.height = tbl["bar"]["height"].value_or(cfg.height);
-        cfg.autohide = tbl["bar"]["autohide"].value_or(cfg.autohide);
-        cfg.bg[0] = tbl["bar"]["bg_r"].value_or(cfg.bg[0]);
-        cfg.bg[1] = tbl["bar"]["bg_g"].value_or(cfg.bg[1]);
-        cfg.bg[2] = tbl["bar"]["bg_b"].value_or(cfg.bg[2]);
-        cfg.bg[3] = tbl["bar"]["bg_a"].value_or(cfg.bg[3]);
+        cfg.autohide = tbl["autohide"].value_or(cfg.autohide);
         cfg.wallpaper_path =
             tbl["wallpaper"]["path"].value_or(cfg.wallpaper_path);
         cfg.wallpaper_dir =
             tbl["wallpaper"]["dir"].value_or(cfg.wallpaper_dir);
-        if (const auto *paths = tbl["wallpaper"]["paths"].as_table()) {
-            for (const auto &[name, val] : *paths)
-                if (auto s = val.value<std::string>())
-                    cfg.wallpaper_paths[std::string(name.str())] = *s;
+        if (const auto *columns = tbl["wallpaper"]["columns"].as_table()) {
+            for (const auto &[name, val] : *columns) {
+                if (const auto *arr = val.as_array()) {
+                    std::vector<std::string> paths;
+                    for (const auto &el : *arr)
+                        paths.push_back(el.value_or(std::string()));
+                    cfg.wallpaper_columns[std::string(name.str())] = paths;
+                }
+            }
+        }
+        if (const auto *counts =
+                tbl["wallpaper"]["column_counts"].as_table()) {
+            for (const auto &[name, val] : *counts)
+                if (auto n = val.value<int64_t>())
+                    cfg.wallpaper_column_counts[std::string(name.str())] =
+                        static_cast<int>(*n);
         }
         if (const auto *modes = tbl["wallpaper"]["fill_modes"].as_table()) {
             for (const auto &[name, val] : *modes)
                 if (auto s = val.value<std::string>())
                     cfg.wallpaper_fill_modes[std::string(name.str())] = *s;
+        }
+        cfg.default_osd_enabled =
+            tbl["displays"]["default_osd"].value_or(cfg.default_osd_enabled);
+        cfg.default_notifications_enabled =
+            tbl["displays"]["default_notifications"].value_or(
+                cfg.default_notifications_enabled);
+        if (const auto *overrides =
+                tbl["displays"]["monitor_overrides"].as_table()) {
+            for (const auto &[name, val] : *overrides) {
+                if (const auto *ov = val.as_table()) {
+                    MonitorOverride mo;
+                    mo.enabled = (*ov)["enabled"].value_or(mo.enabled);
+                    mo.osd = (*ov)["osd"].value_or(mo.osd);
+                    mo.notifications =
+                        (*ov)["notifications"].value_or(mo.notifications);
+                    mo.autohide = (*ov)["autohide"].value_or(mo.autohide);
+                    cfg.monitor_overrides[std::string(name.str())] = mo;
+                }
+            }
         }
         cfg.idle_timeout_seconds =
             tbl["idle"]["timeout_seconds"].value_or(cfg.idle_timeout_seconds);
@@ -127,17 +186,18 @@ inline void save_config(const Config &cfg) {
     if (path.empty())
         return;
     toml::table tbl;
-    tbl.insert_or_assign("bar", toml::table{
-                                    {"height", cfg.height},
-                                    {"autohide", cfg.autohide},
-                                    {"bg_r", cfg.bg[0]},
-                                    {"bg_g", cfg.bg[1]},
-                                    {"bg_b", cfg.bg[2]},
-                                    {"bg_a", cfg.bg[3]},
-                                });
-    toml::table wallpaper_paths_tbl;
-    for (const auto &[name, path] : cfg.wallpaper_paths)
-        wallpaper_paths_tbl.insert_or_assign(name, path);
+    tbl.insert_or_assign("autohide", cfg.autohide);
+    toml::table wallpaper_columns_tbl;
+    for (const auto &[name, paths] : cfg.wallpaper_columns) {
+        toml::array arr;
+        for (const std::string &p : paths)
+            arr.push_back(p);
+        wallpaper_columns_tbl.insert_or_assign(name, arr);
+    }
+    toml::table wallpaper_column_counts_tbl;
+    for (const auto &[name, count] : cfg.wallpaper_column_counts)
+        wallpaper_column_counts_tbl.insert_or_assign(
+            name, static_cast<int64_t>(count));
     toml::table wallpaper_fill_modes_tbl;
     for (const auto &[name, mode] : cfg.wallpaper_fill_modes)
         wallpaper_fill_modes_tbl.insert_or_assign(name, mode);
@@ -145,8 +205,21 @@ inline void save_config(const Config &cfg) {
         "wallpaper",
         toml::table{{"path", cfg.wallpaper_path},
                     {"dir", cfg.wallpaper_dir},
-                    {"paths", wallpaper_paths_tbl},
+                    {"columns", wallpaper_columns_tbl},
+                    {"column_counts", wallpaper_column_counts_tbl},
                     {"fill_modes", wallpaper_fill_modes_tbl}});
+    toml::table monitor_overrides_tbl;
+    for (const auto &[name, ov] : cfg.monitor_overrides)
+        monitor_overrides_tbl.insert_or_assign(
+            name, toml::table{{"enabled", ov.enabled},
+                              {"osd", ov.osd},
+                              {"notifications", ov.notifications},
+                              {"autohide", ov.autohide}});
+    tbl.insert_or_assign(
+        "displays",
+        toml::table{{"default_osd", cfg.default_osd_enabled},
+                    {"default_notifications", cfg.default_notifications_enabled},
+                    {"monitor_overrides", monitor_overrides_tbl}});
     tbl.insert_or_assign(
         "idle",
         toml::table{

@@ -2,6 +2,7 @@
 
 void test_config();
 void test_config_watch();
+void test_monitor_overrides();
 void test_wallpaper_resolve();
 void test_wallpaper_picker_sort();
 

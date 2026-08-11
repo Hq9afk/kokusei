@@ -57,7 +57,7 @@ inline std::vector<MenuEntry> *current_menu_level(TrayState &tray,
     return level;
 }
 
-} // namespace tray_menu_detail
+}
 
 inline bool tray_menu_create_surface(TrayMenuState &state,
                                      wl_compositor *compositor,

@@ -319,7 +319,7 @@ inline int read_int_file(const std::string &path) {
     return value;
 }
 
-} // namespace osd_detail
+}
 
 struct BrightnessBackend {
     std::string device;

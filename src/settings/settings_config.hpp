@@ -25,6 +25,9 @@ constexpr float kSettingsWallpaperGridInset = 5.0f;
 constexpr float kSettingsMonitorChipHeight = 28.0f;
 constexpr float kSettingsMonitorChipGap = 8.0f;
 
+constexpr float kSettingsColumnStepperButtonSize = 28.0f;
+constexpr float kSettingsColumnStepperGap = 6.0f;
+
 constexpr float kSettingsDirBarHeight = 40.0f;
 constexpr float kSettingsDirBarLabelMargin = 14.0f;
 constexpr float kSettingsDirBarFieldMargin = 10.0f;

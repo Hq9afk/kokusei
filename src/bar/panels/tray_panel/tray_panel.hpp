@@ -23,7 +23,7 @@ inline float panel_total_height(float content_h) {
     return panel_chrome_top_offset() + content_h + kPanelPadding;
 }
 
-} // namespace tray_panel_detail
+}
 
 inline void tray_panel_paint(TrayPanelState &state, TrayState &tray,
                              float pill_center_x, float bar_height,

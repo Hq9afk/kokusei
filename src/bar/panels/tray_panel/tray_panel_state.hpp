@@ -65,7 +65,7 @@ inline const Texture *item_icon_texture(TrayPanelState &state,
     return it->second.id ? &it->second : nullptr;
 }
 
-} // namespace tray_panel_detail
+}
 
 inline bool tray_panel_create_surface(TrayPanelState &state,
                                       wl_compositor *compositor,

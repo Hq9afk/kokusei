@@ -71,7 +71,7 @@ struct WaylandState {
     Renderer renderer;
 
     IdleState idle;
-    NotificationState notification;
+    NotificationService notification;
     LauncherState launcher;
     LogoutState logout;
     SettingsState settings;
@@ -88,12 +88,6 @@ struct WaylandState {
     int config_watch_fd = -1;
     bool config_own_write_pending = false;
 
-    // Last monitor the pointer was seen over any of kokusei's own surfaces
-    // (bar/panels) - never cleared on pointer-leave, so it stays a "best
-    // last-known" hint once the cursor moves off onto another app's window,
-    // matching noctalia's own WaylandConnection::lastPointerOutput(). Used to
-    // open the settings panel on the monitor the user is actually looking
-    // at instead of always the first-enumerated one.
     MonitorOutput *last_pointer_monitor = nullptr;
     bool settings_enabled = false;
     wl_output *settings_bound_output = nullptr;
@@ -103,10 +97,6 @@ struct WaylandState {
     HyprlandState hypr;
     ShojiwmState shoji;
 
-    // One entry per connected wl_output. Bar, wallpaper, and OSD are
-    // duplicated one-per-monitor here; everything else above stays a
-    // single, seat/session-wide instance (see
-    // local/plan/multi-monitor-support.md).
     std::vector<std::unique_ptr<MonitorOutput>> outputs;
 };
 
@@ -115,7 +105,6 @@ struct MonitorOutput {
     Output output;
     bool activated = false;
 
-    // Bar surface
     wl_surface *surface = nullptr;
     zwlr_layer_surface_v1 *layer_surface = nullptr;
     wl_egl_window *egl_window = nullptr;
@@ -154,16 +143,16 @@ struct MonitorOutput {
     AutoHideState autohide;
     AnimationManager animations;
 
-    // Overlay panels anchored to this bar's own pills.
     NetworkPanelState network_panel;
     BluetoothPanelState bluetooth_panel;
     VolumePanelState volume_panel;
     TrayPanelState tray_panel;
     TrayMenuState tray_menu;
 
-    // Duplicated per monitor.
     WallpaperState wallpaper;
     OsdState osd;
+
+    NotificationView notification_view;
 };
 
 namespace bar_detail {
@@ -198,15 +187,14 @@ inline BarGeometry bar_autohide_geometry(bool autohide, bool collapsed,
 }
 
 inline int32_t bar_current_height(const MonitorOutput &mon) {
-    return bar_autohide_geometry(mon.app->cfg.autohide, mon.autohide.collapsed,
-                                 mon.app->cfg.height)
+    return bar_autohide_geometry(mon.autohide.enabled, mon.autohide.collapsed,
+                                 kBarHeight)
         .height;
 }
 
 inline void bar_autohide_apply_geometry(MonitorOutput &mon, bool autohide,
                                         bool collapsed) {
-    BarGeometry g =
-        bar_autohide_geometry(autohide, collapsed, mon.app->cfg.height);
+    BarGeometry g = bar_autohide_geometry(autohide, collapsed, kBarHeight);
     bar_autohide_set_surface_geometry(
         mon.layer_surface, mon.surface, mon.egl_window, mon.width, g.height,
         g.margin_top, static_cast<int32_t>(kPanelSideMargin),
@@ -214,15 +202,56 @@ inline void bar_autohide_apply_geometry(MonitorOutput &mon, bool autohide,
         mon.output_scale.scale);
 }
 
+inline void monitor_autohide_apply(MonitorOutput &mon, bool enabled) {
+    mon.autohide.enabled = enabled;
+    mon.autohide.hidden = false;
+    mon.autohide.collapsed = enabled && mon.autohide.collapsed;
+    mon.autohide.opacity = mon.autohide.collapsed ? 0.0f : 1.0f;
+    bar_autohide_apply_geometry(mon, enabled, mon.autohide.collapsed);
+}
+
 inline void bar_autohide_set_enabled(WaylandState &app, bool enabled) {
     if (enabled == app.cfg.autohide)
         return;
     app.cfg.autohide = enabled;
     for (auto &mon : app.outputs) {
-        mon->autohide.hidden = false;
-        mon->autohide.collapsed = enabled && mon->autohide.collapsed;
-        mon->autohide.opacity = mon->autohide.collapsed ? 0.0f : 1.0f;
-        bar_autohide_apply_geometry(*mon, enabled, mon->autohide.collapsed);
+        auto it = app.cfg.monitor_overrides.find(mon->output.name);
+        if (it != app.cfg.monitor_overrides.end() && it->second.enabled)
+            continue;
+        monitor_autohide_apply(*mon, enabled);
+    }
+}
+
+inline void wallpaper_load_all_columns(MonitorOutput &mon, const Config &cfg) {
+    int count = wallpaper_effective_column_count(cfg, mon.output.name);
+    mon.wallpaper.column_textures.resize(static_cast<size_t>(count));
+    for (int i = 0; i < count; ++i) {
+        std::string path =
+            wallpaper_effective_column_path(cfg, mon.output.name, i);
+        if (!path.empty())
+            wallpaper_decode_column_async(mon.wallpaper, path, i, count);
+    }
+}
+
+inline void wallpaper_diff_columns(MonitorOutput &mon, const Config &old_cfg,
+                                   const Config &new_cfg) {
+    int old_count = wallpaper_effective_column_count(old_cfg, mon.output.name);
+    int new_count = wallpaper_effective_column_count(new_cfg, mon.output.name);
+    if (new_count != static_cast<int>(mon.wallpaper.column_textures.size()))
+        mon.wallpaper.column_textures.resize(static_cast<size_t>(new_count));
+    int limit = std::max(old_count, new_count);
+    for (int i = 0; i < limit; ++i) {
+        std::string old_path =
+            i < old_count
+                ? wallpaper_effective_column_path(old_cfg, mon.output.name, i)
+                : "";
+        std::string new_path =
+            i < new_count
+                ? wallpaper_effective_column_path(new_cfg, mon.output.name, i)
+                : "";
+        if (new_path != old_path && !new_path.empty())
+            wallpaper_decode_column_async(mon.wallpaper, new_path, i,
+                                          new_count);
     }
 }
 
@@ -260,7 +289,7 @@ inline int monitor_active_workspace_id(const MonitorOutput &mon) {
         return -1;
     }
 }
-} // namespace bar_detail
+}
 
 inline void bar_paint(MonitorOutput &mon);
 
@@ -326,7 +355,7 @@ inline const wl_output_listener &listener() {
     };
     return l;
 }
-} // namespace output_detail
+}
 
 inline void registry_global(void *data, wl_registry *registry, uint32_t name,
                             const char *interface, uint32_t version) {
@@ -388,11 +417,6 @@ inline void destroy_layer_surface(EGLDisplay display, wl_surface *&surface,
     }
 }
 
-// ponytail: an in-flight wallpaper_decode_async()/wallpaper_load_async()
-// thread for this monitor that hasn't hit its DeferredCall yet will still
-// touch this MonitorOutput after this runs, if the unplug races the decode.
-// Not guarded further - same pre-existing hazard as reloading the wallpaper
-// path during shutdown. Add a generation-checked weak handle if this bites.
 inline void monitor_output_destroy(MonitorOutput &mon) {
     EGLDisplay d = mon.app->egl_display;
     destroy_layer_surface(d, mon.surface, mon.layer_surface, mon.egl_window,
@@ -401,6 +425,10 @@ inline void monitor_output_destroy(MonitorOutput &mon) {
                           mon.wallpaper.egl_window, mon.wallpaper.egl_surface);
     destroy_layer_surface(d, mon.osd.surface, mon.osd.layer_surface,
                           mon.osd.egl_window, mon.osd.egl_surface);
+    destroy_layer_surface(d, mon.notification_view.surface,
+                          mon.notification_view.layer_surface,
+                          mon.notification_view.egl_window,
+                          mon.notification_view.egl_surface);
     destroy_layer_surface(
         d, mon.network_panel.base.surface, mon.network_panel.base.layer_surface,
         mon.network_panel.base.egl_window, mon.network_panel.base.egl_surface);
@@ -506,6 +534,7 @@ inline bool bar_init_egl(MonitorOutput &mon, Renderer &renderer,
 
 inline void monitor_output_create_surfaces(WaylandState &app,
                                            MonitorOutput &mon) {
+    mon.autohide.enabled = autohide_effective_enabled(app.cfg, mon.output.name);
     LayerSurfaceConfig bar_cfg{
         .layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP,
         .name_space = "kokusei",
@@ -513,15 +542,16 @@ inline void monitor_output_create_surfaces(WaylandState &app,
                   ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
                   ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT,
         .height = bar_detail::bar_current_height(mon),
-        .margin_top = bar_detail::bar_autohide_geometry(app.cfg.autohide,
+        .margin_top = bar_detail::bar_autohide_geometry(mon.autohide.enabled,
                                                         mon.autohide.collapsed,
-                                                        app.cfg.height)
+                                                        bar_detail::kBarHeight)
                           .margin_top,
         .margin_right = static_cast<int32_t>(kPanelSideMargin),
         .margin_left = static_cast<int32_t>(kPanelSideMargin),
         .exclusive_zone =
-            bar_detail::bar_autohide_geometry(
-                app.cfg.autohide, mon.autohide.collapsed, app.cfg.height)
+            bar_detail::bar_autohide_geometry(mon.autohide.enabled,
+                                              mon.autohide.collapsed,
+                                              bar_detail::kBarHeight)
                 .exclusive_zone,
     };
     mon.layer_surface = layer_surface_create(
@@ -538,7 +568,7 @@ inline void monitor_output_create_surfaces(WaylandState &app,
     output_scale_watch(mon.output_scale, mon.surface);
     wl_surface_commit(mon.surface);
 
-    if (!wallpaper_effective_path(app.cfg, mon.output.name).empty() &&
+    if (!wallpaper_effective_column_path(app.cfg, mon.output.name, 0).empty() &&
         !wallpaper_create_surface(mon.wallpaper, app.compositor,
                                   app.layer_shell, mon.output.wl))
         klog("wallpaper: failed to create layer surface on '%s'",
@@ -547,6 +577,13 @@ inline void monitor_output_create_surfaces(WaylandState &app,
     if (!osd_create_surface(mon.osd, app.compositor, app.layer_shell,
                             mon.output.wl))
         klog("osd: failed to create layer surface on '%s'",
+             mon.output.name.c_str());
+
+    if (notifications_effective_enabled(app.cfg, mon.output.name) &&
+        !notification_view_create_surface(mon.notification_view,
+                                          app.compositor, app.layer_shell,
+                                          mon.output.wl))
+        klog("notification: failed to create layer surface on '%s'",
              mon.output.name.c_str());
 
     if (!network_panel_create_surface(mon.network_panel, app.compositor,
@@ -585,7 +622,9 @@ inline void monitor_output_wait_configured(WaylandState &app,
          mon.volume_panel.base.configured) &&
         (!mon.tray_panel.base.layer_surface ||
          mon.tray_panel.base.configured) &&
-        (!mon.tray_menu.base.layer_surface || mon.tray_menu.base.configured))) {
+        (!mon.tray_menu.base.layer_surface || mon.tray_menu.base.configured) &&
+        (!mon.notification_view.layer_surface ||
+         mon.notification_view.configured))) {
         wl_display_dispatch(app.display);
     }
 }
@@ -598,9 +637,15 @@ inline void monitor_output_finish_egl(WaylandState &app, MonitorOutput &mon) {
             wallpaper_effective_fill_mode(app.cfg, mon.output.name) == "fit"
                 ? FillMode::Fit
                 : FillMode::Crop;
-        wallpaper_decode_async(
-            mon.wallpaper, wallpaper_effective_path(app.cfg, mon.output.name));
+        bar_detail::wallpaper_load_all_columns(mon, app.cfg);
         wallpaper_request_frame(mon.wallpaper);
+        eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
+                       app.egl_context);
+    }
+    if (mon.notification_view.layer_surface &&
+        notification_view_init_egl(mon.notification_view, app.notification,
+                                   app.renderer, app.egl_display,
+                                   app.egl_config, app.egl_context)) {
         eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
                        app.egl_context);
     }
@@ -649,7 +694,7 @@ inline void monitor_output_finish_egl(WaylandState &app, MonitorOutput &mon) {
                        app.egl_context);
     }
 
-    if (app.cfg.autohide) {
+    if (mon.autohide.enabled) {
         mon.autohide.hidden = true;
         mon.autohide.collapsed = true;
         mon.autohide.opacity = 0.0f;
@@ -677,7 +722,7 @@ inline void dispatch_pill_click(MonitorOutput &mon, double click_x,
     PointerState p = mon.app->pointer;
     p.x = click_x;
     p.y = click_y;
-    if (mon.app->cfg.autohide)
+    if (mon.autohide.enabled)
         p.y -= bar_detail::kBarTopMargin;
     bar_detail::dispatch_pill_click(mon.capsule, p, mon.surface);
 }
@@ -696,7 +741,7 @@ inline void bar_paint(MonitorOutput &mon) {
         panel_pill(mon.network_panel, mon.bluetooth_panel, mon.volume_panel,
                    mon.tray_panel, app.logout);
 
-    if (app.cfg.autohide) {
+    if (mon.autohide.enabled) {
         bool want_shown = app.pointer.focused_surface == mon.surface ||
                           current_panel_pill != PillId::None;
         if (want_shown == mon.autohide.hidden) {
@@ -721,13 +766,13 @@ inline void bar_paint(MonitorOutput &mon) {
     }
     int32_t surface_height = bar_current_height(mon);
     float content_y_offset =
-        app.cfg.autohide ? static_cast<float>(kBarTopMargin) : 0.0f;
-    float height = static_cast<float>(app.cfg.height);
+        mon.autohide.enabled ? static_cast<float>(kBarTopMargin) : 0.0f;
+    float height = static_cast<float>(kBarHeight);
 
     eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
                    app.egl_context);
     app.renderer.begin_frame(mon.width, surface_height, mon.output_scale.scale);
-    app.renderer.set_opacity(app.cfg.autohide ? mon.autohide.opacity : 1.0f);
+    app.renderer.set_opacity(mon.autohide.enabled ? mon.autohide.opacity : 1.0f);
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -737,8 +782,8 @@ inline void bar_paint(MonitorOutput &mon) {
                                    static_cast<float>(mon.width), height);
 
     const float *white = rgba(palette::text);
-    float pill_bg[4] = {app.cfg.bg[0], app.cfg.bg[1], app.cfg.bg[2],
-                        app.cfg.bg[3]};
+    float pill_bg[4] = {palette::overlay.r, palette::overlay.g,
+                        palette::overlay.b, palette::overlay.a};
 
     if (current_panel_pill == PillId::None &&
         mon.capsule.panel_pill_prev != PillId::None) {
@@ -830,55 +875,47 @@ inline void bar_request_frame(MonitorOutput &mon) {
 
 namespace bar_detail {
 
-// The one place both an external hand-edit of the config file (picked up by
-// kokusei.cpp's inotify watch) and the settings panel funnel through to
-// apply a new Config - see local/plan/settings-panel.md. Diffs against the
-// current app.cfg to decide which side effects actually need to run, then
-// installs new_cfg as the current config either way.
 inline void apply_config_update(WaylandState &app, Config new_cfg) {
     app.idle.timeout_seconds = new_cfg.idle_timeout_seconds;
     app.idle.on_idle_command = new_cfg.idle_command;
     app.idle.on_resume_command = new_cfg.idle_resume_command;
 
     for (auto &mon : app.outputs) {
-        std::string old_path =
-            wallpaper_effective_path(app.cfg, mon->output.name);
-        std::string new_path =
-            wallpaper_effective_path(new_cfg, mon->output.name);
-        if (new_path != old_path)
-            wallpaper_load_async(mon->wallpaper, new_path);
+        wallpaper_diff_columns(*mon, app.cfg, new_cfg);
 
-        std::string new_fill = wallpaper_effective_fill_mode(new_cfg, mon->output.name);
+        std::string new_fill =
+            wallpaper_effective_fill_mode(new_cfg, mon->output.name);
         FillMode new_mode = new_fill == "fit" ? FillMode::Fit : FillMode::Crop;
         if (new_mode != mon->wallpaper.fill_mode) {
             mon->wallpaper.fill_mode = new_mode;
             wallpaper_request_frame(mon->wallpaper);
         }
-    }
 
-    bool autohide_changed = new_cfg.autohide != app.cfg.autohide;
-    bool height_changed = new_cfg.height != app.cfg.height;
-    if (autohide_changed) {
-        app.cfg.height = new_cfg.height;
-        bar_autohide_set_enabled(app, new_cfg.autohide);
-    } else if (height_changed && !app.cfg.autohide) {
-        for (auto &mon : app.outputs) {
-            if (mon->autohide.hidden)
-                continue;
-            BarGeometry g = bar_autohide_geometry(
-                app.cfg.autohide, mon->autohide.collapsed, new_cfg.height);
-            zwlr_layer_surface_v1_set_size(mon->layer_surface, 0, g.height);
-            zwlr_layer_surface_v1_set_margin(
-                mon->layer_surface, g.margin_top,
-                static_cast<int32_t>(kPanelSideMargin), 0,
-                static_cast<int32_t>(kPanelSideMargin));
-            zwlr_layer_surface_v1_set_exclusive_zone(mon->layer_surface,
-                                                     g.exclusive_zone);
-            wl_surface_commit(mon->surface);
-            if (mon->egl_window)
-                wl_egl_window_resize(mon->egl_window,
-                                     mon->width * mon->output_scale.scale,
-                                     g.height * mon->output_scale.scale, 0, 0);
+        bool new_autohide = autohide_effective_enabled(new_cfg, mon->output.name);
+        if (new_autohide != mon->autohide.enabled) {
+            monitor_autohide_apply(*mon, new_autohide);
+        }
+
+        bool new_notif = notifications_effective_enabled(new_cfg, mon->output.name);
+        bool had_notif_view = mon->notification_view.layer_surface != nullptr;
+        if (new_notif && !had_notif_view) {
+            if (notification_view_create_surface(mon->notification_view,
+                                                 app.compositor, app.layer_shell,
+                                                 mon->output.wl)) {
+                while (!mon->notification_view.configured)
+                    wl_display_dispatch(app.display);
+                if (notification_view_init_egl(
+                        mon->notification_view, app.notification, app.renderer,
+                        app.egl_display, app.egl_config, app.egl_context))
+                    eglMakeCurrent(app.egl_display, mon->egl_surface,
+                                   mon->egl_surface, app.egl_context);
+            }
+        } else if (!new_notif && had_notif_view) {
+            destroy_layer_surface(app.egl_display, mon->notification_view.surface,
+                                  mon->notification_view.layer_surface,
+                                  mon->notification_view.egl_window,
+                                  mon->notification_view.egl_surface);
+            mon->notification_view.configured = false;
         }
     }
 
@@ -887,9 +924,6 @@ inline void apply_config_update(WaylandState &app, Config new_cfg) {
         bar_request_frame(*mon);
 }
 
-// Applies + persists in one call, and arms the echo-suppression flag so
-// kokusei.cpp's config-watch handler skips the inotify event this write
-// itself triggers (see local/plan/settings-panel.md).
 inline void save_and_apply_config_update(WaylandState &app, Config new_cfg) {
     apply_config_update(app, new_cfg);
     save_config(app.cfg);
@@ -904,14 +938,6 @@ inline MonitorOutput *find_monitor_by_name(WaylandState &app,
     return nullptr;
 }
 
-// The monitor the settings panel should open on: the compositor's real
-// focused-output signal when one is available (Hyprland's focusedmonv2,
-// tracked live in HyprlandState::focused_monitor), falling back to wherever
-// the pointer was last seen on any kokusei surface (best-known hint, may be
-// stale - see WaylandState::last_pointer_monitor) when there's no better
-// signal (ShojiWM has no monitor-level focus field in its IPC), and finally
-// to the first monitor when neither signal has anything (matches noctalia's
-// own SettingsWindow::open() fallback).
 inline MonitorOutput *settings_target_monitor(WaylandState &app) {
     if (app.compositor_backend == WaylandState::CompositorBackend::Hyprland &&
         !app.hypr.focused_monitor.empty()) {
@@ -923,19 +949,6 @@ inline MonitorOutput *settings_target_monitor(WaylandState &app) {
     return app.outputs.empty() ? nullptr : app.outputs.front().get();
 }
 
-// Tears down the settings layer-shell surface and recreates it anchored to
-// `target`'s output, then waits (a bounded, local compositor round-trip -
-// the same "spin wl_display_dispatch until configured" idiom kokusei.cpp's
-// own startup already uses for this exact surface) for the new surface's
-// first configure before setting up its EGL surface. Only called right
-// before opening, when the target differs from where the surface currently
-// lives - closing/toggling an already-open settings panel never retargets.
-//
-// If binding to `target` fails, falls back to rebinding to the output the
-// surface was already successfully bound to (settings_bound_output) rather
-// than giving up outright - a transient compositor hiccup during the
-// retarget would otherwise permanently disable settings for the rest of the
-// process's lifetime, since settings_enabled gates every future open.
 inline void settings_retarget(WaylandState &app, MonitorOutput &target) {
     SettingsState &s = app.settings;
     wl_output *previous_output = app.settings_bound_output;
@@ -984,4 +997,4 @@ inline void settings_retarget(WaylandState &app, MonitorOutput &target) {
                        app.outputs.front()->egl_surface, app.egl_context);
 }
 
-} // namespace bar_detail
+}

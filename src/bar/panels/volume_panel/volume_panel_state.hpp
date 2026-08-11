@@ -181,7 +181,7 @@ inline void draw_slider(Node *clip, std::vector<PanelClickRegion> &regions,
     regions.push_back({PanelClickKind::SliderDrag, rect_absolute, tag});
 }
 
-} // namespace volume_panel_detail
+}
 
 inline bool volume_panel_create_surface(VolumePanelState &state,
                                         wl_compositor *compositor,
@@ -257,7 +257,7 @@ inline uint32_t resolve_tag_id(const PipewireState &pw,
     return 0;
 }
 
-} // namespace volume_panel_detail
+}
 
 inline void volume_panel_handle_pointer_move(VolumePanelState &state,
                                              PipewireState &pw, double px) {

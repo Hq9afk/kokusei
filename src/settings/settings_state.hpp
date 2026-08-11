@@ -30,8 +30,8 @@
 #include <string>
 #include <vector>
 
-enum class SettingsTab { Wallpaper, Idle };
-constexpr int kSettingsTabCount = 2;
+enum class SettingsTab { Wallpaper, Displays, Idle };
+constexpr int kSettingsTabCount = 3;
 
 enum class SettingsFieldId {
     None,
@@ -42,11 +42,8 @@ enum class SettingsFieldId {
     IdleResumeCommand,
 };
 
-// Applies a fully-formed new Config: persist it and react to whatever
-// actually changed (bar geometry, wallpaper reload, idle re-init). Kept as a
-// caller-supplied callback rather than a direct call so this module doesn't
-// need to know about WaylandState/MonitorOutput - see
-// local/plan/settings-panel.md.
+inline constexpr const char *kSettingsDisplaysDefaultTag = "__default__";
+
 using SettingsCommitFn = std::function<void(Config)>;
 
 struct SettingsState {
@@ -64,14 +61,16 @@ struct SettingsState {
 
     WallpaperPickerState wallpaper_picker;
     std::string wallpaper_selected_monitor;
+
+    int wallpaper_selected_column = 0;
     float wallpaper_scroll_offset = 0.0f;
-    // Content width/height of the grid as last drawn; settings_handle_scroll()
-    // uses these to clamp without redoing settings_paint()'s panel layout math.
+
     float wallpaper_grid_width = 0.0f;
     float wallpaper_grid_height = 0.0f;
-    // Filled by settings_paint() each frame; settings_handle_click() reads it
-    // back to decide whether the monitor row is dead UI for a single output.
+
     std::vector<std::string> monitor_names;
+
+    std::string displays_selected_monitor;
 };
 
 namespace settings_detail {
@@ -93,9 +92,6 @@ inline std::string format_field(const Config &cfg, SettingsFieldId id) {
     }
 }
 
-// Parses the field's edit buffer into cfg. Keeps the previous value on a
-// parse failure (an unparsable numeric field commits as a no-op, not a
-// crash or a silent zero).
 inline void apply_field_text(Config &cfg, SettingsFieldId id,
                              const std::string &text) {
     try {
@@ -126,7 +122,19 @@ inline void apply_field_text(Config &cfg, SettingsFieldId id,
     }
 }
 
-} // namespace settings_detail
+inline void set_wallpaper_column(Config &cfg, const std::string &monitor,
+                                 int column, const std::string &path) {
+    std::vector<std::string> &cols = cfg.wallpaper_columns[monitor];
+    if (static_cast<size_t>(column) >= cols.size())
+        cols.resize(static_cast<size_t>(column) + 1);
+    cols[static_cast<size_t>(column)] = path;
+}
+
+inline std::string displays_monitor_from_tag(const std::string &tag) {
+    return tag == kSettingsDisplaysDefaultTag ? "" : tag;
+}
+
+}
 
 inline void settings_paint(SettingsState &state, const Config &cfg,
                            const std::vector<std::string> &monitor_names);
@@ -139,9 +147,8 @@ inline bool settings_create_surface(SettingsState &state,
                                         "kokusei-settings", output);
 }
 
-// monitor_names_fn is a callback rather than a stored vector so this module
-// stays decoupled from WaylandState/MonitorOutput (see SettingsCommitFn's
-// comment above) while still reflecting the live output list each frame.
+inline void settings_request_frame(SettingsState &state);
+
 inline bool
 settings_init_egl(SettingsState &state, const Config &cfg, Renderer &renderer,
                   EGLDisplay display, EGLConfig config, EGLContext context,
@@ -151,6 +158,9 @@ settings_init_egl(SettingsState &state, const Config &cfg, Renderer &renderer,
         return false;
     state.base.frame_clock.draw = [&state, &cfg, monitor_names_fn] {
         settings_paint(state, cfg, monitor_names_fn());
+    };
+    state.wallpaper_picker.request_frame = [&state] {
+        settings_request_frame(state);
     };
     return true;
 }
@@ -247,10 +257,56 @@ inline void settings_handle_click(SettingsState &state, const Config &cfg,
                 on_commit(updated);
             } else if (region.tag == "wallpaperremove") {
                 Config updated = cfg;
-                updated.wallpaper_paths.erase(state.wallpaper_selected_monitor);
+                settings_detail::set_wallpaper_column(
+                    updated, state.wallpaper_selected_monitor,
+                    state.wallpaper_selected_column, "");
                 on_commit(updated);
             } else if (region.tag == "wallpaperrescan") {
                 wallpaper_picker_scan(state.wallpaper_picker, cfg.wallpaper_dir);
+            } else if (region.tag == "columnadd" || region.tag == "columnsub") {
+                Config updated = cfg;
+                int count = wallpaper_effective_column_count(
+                    cfg, state.wallpaper_selected_monitor);
+                count = std::clamp(
+                    count + (region.tag == "columnadd" ? 1 : -1), 1, 6);
+                updated.wallpaper_column_counts[state.wallpaper_selected_monitor] =
+                    count;
+                on_commit(updated);
+            } else if (region.tag == "displaysoverride") {
+                Config updated = cfg;
+                MonitorOverride &ov =
+                    updated.monitor_overrides[state.displays_selected_monitor];
+                if (!ov.enabled) {
+
+                    ov.osd = cfg.default_osd_enabled;
+                    ov.notifications = cfg.default_notifications_enabled;
+                    ov.autohide = cfg.autohide;
+                }
+                ov.enabled = !ov.enabled;
+                on_commit(updated);
+            } else if (region.tag == "osdenabled" || region.tag == "notificationsenabled" ||
+                      region.tag == "autohideenabled") {
+                Config updated = cfg;
+                bool is_default = state.displays_selected_monitor.empty();
+                if (is_default) {
+                    if (region.tag == "osdenabled")
+                        updated.default_osd_enabled = !cfg.default_osd_enabled;
+                    else if (region.tag == "notificationsenabled")
+                        updated.default_notifications_enabled =
+                            !cfg.default_notifications_enabled;
+                    else
+                        updated.autohide = !cfg.autohide;
+                } else {
+                    MonitorOverride &ov = updated.monitor_overrides
+                                             [state.displays_selected_monitor];
+                    if (region.tag == "osdenabled")
+                        ov.osd = !ov.osd;
+                    else if (region.tag == "notificationsenabled")
+                        ov.notifications = !ov.notifications;
+                    else
+                        ov.autohide = !ov.autohide;
+                }
+                on_commit(updated);
             }
             settings_request_frame(state);
             return;
@@ -262,14 +318,26 @@ inline void settings_handle_click(SettingsState &state, const Config &cfg,
             settings_request_frame(state);
             return;
         case PanelClickKind::MonitorSelect:
-            state.wallpaper_selected_monitor = region.tag;
+            if (state.active_tab == SettingsTab::Displays) {
+                state.displays_selected_monitor =
+                    settings_detail::displays_monitor_from_tag(region.tag);
+            } else {
+
+                size_t sep = region.tag.find('|');
+                state.wallpaper_selected_monitor = region.tag.substr(0, sep);
+                state.wallpaper_selected_column =
+                    sep == std::string::npos
+                        ? 0
+                        : std::stoi(region.tag.substr(sep + 1));
+            }
             settings_request_frame(state);
             return;
         case PanelClickKind::WallpaperSelect: {
             settings_commit_focused_field(state, cfg, on_commit);
             Config updated = cfg;
-            updated.wallpaper_paths[state.wallpaper_selected_monitor] =
-                region.tag;
+            settings_detail::set_wallpaper_column(
+                updated, state.wallpaper_selected_monitor,
+                state.wallpaper_selected_column, region.tag);
             on_commit(updated);
             settings_request_frame(state);
             return;

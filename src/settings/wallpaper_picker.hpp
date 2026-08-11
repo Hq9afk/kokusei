@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <set>
 #include <string>
@@ -18,10 +19,12 @@
 struct WallpaperPickerState {
     std::string dir;
     bool scanning = false;
-    std::vector<std::string> files; // PNG/JPEG only, full paths
+    std::vector<std::string> files;
     std::map<std::string, Texture> thumbnails;
     std::set<std::string> pending;
     uint64_t scan_generation = 0;
+
+    std::function<void()> request_frame;
 };
 
 inline bool wallpaper_picker_is_image(const std::string &path) {
@@ -37,8 +40,6 @@ inline std::string wallpaper_picker_lower(std::string s) {
     return s;
 }
 
-// Extension first (so .jpg/.png each cluster together), then filename,
-// both case-insensitive.
 inline bool wallpaper_picker_less(const std::string &a, const std::string &b) {
     std::filesystem::path pa(a), pb(b);
     std::string ea = wallpaper_picker_lower(pa.extension().string());
@@ -49,8 +50,6 @@ inline bool wallpaper_picker_less(const std::string &a, const std::string &b) {
            wallpaper_picker_lower(pb.filename().string());
 }
 
-// find -L $dir -maxdepth 2: direct children of dir plus one level of
-// subdirectory contents.
 inline void wallpaper_picker_scan(WallpaperPickerState &state,
                                   std::string dir) {
     state.dir = dir;
@@ -79,6 +78,8 @@ inline void wallpaper_picker_scan(WallpaperPickerState &state,
                 return;
             state.files = std::move(found);
             state.scanning = false;
+            if (state.request_frame)
+                state.request_frame();
         });
     }).detach();
 }
@@ -110,6 +111,8 @@ inline void wallpaper_picker_request_thumbnail(WallpaperPickerState &state,
             eglMakeCurrent(display, surface, surface, context);
             state.thumbnails[path] = make_texture_rgba(w, h, data, true);
             delete[] data;
+            if (state.request_frame)
+                state.request_frame();
         });
     }).detach();
 }

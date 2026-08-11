@@ -88,4 +88,4 @@ inline bool volume_pill_peek_expire(MonitorOutput &mon) {
     return true;
 }
 
-} // namespace bar_detail
+}

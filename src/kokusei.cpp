@@ -79,9 +79,7 @@ int main(int argc, char **argv) {
     wl_registry *registry = wl_display_get_registry(app.display);
     wl_registry_add_listener(registry, &registry_listener, &app);
     wl_display_roundtrip(app.display);
-    // Second roundtrip: flushes each wl_output's initial event burst
-    // (geometry/mode/scale/name/done), which the first roundtrip only
-    // guarantees requesting, not receiving.
+
     wl_display_roundtrip(app.display);
 
     if (!app.compositor || !app.layer_shell) {
@@ -123,11 +121,6 @@ int main(int argc, char **argv) {
     if (!want_logout)
         klog("logout: failed to create layer surface");
 
-    bool want_notification = notification_create_surface(
-        app.notification, app.compositor, app.layer_shell, first.output.wl);
-    if (!want_notification)
-        klog("notification: failed to create layer surface");
-
     bool want_settings = settings_create_surface(
         app.settings, app.compositor, app.layer_shell, first.output.wl);
     if (!want_settings)
@@ -135,7 +128,6 @@ int main(int argc, char **argv) {
 
     while (!((!want_launcher || app.launcher.configured) &&
              (!want_logout || app.logout.base.configured) &&
-             (!want_notification || app.notification.configured) &&
              (!want_settings || app.settings.base.configured))) {
         wl_display_dispatch(app.display);
     }
@@ -173,20 +165,6 @@ int main(int argc, char **argv) {
             app.logout.logo_tex = load_image_texture(logo_path);
         }
     }
-    if (want_notification) {
-        if (!notification_init_egl(app.notification, app.renderer,
-                                   app.egl_display, app.egl_config,
-                                   app.egl_context)) {
-            klog("notification: EGL surface init failed");
-            want_notification = false;
-        } else {
-            eglMakeCurrent(app.egl_display, first.egl_surface,
-                           first.egl_surface, app.egl_context);
-        }
-    }
-    if (want_notification)
-        notification_init(app.notification);
-
     if (want_settings) {
         if (!settings_init_egl(
                 app.settings, app.cfg, app.renderer, app.egl_display,
@@ -206,11 +184,15 @@ int main(int argc, char **argv) {
     }
     app.settings_enabled = want_settings;
 
-    // Any monitor the compositor advertised alongside the first one at
-    // startup - the first monitor above bootstrapped the shared EGL context
-    // and renderer, the rest just reuse them.
     for (size_t i = 1; i < app.outputs.size(); ++i)
         monitor_output_activate(app, *app.outputs[i]);
+
+    bool want_notification = notification_init(app.notification, [&app] {
+        for (auto &mon : app.outputs)
+            notification_view_request_frame(mon->notification_view);
+    });
+    if (!want_notification)
+        klog("notification: D-Bus registration failed");
 
     brightness_init(app.brightness);
     app.brightness_watch_fd = brightness_watch_init(app.brightness);
@@ -263,7 +245,7 @@ int main(int argc, char **argv) {
     }
 
     klog("started: %zu monitor(s), bar height=%d, ipc_fd=%d, timer_fd=%d",
-         app.outputs.size(), app.cfg.height, ipc_fd, timer_fd);
+         app.outputs.size(), bar_detail::kBarHeight, ipc_fd, timer_fd);
     for (auto &mon : app.outputs)
         bar_request_frame(*mon);
 
@@ -296,7 +278,7 @@ int main(int argc, char **argv) {
                 network_panel_request_frame(
                     mon->network_panel,
                     bar_detail::pill_center_x(mon->capsule, PillId::Wifi),
-                    static_cast<float>(app.cfg.height),
+                    static_cast<float>(bar_detail::kBarHeight),
                     bar_detail::kBarTopMargin);
             }
             rest_egl_current();
@@ -314,7 +296,7 @@ int main(int argc, char **argv) {
                 bluetooth_panel_request_frame(
                     mon->bluetooth_panel,
                     bar_detail::pill_center_x(mon->capsule, PillId::Bluetooth),
-                    static_cast<float>(app.cfg.height),
+                    static_cast<float>(bar_detail::kBarHeight),
                     bar_detail::kBarTopMargin);
             }
             rest_egl_current();
@@ -326,7 +308,7 @@ int main(int argc, char **argv) {
                 volume_panel_request_frame(
                     mon->volume_panel,
                     bar_detail::pill_center_x(mon->capsule, PillId::Volume),
-                    static_cast<float>(app.cfg.height),
+                    static_cast<float>(bar_detail::kBarHeight),
                     bar_detail::kBarTopMargin);
             }
             rest_egl_current();
@@ -338,7 +320,7 @@ int main(int argc, char **argv) {
                 tray_panel_request_frame(
                     mon->tray_panel,
                     bar_detail::pill_center_x(mon->capsule, PillId::Tray),
-                    static_cast<float>(app.cfg.height),
+                    static_cast<float>(bar_detail::kBarHeight),
                     bar_detail::kBarTopMargin);
                 tray_menu_request_frame(mon->tray_menu);
             }
@@ -372,8 +354,10 @@ int main(int argc, char **argv) {
                     if (bar_detail::volume_pill_peek_expire(*mon))
                         bar_request_frame(*mon);
                 }
-                if (notification_sweep_expired(app.notification))
-                    notification_request_frame(app.notification);
+                if (notification_sweep_expired(app.notification)) {
+                    for (auto &mon : app.outputs)
+                        notification_view_request_frame(mon->notification_view);
+                }
                 if (want_network) {
                     network_dispatch(network_tick(
                         app.network, std::chrono::steady_clock::now()));
@@ -456,7 +440,8 @@ int main(int argc, char **argv) {
                 while (budget-- > 0 &&
                        app.notification.bus->processPendingEvent()) {
                 }
-                notification_request_frame(app.notification);
+                for (auto &mon : app.outputs)
+                    notification_view_request_frame(mon->notification_view);
             }));
         }
 
@@ -539,8 +524,10 @@ int main(int argc, char **argv) {
                     bool muted = false;
                     float level = pipewire_sink_level(app.pipewire, muted);
                     for (auto &mon : app.outputs) {
-                        osd_show(mon->osd, OsdKind::Volume, level, muted);
-                        osd_request_frame(mon->osd);
+                        if (osd_effective_enabled(app.cfg, mon->output.name)) {
+                            osd_show(mon->osd, OsdKind::Volume, level, muted);
+                            osd_request_frame(mon->osd);
+                        }
                         bar_detail::volume_pill_peek_tick(*mon);
                     }
                 }
@@ -548,6 +535,8 @@ int main(int argc, char **argv) {
                     bool muted = false;
                     float level = pipewire_source_level(app.pipewire, muted);
                     for (auto &mon : app.outputs) {
+                        if (!osd_effective_enabled(app.cfg, mon->output.name))
+                            continue;
                         osd_show(mon->osd, OsdKind::Mic, level, muted);
                         osd_request_frame(mon->osd);
                     }
@@ -562,6 +551,8 @@ int main(int argc, char **argv) {
                 if (brightness_watch_poll(app.brightness_watch_fd)) {
                     float level = brightness_get(app.brightness);
                     for (auto &mon : app.outputs) {
+                        if (!osd_effective_enabled(app.cfg, mon->output.name))
+                            continue;
                         osd_show(mon->osd, OsdKind::Brightness, level, false);
                         osd_request_frame(mon->osd);
                     }
@@ -584,8 +575,7 @@ int main(int argc, char **argv) {
                 if (!ev.changed)
                     return;
                 if (app.config_own_write_pending) {
-                    // The settings panel just wrote this file itself -
-                    // apply_config_update() already ran, skip the echo.
+
                     app.config_own_write_pending = false;
                     return;
                 }
@@ -659,12 +649,6 @@ int main(int argc, char **argv) {
         for (SourceRange &r : ranges)
             r.src->dispatch(fds, r.start);
 
-        // Keyboard focus is exclusive to a single surface at a time, but
-        // ponytail: since each monitor's panels are independent, this
-        // priority chain only reaches the first open one it finds if two
-        // different monitors' panels are somehow open at once - full
-        // per-surface keyboard-focus tracking would be needed to fix that,
-        // not worth it unless it's actually hit in practice.
         std::vector<KeyEvent> key_events = keyboard_drain_events(app.keyboard);
         if (!key_events.empty()) {
             if (want_launcher && app.launcher.open) {

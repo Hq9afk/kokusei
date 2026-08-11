@@ -10,4 +10,4 @@ inline Pill power_pill(MonitorOutput &mon) {
                     logout_toggle(mon.app->logout, true);
                 }};
 }
-} // namespace bar_detail
+}

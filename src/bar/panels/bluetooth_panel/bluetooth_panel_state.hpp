@@ -139,7 +139,7 @@ inline float panel_height(const std::vector<PanelRow> &rows) {
     return std::min(kPanelMaxHeight, h);
 }
 
-} // namespace bluetooth_panel_detail
+}
 
 inline bool bluetooth_panel_create_surface(BluetoothPanelState &state,
                                            wl_compositor *compositor,

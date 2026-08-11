@@ -44,11 +44,14 @@ struct WallpaperState {
     OutputScale output_scale;
     FrameClock frame_clock;
     Scene scene;
-    Texture texture;
+
+    std::vector<Texture> column_textures;
+
     uint64_t load_generation = 0;
     unsigned char *pending_pixels = nullptr;
     int pending_width = 0;
     int pending_height = 0;
+    int pending_column = 0;
     FillMode fill_mode = FillMode::Crop;
 };
 
@@ -120,23 +123,28 @@ inline void wallpaper_paint(WallpaperState &wp) {
     glClear(GL_COLOR_BUFFER_BIT);
 
     wp.scene.rebuild();
-    if (wp.texture.id) {
+    size_t columns = std::max<size_t>(wp.column_textures.size(), 1);
+    float column_w = static_cast<float>(wp.width) / static_cast<float>(columns);
+    for (size_t i = 0; i < wp.column_textures.size(); ++i) {
+        Texture &tex = wp.column_textures[i];
+        if (!tex.id)
+            continue;
         float scale =
             wp.fill_mode == FillMode::Fit
-                ? std::min(static_cast<float>(wp.width) / wp.texture.width,
-                           static_cast<float>(wp.height) / wp.texture.height)
-                : std::max(static_cast<float>(wp.width) / wp.texture.width,
-                           static_cast<float>(wp.height) / wp.texture.height);
-        float draw_w = wp.texture.width * scale;
-        float draw_h = wp.texture.height * scale;
+                ? std::min(column_w / tex.width,
+                           static_cast<float>(wp.height) / tex.height)
+                : std::max(column_w / tex.width,
+                           static_cast<float>(wp.height) / tex.height);
+        float draw_w = tex.width * scale;
+        float draw_h = tex.height * scale;
 
         Node *img = wp.scene.root.claim_child();
         img->kind = NodeKind::Texture;
-        img->x = (wp.width - draw_w) / 2.0f;
+        img->x = static_cast<float>(i) * column_w + (column_w - draw_w) / 2.0f;
         img->y = (wp.height - draw_h) / 2.0f;
         img->w = draw_w;
         img->h = draw_h;
-        img->tex = &wp.texture;
+        img->tex = &tex;
     }
     wp.scene.draw(*wp.renderer);
 
@@ -175,12 +183,15 @@ inline void wallpaper_upload_pending(WallpaperState &wp) {
         return;
     eglMakeCurrent(wp.egl_display, wp.egl_surface, wp.egl_surface,
                    wp.egl_context);
-    wp.texture = make_texture_rgba(wp.pending_width, wp.pending_height,
-                                   wp.pending_pixels, true);
+    if (static_cast<size_t>(wp.pending_column) >= wp.column_textures.size())
+        wp.column_textures.resize(static_cast<size_t>(wp.pending_column) + 1);
+    wp.column_textures[static_cast<size_t>(wp.pending_column)] =
+        make_texture_rgba(wp.pending_width, wp.pending_height,
+                          wp.pending_pixels, true);
     delete[] wp.pending_pixels;
     wp.pending_pixels = nullptr;
-    klog("wallpaper: uploaded %dx%d texture", wp.pending_width,
-         wp.pending_height);
+    klog("wallpaper: uploaded column %d %dx%d texture", wp.pending_column,
+         wp.pending_width, wp.pending_height);
     wallpaper_request_frame(wp);
 }
 
@@ -259,60 +270,40 @@ inline unsigned char *wallpaper_decode_scaled(const std::string &path,
     return result;
 }
 
-inline void wallpaper_decode_async(WallpaperState &wp, std::string path) {
+inline void wallpaper_decode_column_async(WallpaperState &wp, std::string path,
+                                          int column_index, int column_count) {
     uint64_t generation = ++wp.load_generation;
-    int target_w = wp.width * wp.output_scale.scale;
+    int target_w =
+        (wp.width / std::max(1, column_count)) * wp.output_scale.scale;
     int target_h = wp.height * wp.output_scale.scale;
-    std::thread([&wp, path = std::move(path), generation, target_w, target_h] {
-        klog("wallpaper: decode start '%s'", path.c_str());
+    std::thread([&wp, path = std::move(path), generation, target_w, target_h,
+                column_index] {
+        klog("wallpaper: decode start '%s' (column %d)", path.c_str(),
+             column_index);
         int width = 0, height = 0;
         unsigned char *data =
             wallpaper_decode_scaled(path, target_w, target_h, width, height);
         if (data)
             klog("wallpaper: decode done '%s' (%dx%d)", path.c_str(), width,
                  height);
-        DeferredCall::call_later([&wp, data, width, height, generation] {
-            if (generation != wp.load_generation) {
-                if (data)
-                    delete[] data;
-                return;
-            }
-            if (!data)
-                return;
-            wp.pending_pixels = data;
-            wp.pending_width = width;
-            wp.pending_height = height;
-            wallpaper_upload_pending(wp);
-        });
+        DeferredCall::call_later(
+            [&wp, data, width, height, generation, column_index] {
+                if (generation != wp.load_generation) {
+                    if (data)
+                        delete[] data;
+                    return;
+                }
+                if (!data)
+                    return;
+                wp.pending_pixels = data;
+                wp.pending_width = width;
+                wp.pending_height = height;
+                wp.pending_column = column_index;
+                wallpaper_upload_pending(wp);
+            });
     }).detach();
 }
 
-inline void wallpaper_load_async(WallpaperState &wp, std::string path) {
-    uint64_t generation = ++wp.load_generation;
-    int target_w = wp.width * wp.output_scale.scale;
-    int target_h = wp.height * wp.output_scale.scale;
-    std::thread([&wp, path = std::move(path), generation, target_w, target_h] {
-        klog("wallpaper: decode start '%s'", path.c_str());
-        int width = 0, height = 0;
-        unsigned char *data =
-            wallpaper_decode_scaled(path, target_w, target_h, width, height);
-        if (data)
-            klog("wallpaper: decode done '%s' (%dx%d)", path.c_str(), width,
-                 height);
-        DeferredCall::call_later([&wp, data, width, height, generation] {
-            if (generation != wp.load_generation) {
-                if (data)
-                    delete[] data;
-                return;
-            }
-            if (data) {
-                eglMakeCurrent(wp.egl_display, wp.egl_surface, wp.egl_surface,
-                               wp.egl_context);
-                wp.texture = make_texture_rgba(width, height, data, true);
-                delete[] data;
-                klog("wallpaper: uploaded %dx%d texture", width, height);
-                wallpaper_request_frame(wp);
-            }
-        });
-    }).detach();
+inline void wallpaper_decode_async(WallpaperState &wp, std::string path) {
+    wallpaper_decode_column_async(wp, std::move(path), 0, 1);
 }

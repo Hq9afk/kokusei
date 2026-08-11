@@ -58,10 +58,6 @@ struct IpcHandler {
     const char *description;
 };
 
-// The idle-inhibit anchor and the "bluetooth" verb both need *a* surface/panel
-// to act on; both use the first monitor's, mirroring how launcher/logout are
-// already single-instance on the first monitor (see
-// local/plan/multi-monitor-support.md).
 inline std::vector<IpcHandler>
 ipc_handlers(WaylandState &state, IdleState &idle, LauncherState &launcher,
              LogoutState &logout, bool &running) {

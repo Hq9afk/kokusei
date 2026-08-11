@@ -4,6 +4,8 @@
 #include <cstdint>
 
 namespace bar_detail {
+constexpr int32_t kBarHeight = 35;
+
 constexpr float kPillPad = 10.0f;
 constexpr float kCapsuleGap = 10.0f;
 constexpr float kPillExpandMs = 150.0f;

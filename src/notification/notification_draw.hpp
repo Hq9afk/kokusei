@@ -2,23 +2,24 @@
 
 #include "notification_state.hpp"
 
-inline void notification_paint(NotificationState &state) {
-    eglMakeCurrent(state.egl_display, state.egl_surface, state.egl_surface,
-                   state.egl_context);
-    state.renderer->begin_frame(kNotificationSurfaceWidth,
-                                kNotificationSurfaceHeight,
-                                state.output_scale.scale);
+inline void notification_paint(NotificationView &view,
+                               NotificationService &service) {
+    eglMakeCurrent(view.egl_display, view.egl_surface, view.egl_surface,
+                   view.egl_context);
+    view.renderer->begin_frame(kNotificationSurfaceWidth,
+                               kNotificationSurfaceHeight,
+                               view.output_scale.scale);
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 
     auto now = std::chrono::steady_clock::now();
-    state.animations.tick(now);
+    service.animations.tick(now);
 
-    state.scene.rebuild();
+    view.scene.rebuild();
     float y_cursor = static_cast<float>(kNotificationSurfaceHeight);
 
     std::deque<Color> blend;
-    for (const NotificationEntry &entry : state.entries) {
+    for (const NotificationEntry &entry : service.entries) {
         y_cursor -= entry.height;
         if (y_cursor < 0.0f)
             break;
@@ -33,7 +34,7 @@ inline void notification_paint(NotificationState &state) {
         const Color &card_border = blend.back();
 
         Node *card = node_add_rrect(
-            &state.scene.root, 0, card_y, kNotificationSurfaceWidth,
+            &view.scene.root, 0, card_y, kNotificationSurfaceWidth,
             entry.height, kNotificationCardRadius, kNotificationCardBorderWidth,
             rgba(card_fill), rgba(card_border));
         card->clip_children = true;
@@ -107,9 +108,9 @@ inline void notification_paint(NotificationState &state) {
 
         y_cursor -= kNotificationCardGap;
     }
-    state.scene.draw(*state.renderer);
-    eglSwapBuffers(state.egl_display, state.egl_surface);
+    view.scene.draw(*view.renderer);
+    eglSwapBuffers(view.egl_display, view.egl_surface);
 
-    if (!state.entries.empty() || state.animations.hasActive())
-        request_frame(state.frame_clock);
+    if (!service.entries.empty() || service.animations.hasActive())
+        request_frame(view.frame_clock);
 }

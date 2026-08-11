@@ -60,9 +60,6 @@ inline void draw_field_row(SettingsState &state, Node *parent, int32_t scale,
                                    std::to_string(static_cast<int>(id))});
 }
 
-// Dedicated full-width directory bar (label + editable path + rescan
-// button), matching keqing-shell's DirBar.qml, instead of the generic
-// label-left/field-right draw_field_row idiom used for plain settings.
 inline void draw_wallpaper_dirbar(SettingsState &state, Node *parent,
                                   int32_t scale, float x, float y, float w,
                                   const Config &cfg) {
@@ -120,13 +117,95 @@ inline void draw_wallpaper_dirbar(SettingsState &state, Node *parent,
          "wallpaperrescan"});
 }
 
-inline void draw_monitor_row(SettingsState &state, Node *parent, int32_t scale,
-                             float x, float y) {
+inline void draw_region_row(SettingsState &state, Node *parent, int32_t scale,
+                            float x, float y, const Config &cfg) {
     float cx = x;
     for (const std::string &name : state.monitor_names) {
-        const Texture *tex = cached_text(state.tcache, name, scale);
+        int count = wallpaper_effective_column_count(cfg, name);
+        for (int col = 0; col < count; ++col) {
+            std::string label = count > 1 ? name + "-" + std::to_string(col + 1)
+                                          : name;
+            const Texture *tex = cached_text(state.tcache, label, scale);
+            float chip_w = (tex ? tex->width : 0) + 24.0f;
+            bool active = name == state.wallpaper_selected_monitor &&
+                         col == state.wallpaper_selected_column;
+            node_add_rrect(parent, cx, y, chip_w, kSettingsMonitorChipHeight,
+                           metrics::radius_sm, metrics::border_thin,
+                           active ? rgba(palette::accent_alpha20)
+                                  : rgba(palette::field_bg),
+                           active ? rgba(palette::accent) : kPanelNoBorder);
+            if (tex)
+                node_add_texture(
+                    parent, cx + 12.0f,
+                    y + (kSettingsMonitorChipHeight - tex->height) / 2.0f, *tex,
+                    active ? rgba(palette::accent) : rgba(palette::text));
+            state.click_regions.push_back(
+                {PanelClickKind::MonitorSelect,
+                 {cx, y, chip_w, kSettingsMonitorChipHeight},
+                 name + "|" + std::to_string(col)});
+            cx += chip_w + kSettingsMonitorChipGap;
+        }
+    }
+
+    int count = state.wallpaper_selected_monitor.empty()
+                   ? 1
+                   : wallpaper_effective_column_count(
+                         cfg, state.wallpaper_selected_monitor);
+    float step_y = y;
+    float sub_x = cx + kSettingsColumnStepperGap;
+    node_add_rrect(parent, sub_x, step_y, kSettingsColumnStepperButtonSize,
+                   kSettingsMonitorChipHeight, metrics::radius_sm,
+                   metrics::border_thin, rgba(palette::field_bg),
+                   kPanelNoBorder);
+    const Texture *sub_tex = cached_text(state.tcache, "-", scale);
+    if (sub_tex)
+        node_add_texture(
+            parent,
+            sub_x + (kSettingsColumnStepperButtonSize - sub_tex->width) / 2.0f,
+            step_y + (kSettingsMonitorChipHeight - sub_tex->height) / 2.0f,
+            *sub_tex, rgba(palette::text));
+    state.click_regions.push_back(
+        {PanelClickKind::ToggleFlip,
+         {sub_x, step_y, kSettingsColumnStepperButtonSize,
+          kSettingsMonitorChipHeight},
+         "columnsub"});
+
+    const Texture *count_tex =
+        cached_text(state.tcache, std::to_string(count), scale);
+    float count_w = (count_tex ? count_tex->width : 0) + 12.0f;
+    float count_x = sub_x + kSettingsColumnStepperButtonSize;
+    if (count_tex)
+        node_add_texture(
+            parent, count_x + (count_w - count_tex->width) / 2.0f,
+            step_y + (kSettingsMonitorChipHeight - count_tex->height) / 2.0f,
+            *count_tex, rgba(palette::text));
+
+    float add_x = count_x + count_w;
+    node_add_rrect(parent, add_x, step_y, kSettingsColumnStepperButtonSize,
+                   kSettingsMonitorChipHeight, metrics::radius_sm,
+                   metrics::border_thin, rgba(palette::field_bg),
+                   kPanelNoBorder);
+    const Texture *add_tex = cached_text(state.tcache, "+", scale);
+    if (add_tex)
+        node_add_texture(
+            parent,
+            add_x + (kSettingsColumnStepperButtonSize - add_tex->width) / 2.0f,
+            step_y + (kSettingsMonitorChipHeight - add_tex->height) / 2.0f,
+            *add_tex, rgba(palette::text));
+    state.click_regions.push_back(
+        {PanelClickKind::ToggleFlip,
+         {add_x, step_y, kSettingsColumnStepperButtonSize,
+          kSettingsMonitorChipHeight},
+         "columnadd"});
+}
+
+inline void draw_displays_monitor_row(SettingsState &state, Node *parent,
+                                      int32_t scale, float x, float y) {
+    float cx = x;
+    auto draw_chip = [&](const std::string &label, const std::string &tag,
+                        bool active) {
+        const Texture *tex = cached_text(state.tcache, label, scale);
         float chip_w = (tex ? tex->width : 0) + 24.0f;
-        bool active = name == state.wallpaper_selected_monitor;
         node_add_rrect(parent, cx, y, chip_w, kSettingsMonitorChipHeight,
                        metrics::radius_sm, metrics::border_thin,
                        active ? rgba(palette::accent_alpha20)
@@ -139,8 +218,53 @@ inline void draw_monitor_row(SettingsState &state, Node *parent, int32_t scale,
                 active ? rgba(palette::accent) : rgba(palette::text));
         state.click_regions.push_back(
             {PanelClickKind::MonitorSelect,
-             {cx, y, chip_w, kSettingsMonitorChipHeight}, name});
+             {cx, y, chip_w, kSettingsMonitorChipHeight}, tag});
         cx += chip_w + kSettingsMonitorChipGap;
+    };
+
+    draw_chip("Default", kSettingsDisplaysDefaultTag,
+              state.displays_selected_monitor.empty());
+    for (const std::string &name : state.monitor_names)
+        draw_chip(name, name, name == state.displays_selected_monitor);
+}
+
+inline void draw_toggle_row(SettingsState &state, Node *parent, int32_t scale,
+                            float x, float y, float w, const std::string &label,
+                            bool value, const char *tag) {
+    const Texture *label_tex = cached_text(state.tcache, label, scale);
+    if (label_tex)
+        node_add_texture(parent, x,
+                         y + (kSettingsFieldHeight - label_tex->height) / 2.0f,
+                         *label_tex, rgba(palette::text));
+
+    static const char *kLabels[2] = {"On", "Off"};
+    float widths[2];
+    float pair_w = 0.0f;
+    for (int i = 0; i < 2; ++i) {
+        const Texture *tex = cached_text(state.tcache, kLabels[i], scale);
+        widths[i] = (tex ? tex->width : 0) + 20.0f;
+        pair_w += widths[i] + (i == 0 ? 6.0f : 0.0f);
+    }
+
+    float cx = x + w - pair_w;
+    for (int i = 0; i < 2; ++i) {
+        bool active = (i == 0) == value;
+        const Texture *tex = cached_text(state.tcache, kLabels[i], scale);
+        float bw = widths[i];
+        node_add_rrect(parent, cx, y, bw, kSettingsFieldHeight,
+                       metrics::radius_sm, metrics::border_thin,
+                       active ? rgba(palette::accent_alpha20)
+                              : rgba(palette::field_bg),
+                       active ? rgba(palette::accent) : kPanelNoBorder);
+        if (tex)
+            node_add_texture(
+                parent, cx + 10.0f,
+                y + (kSettingsFieldHeight - tex->height) / 2.0f, *tex,
+                active ? rgba(palette::accent) : rgba(palette::text));
+        state.click_regions.push_back(
+            {PanelClickKind::ToggleFlip, {cx, y, bw, kSettingsFieldHeight},
+             tag});
+        cx += bw + 6.0f;
     }
 }
 
@@ -180,9 +304,8 @@ inline void draw_fill_mode_row(SettingsState &state, Node *parent,
         cx += bw + 6.0f;
     }
 
-    // Visible only once a wallpaper is actually assigned to the selected
-    // monitor, matching keqing-shell's ControlRow "Remove" pill.
-    if (!wallpaper_effective_path(cfg, state.wallpaper_selected_monitor)
+    if (!wallpaper_effective_column_path(cfg, state.wallpaper_selected_monitor,
+                                         state.wallpaper_selected_column)
              .empty()) {
         const Texture *tex = cached_text(state.tcache, "Remove", scale);
         float rw = (tex ? tex->width : 0) + 20.0f;
@@ -200,9 +323,6 @@ inline void draw_fill_mode_row(SettingsState &state, Node *parent,
     }
 }
 
-// Renders only the rows overlapping the scrolled viewport, same visible-range
-// approach launcher_draw.hpp uses for its row list - the grid can hold many
-// more thumbnails than fit on screen.
 inline void draw_wallpaper_grid(SettingsState &state, Node *parent,
                                 int32_t scale, float x, float y, float w,
                                 float h, const Config &cfg) {
@@ -237,8 +357,8 @@ inline void draw_wallpaper_grid(SettingsState &state, Node *parent,
     float cell = kSettingsWallpaperThumbSize + kSettingsWallpaperThumbGap;
     float row_w = cols * cell - kSettingsWallpaperThumbGap;
     inset_x += (inset_w - row_w) / 2.0f;
-    std::string selected =
-        wallpaper_effective_path(cfg, state.wallpaper_selected_monitor);
+    std::string selected = wallpaper_effective_column_path(
+        cfg, state.wallpaper_selected_monitor, state.wallpaper_selected_column);
 
     Node *clip = node_add_group(parent, inset_x, inset_y, row_w, visible_h,
                                 true);
@@ -268,9 +388,7 @@ inline void draw_wallpaper_grid(SettingsState &state, Node *parent,
                 node_add_rect(clip, cx, cy, kSettingsWallpaperThumbSize,
                              kSettingsWallpaperThumbSize,
                              rgba(palette::field_bg));
-                // Cover-fit + crop into the cell, same math as
-                // wallpaper_paint() (wallpaper.hpp) - the decoded texture is
-                // aspect-preserving, not pre-cropped to a square.
+
                 const Texture &tex = it->second;
                 Node *cell_clip = node_add_group(
                     clip, cx, cy, kSettingsWallpaperThumbSize,
@@ -341,6 +459,7 @@ inline void draw_nav_rail(SettingsState &state, Node *parent, int32_t scale,
                           float x, float y, float w, float h) {
     static const SettingsTabDef tabs[kSettingsTabCount] = {
         {"Wallpaper", icon::wallpaper},
+        {"Displays", icon::device_desktop},
         {"Idle", icon::moon_stars},
     };
     node_add_rrect(parent, x, y, w, h, metrics::radius_md, 0.0f,
@@ -381,7 +500,7 @@ inline void draw_nav_rail(SettingsState &state, Node *parent, int32_t scale,
     }
 }
 
-} // namespace settings_detail
+}
 
 inline void settings_paint(SettingsState &state, const Config &cfg,
                            const std::vector<std::string> &monitor_names) {
@@ -397,6 +516,19 @@ inline void settings_paint(SettingsState &state, const Config &cfg,
         state.wallpaper_selected_monitor =
             monitor_names.empty() ? "" : monitor_names[0];
     }
+    {
+        int count = state.wallpaper_selected_monitor.empty()
+                       ? 1
+                       : wallpaper_effective_column_count(
+                             cfg, state.wallpaper_selected_monitor);
+        state.wallpaper_selected_column =
+            std::clamp(state.wallpaper_selected_column, 0, count - 1);
+    }
+
+    if (!state.displays_selected_monitor.empty() &&
+        std::find(monitor_names.begin(), monitor_names.end(),
+                  state.displays_selected_monitor) == monitor_names.end())
+        state.displays_selected_monitor.clear();
     state.base.animations.tick(std::chrono::steady_clock::now());
     eglMakeCurrent(state.base.egl_display, state.base.egl_surface,
                    state.base.egl_surface, state.base.egl_context);
@@ -450,8 +582,10 @@ inline void settings_paint(SettingsState &state, const Config &cfg,
         switch (state.active_tab) {
         case SettingsTab::Wallpaper: {
             state.wallpaper_grid_width = panel_x + panel_w - kPanelPadding - label_x;
-            if (state.monitor_names.size() > 1) {
-                draw_monitor_row(state, root, scale, label_x, y);
+            if (state.monitor_names.size() > 1 ||
+                wallpaper_effective_column_count(
+                    cfg, state.wallpaper_selected_monitor) > 1) {
+                draw_region_row(state, root, scale, label_x, y, cfg);
                 y += kSettingsMonitorChipHeight + kPanelRowGap;
             }
             draw_wallpaper_dirbar(state, root, scale, label_x, y,
@@ -472,6 +606,49 @@ inline void settings_paint(SettingsState &state, const Config &cfg,
                                 state.wallpaper_grid_width,
                                 state.wallpaper_grid_height, cfg);
             y += state.wallpaper_grid_height;
+            break;
+        }
+        case SettingsTab::Displays: {
+            float row_w = panel_x + panel_w - kPanelPadding - label_x;
+            draw_displays_monitor_row(state, root, scale, label_x, y);
+            y += kSettingsMonitorChipHeight + kPanelRowGap;
+
+            bool is_default = state.displays_selected_monitor.empty();
+            const MonitorOverride *ov = nullptr;
+            if (!is_default) {
+                auto it = cfg.monitor_overrides.find(
+                    state.displays_selected_monitor);
+                if (it != cfg.monitor_overrides.end())
+                    ov = &it->second;
+            }
+            bool override_enabled = ov && ov->enabled;
+
+            if (!is_default) {
+                draw_toggle_row(state, root, scale, label_x, y, row_w,
+                                "Override default settings", override_enabled,
+                                "displaysoverride");
+                y += kSettingsRowHeight;
+            }
+
+            bool osd_val = is_default          ? cfg.default_osd_enabled
+                          : override_enabled    ? ov->osd
+                                                 : cfg.default_osd_enabled;
+            bool notif_val = is_default        ? cfg.default_notifications_enabled
+                             : override_enabled ? ov->notifications
+                                                 : cfg.default_notifications_enabled;
+            bool autohide_val = is_default     ? cfg.autohide
+                                : override_enabled ? ov->autohide
+                                                    : cfg.autohide;
+
+            draw_toggle_row(state, root, scale, label_x, y, row_w, "OSD",
+                            osd_val, "osdenabled");
+            y += kSettingsRowHeight;
+            draw_toggle_row(state, root, scale, label_x, y, row_w,
+                            "Notifications", notif_val, "notificationsenabled");
+            y += kSettingsRowHeight;
+            draw_toggle_row(state, root, scale, label_x, y, row_w,
+                            "Bar Autohide", autohide_val, "autohideenabled");
+            y += kSettingsRowHeight;
             break;
         }
         case SettingsTab::Idle:

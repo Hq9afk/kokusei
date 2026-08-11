@@ -9,6 +9,8 @@ struct AutoHideState {
     bool hidden = false;
     bool collapsed = false;
     float opacity = 1.0f;
+
+    bool enabled = false;
 };
 
 namespace bar_detail {

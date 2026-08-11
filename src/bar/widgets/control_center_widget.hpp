@@ -35,4 +35,4 @@ inline Pill control_center_pill(MonitorOutput &mon) {
     return Pill{PillId::ControlCenter, &mon.control_center_texture,
                 "Control Center"};
 }
-} // namespace bar_detail
+}

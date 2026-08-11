@@ -3,21 +3,44 @@
 
 #include <cassert>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <string>
+#include <sys/stat.h>
 #include <unistd.h>
 
 void test_config() {
-    std::string path = "/tmp/kokusei_test_hostname_" + std::to_string(getpid());
+    char tmp_template[] = "/tmp/kokusei_test_config_XXXXXX";
+    char *tmp_dir = mkdtemp(tmp_template);
+    assert(tmp_dir != nullptr);
 
-    {
-        std::ofstream f(path);
-        f << "hq9afk-letsnote\n";
-    }
-    assert(device_name(path) == "hq9afk-letsnote");
+    const char *old_home = getenv("HOME");
+    std::string old_home_str = old_home ? old_home : "";
+    setenv("HOME", tmp_dir, 1);
+
+    std::string config_dir = std::string(tmp_dir) + "/.config/kokusei";
+    mkdir((std::string(tmp_dir) + "/.config").c_str(), 0755);
+    mkdir(config_dir.c_str(), 0755);
+
+    std::string path = config_path();
+    assert(path == config_dir + "/config.toml");
+
+    Config cfg;
+    save_config(cfg);
+
+    std::ifstream f(path);
+    std::string content((std::istreambuf_iterator<char>(f)),
+                        std::istreambuf_iterator<char>());
+    assert(content.find("[bar]") == std::string::npos);
+    assert(content.find("autohide") != std::string::npos);
+
     unlink(path.c_str());
+    rmdir(config_dir.c_str());
+    rmdir((std::string(tmp_dir) + "/.config").c_str());
+    rmdir(tmp_dir);
 
-    assert(device_name(path) == "hq9afk");
+    if (old_home)
+        setenv("HOME", old_home_str.c_str(), 1);
 }
 
 void test_config_watch() {
@@ -25,7 +48,7 @@ void test_config_watch() {
         "/tmp/kokusei_test_config_watch_" + std::to_string(getpid()) + ".toml";
     {
         std::ofstream f(path);
-        f << "[bar]\nheight = 35\n";
+        f << "[idle]\ntimeout_seconds = 300\n";
     }
 
     int fd = config_watch_init(path);
@@ -33,7 +56,7 @@ void test_config_watch() {
 
     {
         std::ofstream f(path, std::ios::trunc);
-        f << "[bar]\nheight = 40\n";
+        f << "[idle]\ntimeout_seconds = 400\n";
     }
 
     bool changed = false;
@@ -45,4 +68,24 @@ void test_config_watch() {
 
     close(fd);
     unlink(path.c_str());
+}
+
+void test_monitor_overrides() {
+    Config cfg;
+
+    assert(osd_effective_enabled(cfg, "DP-1") == cfg.default_osd_enabled);
+    assert(notifications_effective_enabled(cfg, "DP-1") ==
+          cfg.default_notifications_enabled);
+    assert(autohide_effective_enabled(cfg, "DP-1") == cfg.autohide);
+
+    cfg.monitor_overrides["DP-1"] = MonitorOverride{
+       .enabled = false, .osd = false, .notifications = false, .autohide = true};
+    assert(osd_effective_enabled(cfg, "DP-1") == cfg.default_osd_enabled);
+
+    cfg.monitor_overrides["DP-1"].enabled = true;
+    assert(osd_effective_enabled(cfg, "DP-1") == false);
+    assert(notifications_effective_enabled(cfg, "DP-1") == false);
+    assert(autohide_effective_enabled(cfg, "DP-1") == true);
+
+    assert(osd_effective_enabled(cfg, "HDMI-1") == cfg.default_osd_enabled);
 }

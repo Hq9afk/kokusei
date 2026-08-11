@@ -93,7 +93,7 @@ inline const Texture *cached_text_clipped(TextureCache &cache,
                      [&] { return rasterize_text(s, scale, max_width_px); });
 }
 
-} // namespace panel_chrome_detail
+}
 
 inline Node *panel_draw_box(Node *parent, float x, float y, float w, float h,
                             float border_width = metrics::border_thin) {

@@ -55,4 +55,4 @@ inline Pill wifi_pill(MonitorOutput &mon) {
                         network_scan(mon.app->network);
                 }};
 }
-} // namespace bar_detail
+}

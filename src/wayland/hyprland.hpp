@@ -100,7 +100,7 @@ inline std::vector<std::string> split(const std::string &s, char delim) {
     return parts;
 }
 
-} // namespace hypr_detail
+}
 
 inline void hypr_refresh(HyprlandState &state) {
     using nlohmann::json;
@@ -233,8 +233,7 @@ inline HyprEventResult hypr_poll_events(HyprlandState &state) {
                     result = HyprEventResult::ActiveChanged;
             }
         } else if (event == "workspacev2") {
-            // No monitor field on this event - it always applies to whichever
-            // monitor last reported focus via focusedmonv2.
+
             auto parts = hypr_detail::split(data, ',');
             if (!parts.empty() && !state.focused_monitor.empty()) {
                 state.by_monitor[state.focused_monitor].active_id =

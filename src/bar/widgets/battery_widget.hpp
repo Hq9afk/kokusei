@@ -54,4 +54,4 @@ inline Pill battery_pill(MonitorOutput &mon) {
     return Pill{PillId::Battery, &mon.battery_icon_texture, battery_label(u),
                 battery_border_color(u)};
 }
-} // namespace bar_detail
+}

@@ -46,4 +46,4 @@ inline Pill bluetooth_pill(MonitorOutput &mon) {
                         pill_center_x(mon.capsule, PillId::Bluetooth));
                 }};
 }
-} // namespace bar_detail
+}

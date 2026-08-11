@@ -3,12 +3,6 @@
 #include "../wayland/keyboard.hpp"
 #include <string>
 
-// Shared core of every single-line editable text buffer in kokusei. The
-// launcher's query box was the first caller (still owns its own per-char
-// pop-in animation and rendering, kept as-is); the settings panel's fields
-// are the second - see critical-knowledge.md §6, "a generic primitive is
-// worth building when the second caller is visible, not merely imaginable."
-
 inline void text_field_backspace(std::string &text) {
     while (!text.empty() &&
            (static_cast<unsigned char>(text.back()) & 0xC0) == 0x80)

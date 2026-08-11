@@ -46,7 +46,7 @@ inline bool send_line(int fd, const std::string &line) {
     return true;
 }
 
-} // namespace shoji_detail
+}
 
 inline void shoji_apply_snapshot(ShojiwmState &state,
                                  const nlohmann::json &payload) {
