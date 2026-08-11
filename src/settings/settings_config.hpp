@@ -13,13 +13,12 @@ constexpr float kSettingsFieldHeight = 28.0f;
 constexpr float kSettingsFieldWidth = 240.0f;
 constexpr float kSettingsNumberFieldWidth = 72.0f;
 
-// 1/2 are reserved by render/overlay_panel.hpp's kOverlayFadeOwner/
-// kPanelHeightAnimOwner on this same SettingsState::base.animations manager.
 constexpr uint64_t kSettingsAutohideToggleOwner = 3;
 constexpr uint64_t kSettingsFillModeToggleOwner = 4;
 
-constexpr float kSettingsWallpaperThumbSize = 88.0f;
-constexpr float kSettingsWallpaperThumbGap = 8.0f;
+constexpr float kSettingsWallpaperThumbSize = 115.0f;
+constexpr float kSettingsWallpaperThumbGap = 15.0f;
+constexpr int kSettingsWallpaperGridColumns = 5;
 constexpr float kSettingsWallpaperThumbRadius = 8.0f;
 constexpr float kSettingsWallpaperLabelPad = 6.0f;
 constexpr float kSettingsWallpaperGridInset = 5.0f;

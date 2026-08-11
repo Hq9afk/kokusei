@@ -11,11 +11,7 @@ using panel_chrome_detail::cached_icon;
 using panel_chrome_detail::cached_text;
 using panel_chrome_detail::cached_text_clipped;
 
-inline int wallpaper_grid_columns(float content_w) {
-    return std::max(1, static_cast<int>((content_w + kSettingsWallpaperThumbGap) /
-                                        (kSettingsWallpaperThumbSize +
-                                         kSettingsWallpaperThumbGap)));
-}
+inline int wallpaper_grid_columns(float) { return kSettingsWallpaperGridColumns; }
 
 inline float wallpaper_grid_content_height(const WallpaperPickerState &picker,
                                            float content_w) {
@@ -122,27 +118,6 @@ inline void draw_wallpaper_dirbar(SettingsState &state, Node *parent,
         {PanelClickKind::ToggleFlip,
          {btn_x, btn_y, kSettingsDirBarButtonWidth, kSettingsDirBarButtonHeight},
          "wallpaperrescan"});
-}
-
-inline void draw_toggle_row(SettingsState &state, Node *parent, int32_t scale,
-                            float label_x, float y, float toggle_x,
-                            const std::string &label) {
-    const Texture *label_tex = cached_text(state.tcache, label, scale);
-    if (label_tex)
-        node_add_texture(parent, label_x,
-                         y + (kSettingsFieldHeight - label_tex->height) / 2.0f,
-                         *label_tex, rgba(palette::text));
-
-    toggle_draw(parent, toggle_x,
-                y + (kSettingsFieldHeight - toggle_detail::kToggleHeight) /
-                        2.0f,
-                state.autohide_toggle);
-    state.click_regions.push_back(
-        {PanelClickKind::ToggleFlip,
-         {toggle_x,
-          y + (kSettingsFieldHeight - toggle_detail::kToggleHeight) / 2.0f,
-          toggle_detail::kToggleWidth, toggle_detail::kToggleHeight},
-         ""});
 }
 
 inline void draw_monitor_row(SettingsState &state, Node *parent, int32_t scale,
@@ -365,7 +340,6 @@ struct SettingsTabDef {
 inline void draw_nav_rail(SettingsState &state, Node *parent, int32_t scale,
                           float x, float y, float w, float h) {
     static const SettingsTabDef tabs[kSettingsTabCount] = {
-        {"Bar", icon::layout_navbar},
         {"Wallpaper", icon::wallpaper},
         {"Idle", icon::moon_stars},
     };
@@ -474,11 +448,6 @@ inline void settings_paint(SettingsState &state, const Config &cfg,
         float y = content_y;
 
         switch (state.active_tab) {
-        case SettingsTab::Bar:
-            draw_toggle_row(state, root, scale, label_x, y, field_x,
-                            "Autohide");
-            y += kSettingsRowHeight;
-            break;
         case SettingsTab::Wallpaper: {
             state.wallpaper_grid_width = panel_x + panel_w - kPanelPadding - label_x;
             if (state.monitor_names.size() > 1) {
@@ -491,8 +460,14 @@ inline void settings_paint(SettingsState &state, const Config &cfg,
             draw_fill_mode_row(state, root, scale, label_x, y,
                                state.wallpaper_grid_width, cfg);
             y += kSettingsRowHeight;
-            state.wallpaper_grid_height =
-                panel_y + panel_h - kPanelPadding - y;
+            float grid_available_h = panel_y + panel_h - kPanelPadding - y;
+            float grid_inset_w =
+                state.wallpaper_grid_width - kSettingsWallpaperGridInset * 2.0f;
+            float grid_content_h =
+                wallpaper_grid_content_height(state.wallpaper_picker, grid_inset_w);
+            state.wallpaper_grid_height = std::min(
+                grid_available_h,
+                grid_content_h + kSettingsWallpaperGridInset * 2.0f);
             draw_wallpaper_grid(state, root, scale, label_x, y,
                                 state.wallpaper_grid_width,
                                 state.wallpaper_grid_height, cfg);

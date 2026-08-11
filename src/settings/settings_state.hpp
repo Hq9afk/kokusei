@@ -13,7 +13,6 @@
 #include "../render/text_field.hpp"
 #include "../render/texture.hpp"
 #include "../render/texture_cache.hpp"
-#include "../render/toggle.hpp"
 #include "../wayland/keyboard.hpp"
 #include "../wayland/layer_surface.hpp"
 #include "settings_config.hpp"
@@ -31,8 +30,8 @@
 #include <string>
 #include <vector>
 
-enum class SettingsTab { Bar, Wallpaper, Idle };
-constexpr int kSettingsTabCount = 3;
+enum class SettingsTab { Wallpaper, Idle };
+constexpr int kSettingsTabCount = 2;
 
 enum class SettingsFieldId {
     None,
@@ -59,8 +58,7 @@ struct SettingsState {
     Rect panel_rect;
     std::vector<PanelClickRegion> click_regions;
 
-    SettingsTab active_tab = SettingsTab::Bar;
-    ToggleState autohide_toggle;
+    SettingsTab active_tab = SettingsTab::Wallpaper;
     SettingsFieldId focused_field = SettingsFieldId::None;
     TextFieldState field_buffer;
 
@@ -190,9 +188,6 @@ inline void settings_toggle(SettingsState &state, const Config &cfg,
          static_cast<int>(state.focused_field));
     if (state.base.open) {
         settings_commit_focused_field(state, cfg, on_commit);
-    } else {
-        state.autohide_toggle.on = cfg.autohide;
-        state.autohide_toggle.knob_t = cfg.autohide ? 1.0f : 0.0f;
     }
     overlay_panel_toggle(state.base);
     settings_request_frame(state);
@@ -256,12 +251,6 @@ inline void settings_handle_click(SettingsState &state, const Config &cfg,
                 on_commit(updated);
             } else if (region.tag == "wallpaperrescan") {
                 wallpaper_picker_scan(state.wallpaper_picker, cfg.wallpaper_dir);
-            } else {
-                Config updated = cfg;
-                updated.autohide = !cfg.autohide;
-                on_commit(updated);
-                toggle_set(state.autohide_toggle, state.base.animations,
-                           updated.autohide, kSettingsAutohideToggleOwner);
             }
             settings_request_frame(state);
             return;
