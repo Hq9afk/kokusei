@@ -8,6 +8,8 @@ int main() {
     Case cases[] = {
         {"config", test_config},
         {"config_watch", test_config_watch},
+        {"wallpaper_resolve", test_wallpaper_resolve},
+        {"wallpaper_picker_sort", test_wallpaper_picker_sort},
 
         {"async_process", test_async_process},
         {"deferred_call", test_deferred_call},

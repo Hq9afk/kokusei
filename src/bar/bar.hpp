@@ -538,7 +538,7 @@ inline void monitor_output_create_surfaces(WaylandState &app,
     output_scale_watch(mon.output_scale, mon.surface);
     wl_surface_commit(mon.surface);
 
-    if (!app.cfg.wallpaper_path.empty() &&
+    if (!wallpaper_effective_path(app.cfg, mon.output.name).empty() &&
         !wallpaper_create_surface(mon.wallpaper, app.compositor,
                                   app.layer_shell, mon.output.wl))
         klog("wallpaper: failed to create layer surface on '%s'",
@@ -594,7 +594,12 @@ inline void monitor_output_finish_egl(WaylandState &app, MonitorOutput &mon) {
     if (mon.wallpaper.layer_surface &&
         wallpaper_init_egl(mon.wallpaper, app.renderer, app.egl_display,
                            app.egl_config, app.egl_context)) {
-        wallpaper_decode_async(mon.wallpaper, app.cfg.wallpaper_path);
+        mon.wallpaper.fill_mode =
+            wallpaper_effective_fill_mode(app.cfg, mon.output.name) == "fit"
+                ? FillMode::Fit
+                : FillMode::Crop;
+        wallpaper_decode_async(
+            mon.wallpaper, wallpaper_effective_path(app.cfg, mon.output.name));
         wallpaper_request_frame(mon.wallpaper);
         eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
                        app.egl_context);
@@ -835,9 +840,20 @@ inline void apply_config_update(WaylandState &app, Config new_cfg) {
     app.idle.on_idle_command = new_cfg.idle_command;
     app.idle.on_resume_command = new_cfg.idle_resume_command;
 
-    if (new_cfg.wallpaper_path != app.cfg.wallpaper_path) {
-        for (auto &mon : app.outputs)
-            wallpaper_load_async(mon->wallpaper, new_cfg.wallpaper_path);
+    for (auto &mon : app.outputs) {
+        std::string old_path =
+            wallpaper_effective_path(app.cfg, mon->output.name);
+        std::string new_path =
+            wallpaper_effective_path(new_cfg, mon->output.name);
+        if (new_path != old_path)
+            wallpaper_load_async(mon->wallpaper, new_path);
+
+        std::string new_fill = wallpaper_effective_fill_mode(new_cfg, mon->output.name);
+        FillMode new_mode = new_fill == "fit" ? FillMode::Fit : FillMode::Crop;
+        if (new_mode != mon->wallpaper.fill_mode) {
+            mon->wallpaper.fill_mode = new_mode;
+            wallpaper_request_frame(mon->wallpaper);
+        }
     }
 
     bool autohide_changed = new_cfg.autohide != app.cfg.autohide;
@@ -938,8 +954,14 @@ inline void settings_retarget(WaylandState &app, MonitorOutput &target) {
         }
         while (!s.base.configured)
             wl_display_dispatch(app.display);
-        if (!settings_init_egl(s, app.cfg, app.renderer, app.egl_display,
-                               app.egl_config, app.egl_context)) {
+        if (!settings_init_egl(
+                s, app.cfg, app.renderer, app.egl_display, app.egl_config,
+                app.egl_context, [&app] {
+                    std::vector<std::string> names;
+                    for (const auto &mon : app.outputs)
+                        names.push_back(mon->output.name);
+                    return names;
+                })) {
             klog("settings: EGL surface init failed after retargeting to '%s'",
                  out_name);
             return false;

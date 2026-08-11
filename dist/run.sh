@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")"
 
-pkill -x kokusei 2>/dev/null || true
+kokusei kill || true
 
 ./install.sh
 

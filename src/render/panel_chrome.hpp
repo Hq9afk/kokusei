@@ -58,6 +58,8 @@ enum class PanelClickKind {
     TabSelect,
     ToggleFlip,
     FieldFocus,
+    WallpaperSelect,
+    MonitorSelect,
 };
 struct PanelClickRegion {
     PanelClickKind kind;

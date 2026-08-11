@@ -17,6 +17,7 @@
 #include "../wayland/keyboard.hpp"
 #include "../wayland/layer_surface.hpp"
 #include "settings_config.hpp"
+#include "wallpaper_picker.hpp"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 #include <EGL/egl.h>
@@ -25,7 +26,6 @@
 #include <wayland-egl.h>
 
 #include <algorithm>
-#include <cstdio>
 #include <cstdlib>
 #include <functional>
 #include <string>
@@ -36,12 +36,8 @@ constexpr int kSettingsTabCount = 3;
 
 enum class SettingsFieldId {
     None,
-    BarHeight,
-    BarBgR,
-    BarBgG,
-    BarBgB,
-    BarBgA,
     WallpaperPath,
+    WallpaperDir,
     IdleTimeout,
     IdleCommand,
     IdleResumeCommand,
@@ -67,30 +63,27 @@ struct SettingsState {
     ToggleState autohide_toggle;
     SettingsFieldId focused_field = SettingsFieldId::None;
     TextFieldState field_buffer;
+
+    WallpaperPickerState wallpaper_picker;
+    std::string wallpaper_selected_monitor;
+    float wallpaper_scroll_offset = 0.0f;
+    // Content width/height of the grid as last drawn; settings_handle_scroll()
+    // uses these to clamp without redoing settings_paint()'s panel layout math.
+    float wallpaper_grid_width = 0.0f;
+    float wallpaper_grid_height = 0.0f;
+    // Filled by settings_paint() each frame; settings_handle_click() reads it
+    // back to decide whether the monitor row is dead UI for a single output.
+    std::vector<std::string> monitor_names;
 };
 
 namespace settings_detail {
 
-inline std::string format_float2(float v) {
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%.2f", static_cast<double>(v));
-    return buf;
-}
-
 inline std::string format_field(const Config &cfg, SettingsFieldId id) {
     switch (id) {
-    case SettingsFieldId::BarHeight:
-        return std::to_string(cfg.height);
-    case SettingsFieldId::BarBgR:
-        return format_float2(cfg.bg[0]);
-    case SettingsFieldId::BarBgG:
-        return format_float2(cfg.bg[1]);
-    case SettingsFieldId::BarBgB:
-        return format_float2(cfg.bg[2]);
-    case SettingsFieldId::BarBgA:
-        return format_float2(cfg.bg[3]);
     case SettingsFieldId::WallpaperPath:
         return cfg.wallpaper_path;
+    case SettingsFieldId::WallpaperDir:
+        return cfg.wallpaper_dir;
     case SettingsFieldId::IdleTimeout:
         return std::to_string(cfg.idle_timeout_seconds);
     case SettingsFieldId::IdleCommand:
@@ -109,23 +102,11 @@ inline void apply_field_text(Config &cfg, SettingsFieldId id,
                              const std::string &text) {
     try {
         switch (id) {
-        case SettingsFieldId::BarHeight:
-            cfg.height = std::max(1, std::stoi(text));
-            break;
-        case SettingsFieldId::BarBgR:
-            cfg.bg[0] = std::clamp(std::stof(text), 0.0f, 1.0f);
-            break;
-        case SettingsFieldId::BarBgG:
-            cfg.bg[1] = std::clamp(std::stof(text), 0.0f, 1.0f);
-            break;
-        case SettingsFieldId::BarBgB:
-            cfg.bg[2] = std::clamp(std::stof(text), 0.0f, 1.0f);
-            break;
-        case SettingsFieldId::BarBgA:
-            cfg.bg[3] = std::clamp(std::stof(text), 0.0f, 1.0f);
-            break;
         case SettingsFieldId::WallpaperPath:
             cfg.wallpaper_path = text;
+            break;
+        case SettingsFieldId::WallpaperDir:
+            cfg.wallpaper_dir = text;
             break;
         case SettingsFieldId::IdleTimeout:
             cfg.idle_timeout_seconds =
@@ -149,7 +130,8 @@ inline void apply_field_text(Config &cfg, SettingsFieldId id,
 
 } // namespace settings_detail
 
-inline void settings_paint(SettingsState &state, const Config &cfg);
+inline void settings_paint(SettingsState &state, const Config &cfg,
+                           const std::vector<std::string> &monitor_names);
 
 inline bool settings_create_surface(SettingsState &state,
                                     wl_compositor *compositor,
@@ -159,14 +141,18 @@ inline bool settings_create_surface(SettingsState &state,
                                         "kokusei-settings", output);
 }
 
-inline bool settings_init_egl(SettingsState &state, const Config &cfg,
-                              Renderer &renderer, EGLDisplay display,
-                              EGLConfig config, EGLContext context) {
+// monitor_names_fn is a callback rather than a stored vector so this module
+// stays decoupled from WaylandState/MonitorOutput (see SettingsCommitFn's
+// comment above) while still reflecting the live output list each frame.
+inline bool
+settings_init_egl(SettingsState &state, const Config &cfg, Renderer &renderer,
+                  EGLDisplay display, EGLConfig config, EGLContext context,
+                  std::function<std::vector<std::string>()> monitor_names_fn) {
     state.renderer = &renderer;
     if (!overlay_panel_init_egl(state.base, display, config, context))
         return false;
-    state.base.frame_clock.draw = [&state, &cfg] {
-        settings_paint(state, cfg);
+    state.base.frame_clock.draw = [&state, &cfg, monitor_names_fn] {
+        settings_paint(state, cfg, monitor_names_fn());
     };
     return true;
 }
@@ -184,6 +170,8 @@ inline void settings_commit_focused_field(SettingsState &state,
     settings_detail::apply_field_text(updated, state.focused_field,
                                       state.field_buffer.text);
     on_commit(updated);
+    if (state.focused_field == SettingsFieldId::WallpaperDir)
+        wallpaper_picker_scan(state.wallpaper_picker, updated.wallpaper_dir);
     state.focused_field = SettingsFieldId::None;
 }
 
@@ -247,15 +235,34 @@ inline void settings_handle_click(SettingsState &state, const Config &cfg,
         case PanelClickKind::TabSelect:
             settings_commit_focused_field(state, cfg, on_commit);
             state.active_tab = static_cast<SettingsTab>(std::stoi(region.tag));
+            if (state.active_tab == SettingsTab::Wallpaper &&
+                state.wallpaper_picker.dir != cfg.wallpaper_dir)
+                wallpaper_picker_scan(state.wallpaper_picker,
+                                      cfg.wallpaper_dir);
             settings_request_frame(state);
             return;
         case PanelClickKind::ToggleFlip: {
             settings_commit_focused_field(state, cfg, on_commit);
-            Config updated = cfg;
-            updated.autohide = !cfg.autohide;
-            on_commit(updated);
-            toggle_set(state.autohide_toggle, state.base.animations,
-                       updated.autohide, kSettingsAutohideToggleOwner);
+            if (region.tag == "fillmode") {
+                Config updated = cfg;
+                std::string cur = wallpaper_effective_fill_mode(
+                    cfg, state.wallpaper_selected_monitor);
+                updated.wallpaper_fill_modes[state.wallpaper_selected_monitor] =
+                    cur == "crop" ? "fit" : "crop";
+                on_commit(updated);
+            } else if (region.tag == "wallpaperremove") {
+                Config updated = cfg;
+                updated.wallpaper_paths.erase(state.wallpaper_selected_monitor);
+                on_commit(updated);
+            } else if (region.tag == "wallpaperrescan") {
+                wallpaper_picker_scan(state.wallpaper_picker, cfg.wallpaper_dir);
+            } else {
+                Config updated = cfg;
+                updated.autohide = !cfg.autohide;
+                on_commit(updated);
+                toggle_set(state.autohide_toggle, state.base.animations,
+                           updated.autohide, kSettingsAutohideToggleOwner);
+            }
             settings_request_frame(state);
             return;
         }
@@ -265,6 +272,19 @@ inline void settings_handle_click(SettingsState &state, const Config &cfg,
                 static_cast<SettingsFieldId>(std::stoi(region.tag)));
             settings_request_frame(state);
             return;
+        case PanelClickKind::MonitorSelect:
+            state.wallpaper_selected_monitor = region.tag;
+            settings_request_frame(state);
+            return;
+        case PanelClickKind::WallpaperSelect: {
+            settings_commit_focused_field(state, cfg, on_commit);
+            Config updated = cfg;
+            updated.wallpaper_paths[state.wallpaper_selected_monitor] =
+                region.tag;
+            on_commit(updated);
+            settings_request_frame(state);
+            return;
+        }
         default:
             return;
         }

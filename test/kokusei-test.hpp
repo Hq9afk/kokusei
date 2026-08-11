@@ -2,6 +2,8 @@
 
 void test_config();
 void test_config_watch();
+void test_wallpaper_resolve();
+void test_wallpaper_picker_sort();
 
 void test_async_process();
 void test_deferred_call();

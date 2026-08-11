@@ -9,10 +9,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <string>
 #include <sys/inotify.h>
 #include <unistd.h>
+
+inline std::string default_wallpaper_dir() {
+    const char *home = getenv("HOME");
+    return std::string(home ? home : "") + "/Pictures";
+}
 
 struct Config {
     int32_t height = 35;
@@ -20,11 +26,33 @@ struct Config {
     float bg[4] = {palette::overlay.r, palette::overlay.g, palette::overlay.b,
                    palette::overlay.a};
     std::string wallpaper_path = KOKUSEI_DEFAULT_WALLPAPER;
+    std::string wallpaper_dir = default_wallpaper_dir();
+    std::map<std::string, std::string> wallpaper_paths;
+    std::map<std::string, std::string> wallpaper_fill_modes;
     bool autohide = false;
     uint32_t idle_timeout_seconds = 300;
     std::string idle_command;
     std::string idle_resume_command;
 };
+
+// Per-monitor wallpaper lookups: fall back to the global default when a
+// monitor has no explicit entry.
+inline std::string wallpaper_effective_path(const Config &cfg,
+                                            const std::string &monitor_name) {
+    auto it = cfg.wallpaper_paths.find(monitor_name);
+    if (it != cfg.wallpaper_paths.end() && !it->second.empty())
+        return it->second;
+    return cfg.wallpaper_path;
+}
+
+inline std::string
+wallpaper_effective_fill_mode(const Config &cfg,
+                              const std::string &monitor_name) {
+    auto it = cfg.wallpaper_fill_modes.find(monitor_name);
+    if (it != cfg.wallpaper_fill_modes.end() && !it->second.empty())
+        return it->second;
+    return "crop";
+}
 
 inline std::string
 device_name(const std::string &hostname_path = "/etc/hostname") {
@@ -57,6 +85,18 @@ inline Config load_config() {
         cfg.bg[3] = tbl["bar"]["bg_a"].value_or(cfg.bg[3]);
         cfg.wallpaper_path =
             tbl["wallpaper"]["path"].value_or(cfg.wallpaper_path);
+        cfg.wallpaper_dir =
+            tbl["wallpaper"]["dir"].value_or(cfg.wallpaper_dir);
+        if (const auto *paths = tbl["wallpaper"]["paths"].as_table()) {
+            for (const auto &[name, val] : *paths)
+                if (auto s = val.value<std::string>())
+                    cfg.wallpaper_paths[std::string(name.str())] = *s;
+        }
+        if (const auto *modes = tbl["wallpaper"]["fill_modes"].as_table()) {
+            for (const auto &[name, val] : *modes)
+                if (auto s = val.value<std::string>())
+                    cfg.wallpaper_fill_modes[std::string(name.str())] = *s;
+        }
         cfg.idle_timeout_seconds =
             tbl["idle"]["timeout_seconds"].value_or(cfg.idle_timeout_seconds);
         cfg.idle_command = tbl["idle"]["command"].value_or(cfg.idle_command);
@@ -95,8 +135,18 @@ inline void save_config(const Config &cfg) {
                                     {"bg_b", cfg.bg[2]},
                                     {"bg_a", cfg.bg[3]},
                                 });
-    tbl.insert_or_assign("wallpaper",
-                         toml::table{{"path", cfg.wallpaper_path}});
+    toml::table wallpaper_paths_tbl;
+    for (const auto &[name, path] : cfg.wallpaper_paths)
+        wallpaper_paths_tbl.insert_or_assign(name, path);
+    toml::table wallpaper_fill_modes_tbl;
+    for (const auto &[name, mode] : cfg.wallpaper_fill_modes)
+        wallpaper_fill_modes_tbl.insert_or_assign(name, mode);
+    tbl.insert_or_assign(
+        "wallpaper",
+        toml::table{{"path", cfg.wallpaper_path},
+                    {"dir", cfg.wallpaper_dir},
+                    {"paths", wallpaper_paths_tbl},
+                    {"fill_modes", wallpaper_fill_modes_tbl}});
     tbl.insert_or_assign(
         "idle",
         toml::table{

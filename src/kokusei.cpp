@@ -188,9 +188,14 @@ int main(int argc, char **argv) {
         notification_init(app.notification);
 
     if (want_settings) {
-        if (!settings_init_egl(app.settings, app.cfg, app.renderer,
-                               app.egl_display, app.egl_config,
-                               app.egl_context)) {
+        if (!settings_init_egl(
+                app.settings, app.cfg, app.renderer, app.egl_display,
+                app.egl_config, app.egl_context, [&app] {
+                    std::vector<std::string> names;
+                    for (const auto &mon : app.outputs)
+                        names.push_back(mon->output.name);
+                    return names;
+                })) {
             klog("settings: EGL surface init failed");
             want_settings = false;
         } else {
@@ -809,6 +814,9 @@ int main(int argc, char **argv) {
                                                   mon->surface) ==
                            PillId::Volume) {
                 bar_detail::volume_pill_handle_wheel(*mon, scroll.dy);
+            } else if (want_settings &&
+                       scroll.surface == app.settings.base.surface) {
+                settings_handle_scroll(app.settings, scroll.dy);
             }
         }
     }
