@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../render/color_ops.hpp"
 #include "notification_state.hpp"
 
 inline void notification_paint(NotificationView &view,

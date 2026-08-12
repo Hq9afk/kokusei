@@ -65,7 +65,7 @@ inline void network_panel_paint(NetworkPanelState &state, NetworkState &net,
         node_add_rrect(root, toggle_rect.x, toggle_rect.y, toggle_rect.w,
                        toggle_rect.h, toggle_rect.h / 2.0f, 0.0f,
                        net.wifi_enabled ? rgba(palette::accent)
-                                        : rgba(palette::text_alpha12),
+                                        : rgba(palette::text_alpha11),
                        kNoBorder);
         float knob = 16.0f;
         float knob_x = net.wifi_enabled
@@ -154,7 +154,7 @@ inline void network_panel_paint(NetworkPanelState &state, NetworkState &net,
         }
         case RowKind::Ethernet: {
             node_add_rrect(clip, rx(content_x), ry(y), content_w, row_h, 8.0f,
-                           0.0f, rgba(palette::accent_alpha18), kNoBorder);
+                           0.0f, rgba(palette::accent_alpha19), kNoBorder);
             const Texture *t = cached_text(state.tcache, "Ethernet", scale);
             if (t)
                 node_add_texture(clip,
@@ -303,7 +303,7 @@ inline void network_panel_paint(NetworkPanelState &state, NetworkState &net,
                 node_add_rrect(clip, rx(connect_rect.x), ry(connect_rect.y),
                                connect_rect.w, connect_rect.h,
                                kPanelActionButtonSize / 2.0f, 0.0f,
-                               is_connected ? rgba(palette::text_alpha10)
+                               is_connected ? rgba(palette::text_alpha11)
                                             : rgba(palette::accent),
                                kNoBorder);
                 if (action_tex)

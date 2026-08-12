@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../render/color_ops.hpp"
 #include "logout_state.hpp"
 
 #include <algorithm>

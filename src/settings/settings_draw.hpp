@@ -83,9 +83,10 @@ inline void draw_wallpaper_dirbar(SettingsState &state, Node *parent,
 
     std::string display =
         focused ? state.field_buffer.text : cfg.wallpaper_dir;
-    if (!focused)
-        display = elide(display, 40);
-    const Texture *value_tex = cached_text(state.tcache, display, scale);
+    const Texture *value_tex =
+        focused ? cached_text(state.tcache, display, scale)
+                : cached_text_clipped(state.tcache, display, scale,
+                                      static_cast<int>(input_w));
     if (value_tex)
         node_add_texture(parent, input_x,
                          y + (kSettingsDirBarHeight - value_tex->height) / 2.0f,
@@ -102,7 +103,7 @@ inline void draw_wallpaper_dirbar(SettingsState &state, Node *parent,
     float btn_y = y + (kSettingsDirBarHeight - kSettingsDirBarButtonHeight) / 2.0f;
     node_add_rrect(parent, btn_x, btn_y, kSettingsDirBarButtonWidth,
                    kSettingsDirBarButtonHeight, metrics::radius_sm, 0.0f,
-                   rgba(palette::text_alpha10), kPanelNoBorder);
+                   rgba(palette::text_alpha11), kPanelNoBorder);
     const Texture *btn_tex = cached_text(
         state.tcache, state.wallpaper_picker.scanning ? "\xE2\x80\xA6" : "Rescan",
         scale);
@@ -131,7 +132,7 @@ inline void draw_region_row(SettingsState &state, Node *parent, int32_t scale,
                          col == state.wallpaper_selected_column;
             node_add_rrect(parent, cx, y, chip_w, kSettingsMonitorChipHeight,
                            metrics::radius_sm, metrics::border_thin,
-                           active ? rgba(palette::accent_alpha20)
+                           active ? rgba(palette::accent_alpha19)
                                   : rgba(palette::field_bg),
                            active ? rgba(palette::accent) : kPanelNoBorder);
             if (tex)
@@ -200,72 +201,79 @@ inline void draw_region_row(SettingsState &state, Node *parent, int32_t scale,
 }
 
 inline void draw_displays_monitor_row(SettingsState &state, Node *parent,
-                                      int32_t scale, float x, float y) {
+                                      int32_t scale, float x, float y,
+                                      float row_w) {
+    std::vector<std::string> sorted_names = state.monitor_names;
+    std::sort(sorted_names.begin(), sorted_names.end());
+
+    int n = static_cast<int>(sorted_names.size());
+    float tile_w = (row_w - n * kSettingsScreenSelectorSpacing) / (n + 1);
+
     float cx = x;
-    auto draw_chip = [&](const std::string &label, const std::string &tag,
+    auto draw_tile = [&](const std::string &label, const std::string &tag,
                         bool active) {
+        node_add_rrect(parent, cx, y, tile_w, kSettingsScreenSelectorHeight,
+                       kSettingsTileRadius, kSettingsSelectorBorderWidth,
+                       rgba(palette::lavender_alpha20),
+                       active ? rgba(palette::accent_alt) : kPanelNoBorder);
         const Texture *tex = cached_text(state.tcache, label, scale);
-        float chip_w = (tex ? tex->width : 0) + 24.0f;
-        node_add_rrect(parent, cx, y, chip_w, kSettingsMonitorChipHeight,
-                       metrics::radius_sm, metrics::border_thin,
-                       active ? rgba(palette::accent_alpha20)
-                              : rgba(palette::field_bg),
-                       active ? rgba(palette::accent) : kPanelNoBorder);
         if (tex)
             node_add_texture(
-                parent, cx + 12.0f,
-                y + (kSettingsMonitorChipHeight - tex->height) / 2.0f, *tex,
-                active ? rgba(palette::accent) : rgba(palette::text));
+                parent, cx + (tile_w - tex->width) / 2.0f,
+                y + (kSettingsScreenSelectorHeight - tex->height) / 2.0f, *tex,
+                rgba(palette::text));
         state.click_regions.push_back(
             {PanelClickKind::MonitorSelect,
-             {cx, y, chip_w, kSettingsMonitorChipHeight}, tag});
-        cx += chip_w + kSettingsMonitorChipGap;
+             {cx, y, tile_w, kSettingsScreenSelectorHeight}, tag});
+        cx += tile_w + kSettingsScreenSelectorSpacing;
     };
 
-    draw_chip("Default", kSettingsDisplaysDefaultTag,
-              state.displays_selected_monitor.empty());
-    for (const std::string &name : state.monitor_names)
-        draw_chip(name, name, name == state.displays_selected_monitor);
+    draw_tile("Default", kSettingsDisplaysDefaultTag,
+             state.displays_selected_monitor.empty());
+    for (const std::string &name : sorted_names)
+        draw_tile(name, name, name == state.displays_selected_monitor);
+}
+
+inline void draw_toggle_switch(SettingsState &state, Node *parent, float x,
+                               float y, bool active, const char *tag) {
+    node_add_rrect(parent, x, y, kSettingsToggleTrackWidth,
+                   kSettingsToggleTrackHeight, kSettingsToggleTrackRadius,
+                   0.0f,
+                   active ? rgba(palette::accent) : rgba(palette::text_alpha11),
+                   kPanelNoBorder);
+    float knob_x = active ? x + kSettingsToggleTrackWidth -
+                               kSettingsToggleKnobSize - kSettingsToggleKnobInset
+                          : x + kSettingsToggleKnobInset;
+    float knob_y = y + (kSettingsToggleTrackHeight - kSettingsToggleKnobSize) / 2.0f;
+    node_add_rrect(parent, knob_x, knob_y, kSettingsToggleKnobSize,
+                   kSettingsToggleKnobSize, kSettingsToggleKnobRadius, 0.0f,
+                   rgba(palette::text), kPanelNoBorder);
+    state.click_regions.push_back(
+        {PanelClickKind::ToggleFlip,
+         {x, y, kSettingsToggleTrackWidth, kSettingsToggleTrackHeight}, tag});
 }
 
 inline void draw_toggle_row(SettingsState &state, Node *parent, int32_t scale,
                             float x, float y, float w, const std::string &label,
-                            bool value, const char *tag) {
+                            bool value, const char *tag, bool tiled) {
+    float row_h = tiled ? kSettingsToggleTileHeight : kSettingsToggleTrackHeight;
+    float inset = tiled ? kSettingsToggleTileContentMargin : 0.0f;
+
+    if (tiled)
+        node_add_rrect(parent, x, y, w, row_h, kSettingsTileRadius,
+                       kSettingsToggleTileBorderWidth,
+                       rgba(palette::text_alpha04), rgba(palette::text_alpha07));
+
     const Texture *label_tex = cached_text(state.tcache, label, scale);
     if (label_tex)
-        node_add_texture(parent, x,
-                         y + (kSettingsFieldHeight - label_tex->height) / 2.0f,
-                         *label_tex, rgba(palette::text));
+        node_add_texture(
+            parent, x + inset, y + (row_h - label_tex->height) / 2.0f,
+            *label_tex,
+            tiled ? rgba(palette::text_alpha85) : rgba(palette::text));
 
-    static const char *kLabels[2] = {"On", "Off"};
-    float widths[2];
-    float pair_w = 0.0f;
-    for (int i = 0; i < 2; ++i) {
-        const Texture *tex = cached_text(state.tcache, kLabels[i], scale);
-        widths[i] = (tex ? tex->width : 0) + 20.0f;
-        pair_w += widths[i] + (i == 0 ? 6.0f : 0.0f);
-    }
-
-    float cx = x + w - pair_w;
-    for (int i = 0; i < 2; ++i) {
-        bool active = (i == 0) == value;
-        const Texture *tex = cached_text(state.tcache, kLabels[i], scale);
-        float bw = widths[i];
-        node_add_rrect(parent, cx, y, bw, kSettingsFieldHeight,
-                       metrics::radius_sm, metrics::border_thin,
-                       active ? rgba(palette::accent_alpha20)
-                              : rgba(palette::field_bg),
-                       active ? rgba(palette::accent) : kPanelNoBorder);
-        if (tex)
-            node_add_texture(
-                parent, cx + 10.0f,
-                y + (kSettingsFieldHeight - tex->height) / 2.0f, *tex,
-                active ? rgba(palette::accent) : rgba(palette::text));
-        state.click_regions.push_back(
-            {PanelClickKind::ToggleFlip, {cx, y, bw, kSettingsFieldHeight},
-             tag});
-        cx += bw + 6.0f;
-    }
+    float switch_x = x + w - inset - kSettingsToggleTrackWidth;
+    float switch_y = y + (row_h - kSettingsToggleTrackHeight) / 2.0f;
+    draw_toggle_switch(state, parent, switch_x, switch_y, value, tag);
 }
 
 inline void draw_fill_mode_row(SettingsState &state, Node *parent,
@@ -290,7 +298,7 @@ inline void draw_fill_mode_row(SettingsState &state, Node *parent,
         float bw = widths[i];
         node_add_rrect(parent, cx, y, bw, kSettingsFieldHeight,
                        metrics::radius_sm, metrics::border_thin,
-                       active ? rgba(palette::accent_alpha20)
+                       active ? rgba(palette::accent_alpha19)
                               : rgba(palette::field_bg),
                        active ? rgba(palette::accent) : kPanelNoBorder);
         if (tex)
@@ -463,7 +471,7 @@ inline void draw_nav_rail(SettingsState &state, Node *parent, int32_t scale,
         {"Idle", icon::moon_stars},
     };
     node_add_rrect(parent, x, y, w, h, metrics::radius_md, 0.0f,
-                   rgba(palette::text_alpha05), kPanelNoBorder);
+                   rgba(palette::text_alpha04), kPanelNoBorder);
     float row_y = y + kSettingsRailPadding;
     for (int i = 0; i < kSettingsTabCount; ++i) {
         bool active = static_cast<int>(state.active_tab) == i;
@@ -471,7 +479,7 @@ inline void draw_nav_rail(SettingsState &state, Node *parent, int32_t scale,
             active ? rgba(palette::accent) : rgba(palette::text_dim);
         node_add_rrect(parent, x, row_y, w, kSettingsRailItemHeight,
                        metrics::radius_sm, 0.0f,
-                       active ? rgba(palette::accent_alpha20) : kPanelNoBorder,
+                       active ? rgba(palette::accent_alpha19) : kPanelNoBorder,
                        kPanelNoBorder);
 
         float icon_x = x + kSettingsRailPadding;
@@ -563,7 +571,7 @@ inline void settings_paint(SettingsState &state, const Config &cfg,
                           kPanelHeaderDividerGap;
         node_add_rect(root, panel_x + kPanelPadding, content_y,
                       panel_w - kPanelPadding * 2.0f, 1.0f,
-                      rgba(palette::text_alpha10));
+                      rgba(palette::text_alpha11));
         content_y += 1.0f + kPanelContentGap;
 
         float rail_x = panel_x + kPanelPadding;
@@ -573,7 +581,7 @@ inline void settings_paint(SettingsState &state, const Config &cfg,
 
         float divider_x = rail_x + kSettingsRailWidth + kSettingsRailDividerGap;
         node_add_rect(root, divider_x, content_y, 1.0f, rail_h,
-                      rgba(palette::text_alpha10));
+                      rgba(palette::text_alpha11));
 
         float label_x = divider_x + kSettingsRailDividerGap;
         float field_x = label_x + kSettingsLabelWidth;
@@ -610,8 +618,8 @@ inline void settings_paint(SettingsState &state, const Config &cfg,
         }
         case SettingsTab::Displays: {
             float row_w = panel_x + panel_w - kPanelPadding - label_x;
-            draw_displays_monitor_row(state, root, scale, label_x, y);
-            y += kSettingsMonitorChipHeight + kPanelRowGap;
+            draw_displays_monitor_row(state, root, scale, label_x, y, row_w);
+            y += kSettingsScreenSelectorHeight + kPanelRowGap;
 
             bool is_default = state.displays_selected_monitor.empty();
             const MonitorOverride *ov = nullptr;
@@ -626,29 +634,28 @@ inline void settings_paint(SettingsState &state, const Config &cfg,
             if (!is_default) {
                 draw_toggle_row(state, root, scale, label_x, y, row_w,
                                 "Override default settings", override_enabled,
-                                "displaysoverride");
-                y += kSettingsRowHeight;
+                                "displaysoverride", false);
+                y += kSettingsToggleTrackHeight + kPanelRowGap;
             }
 
-            bool osd_val = is_default          ? cfg.default_osd_enabled
-                          : override_enabled    ? ov->osd
-                                                 : cfg.default_osd_enabled;
-            bool notif_val = is_default        ? cfg.default_notifications_enabled
-                             : override_enabled ? ov->notifications
-                                                 : cfg.default_notifications_enabled;
-            bool autohide_val = is_default     ? cfg.autohide
-                                : override_enabled ? ov->autohide
-                                                    : cfg.autohide;
+            if (is_default || override_enabled) {
+                bool osd_val = is_default ? cfg.default_osd_enabled : ov->osd;
+                bool notif_val = is_default ? cfg.default_notifications_enabled
+                                            : ov->notifications;
+                bool autohide_val = is_default ? cfg.autohide : ov->autohide;
 
-            draw_toggle_row(state, root, scale, label_x, y, row_w, "OSD",
-                            osd_val, "osdenabled");
-            y += kSettingsRowHeight;
-            draw_toggle_row(state, root, scale, label_x, y, row_w,
-                            "Notifications", notif_val, "notificationsenabled");
-            y += kSettingsRowHeight;
-            draw_toggle_row(state, root, scale, label_x, y, row_w,
-                            "Bar Autohide", autohide_val, "autohideenabled");
-            y += kSettingsRowHeight;
+                draw_toggle_row(state, root, scale, label_x, y, row_w, "OSD",
+                                osd_val, "osdenabled", true);
+                y += kSettingsToggleTileHeight + kSettingsGroupSpacingSm;
+                draw_toggle_row(state, root, scale, label_x, y, row_w,
+                                "Notifications", notif_val,
+                                "notificationsenabled", true);
+                y += kSettingsToggleTileHeight + kSettingsGroupSpacingSm;
+                draw_toggle_row(state, root, scale, label_x, y, row_w,
+                                "Bar Autohide", autohide_val,
+                                "autohideenabled", true);
+                y += kSettingsToggleTileHeight;
+            }
             break;
         }
         case SettingsTab::Idle:

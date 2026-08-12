@@ -198,6 +198,10 @@ inline void settings_toggle(SettingsState &state, const Config &cfg,
          static_cast<int>(state.focused_field));
     if (state.base.open) {
         settings_commit_focused_field(state, cfg, on_commit);
+    } else {
+        state.active_tab = SettingsTab::Wallpaper;
+        if (state.wallpaper_picker.dir != cfg.wallpaper_dir)
+            wallpaper_picker_scan(state.wallpaper_picker, cfg.wallpaper_dir);
     }
     overlay_panel_toggle(state.base);
     settings_request_frame(state);

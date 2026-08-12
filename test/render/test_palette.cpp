@@ -1,4 +1,5 @@
 
+#include "../../src/render/color_ops.hpp"
 #include "../../src/render/palette.hpp"
 
 #include <cassert>
@@ -22,4 +23,15 @@ void test_palette() {
 
     Color c = with_alpha(a, 0.75f);
     assert(c.r == a.r && c.g == a.g && c.b == a.b && c.a == 0.75f);
+
+    Color opaque = color("#9B57F4");
+    assert(std::fabs(opaque.r - 155.0f / 255.0f) < 1e-6f);
+    assert(std::fabs(opaque.g - 87.0f / 255.0f) < 1e-6f);
+    assert(std::fabs(opaque.b - 244.0f / 255.0f) < 1e-6f);
+    assert(opaque.a == 1.0f);
+
+    Color translucent = color("#9B57F41F");
+    assert(translucent.r == opaque.r && translucent.g == opaque.g &&
+           translucent.b == opaque.b);
+    assert(std::fabs(translucent.a - 31.0f / 255.0f) < 1e-6f);
 }

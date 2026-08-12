@@ -64,7 +64,7 @@ inline void bluetooth_panel_paint(BluetoothPanelState &state,
         node_add_rrect(root, toggle_rect.x, toggle_rect.y, toggle_rect.w,
                        toggle_rect.h, toggle_rect.h / 2.0f, 0.0f,
                        bt.powered ? rgba(palette::accent)
-                                  : rgba(palette::text_alpha12),
+                                  : rgba(palette::text_alpha11),
                        kPanelNoBorder);
         float knob = 16.0f;
         float knob_x = bt.powered ? toggle_rect.x + toggle_rect.w - knob - 2.0f
@@ -255,7 +255,7 @@ inline void bluetooth_panel_paint(BluetoothPanelState &state,
                 node_add_rrect(clip, rx(connect_rect.x), ry(connect_rect.y),
                                connect_rect.w, connect_rect.h,
                                kPanelActionButtonSize / 2.0f, 0.0f,
-                               is_connected ? rgba(palette::text_alpha10)
+                               is_connected ? rgba(palette::text_alpha11)
                                             : rgba(palette::accent),
                                kPanelNoBorder);
                 if (action_tex)

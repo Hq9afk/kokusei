@@ -325,7 +325,7 @@ inline void launcher_paint(LauncherState &state) {
             constexpr float kRowTransparent[4] = {0, 0, 0, 0};
             node_add_rrect(rowg, row_bg_x, 0, row_bg_w, kLauncherRowHeight,
                            metrics::radius_sm, 0.0f,
-                           rgba(palette::text_alpha03), kRowTransparent);
+                           rgba(palette::text_alpha04), kRowTransparent);
 
             float rowx = content_x + kLauncherPad;
             if (rows[i].icon_tex) {

@@ -4,6 +4,7 @@
 #include "../render/animation/animation.hpp"
 #include "../render/icon.hpp"
 #include "../render/icons.hpp"
+#include "../render/color_ops.hpp"
 #include "../render/node.hpp"
 #include "../render/palette.hpp"
 #include "../render/renderer.hpp"
@@ -21,7 +22,6 @@
 #include <wayland-egl.h>
 
 #include <algorithm>
-#include <array>
 #include <chrono>
 #include <cmath>
 #include <dirent.h>
@@ -117,26 +117,23 @@ inline void osd_paint(OsdState &state) {
 
     state.animations.tick(std::chrono::steady_clock::now());
 
-    std::array<Color, 6> frame_colors;
+    Color icon_color;
 
     state.scene.rebuild();
     if (state.opacity > 0.0f) {
-        frame_colors[0] = with_alpha(palette::overlay, state.opacity);
-        frame_colors[1] = with_alpha(palette::electro, state.opacity);
         Node *bg = state.scene.root.claim_child();
         bg->kind = NodeKind::RoundedRect;
         bg->w = kOsdSurfaceWidth;
         bg->h = kOsdSurfaceHeight;
         bg->radius = kOsdSurfaceHeight / 2.0f;
         bg->border_width = metrics::border_thin;
-        bg->fill = rgba(frame_colors[0]);
-        bg->border = rgba(frame_colors[1]);
+        bg->fill = rgba(palette::overlay);
+        bg->border = rgba(palette::electro);
 
         float icon_y = (kOsdSurfaceHeight - KOKUSEI_ICON_PX) / 2.0f;
         if (state.icon_texture.id) {
-            Color icon_color = lerp_color(palette::text, palette::text_muted,
-                                          state.icon_color_t);
-            frame_colors[2] = with_alpha(icon_color, state.opacity);
+            icon_color = lerp_color(palette::text, palette::text_muted,
+                                    state.icon_color_t);
             Node *icon = state.scene.root.claim_child();
             icon->kind = NodeKind::Texture;
             icon->x = kOsdContentMargin;
@@ -146,7 +143,7 @@ inline void osd_paint(OsdState &state) {
             icon->h = static_cast<float>(state.icon_texture.height) /
                       static_cast<float>(state.icon_texture.scale);
             icon->tex = &state.icon_texture;
-            icon->tint = rgba(frame_colors[2]);
+            icon->tint = rgba(icon_color);
         }
 
         float bar_x =
@@ -156,7 +153,6 @@ inline void osd_paint(OsdState &state) {
                       kOsdLabelWidth - kOsdContentMargin;
         float bar_y = kOsdSurfaceHeight / 2.0f - 3;
 
-        frame_colors[3] = with_alpha(palette::text_alpha10, state.opacity);
         Node *track = state.scene.root.claim_child();
         track->kind = NodeKind::RoundedRect;
         track->x = bar_x;
@@ -164,11 +160,10 @@ inline void osd_paint(OsdState &state) {
         track->w = bar_w;
         track->h = 6;
         track->radius = 3;
-        track->fill = rgba(frame_colors[3]);
+        track->fill = rgba(palette::text_alpha11);
 
         const Color &fill_color =
             state.muted ? palette::text_muted : palette::accent;
-        frame_colors[4] = with_alpha(fill_color, state.opacity);
         float fill_w = bar_w * std::clamp(state.bar_fill, 0.0f, 1.0f);
 
         Node *fill = state.scene.root.claim_child();
@@ -178,7 +173,7 @@ inline void osd_paint(OsdState &state) {
         fill->w = fill_w;
         fill->h = 6;
         fill->radius = 3;
-        fill->fill = rgba(frame_colors[4]);
+        fill->fill = rgba(fill_color);
 
         if (state.label_texture.id) {
             float label_h = static_cast<float>(state.label_texture.height) /
@@ -192,12 +187,13 @@ inline void osd_paint(OsdState &state) {
             label->w = label_w;
             label->h = label_h;
             label->tex = &state.label_texture;
-            frame_colors[5] = with_alpha(palette::text, state.opacity);
-            label->tint = rgba(frame_colors[5]);
+            label->tint = rgba(palette::text);
         }
     }
 
+    state.renderer->set_opacity(state.opacity);
     state.scene.draw(*state.renderer);
+    state.renderer->set_opacity(1.0f);
     eglSwapBuffers(state.egl_display, state.egl_surface);
 
     if (state.animations.hasActive())
