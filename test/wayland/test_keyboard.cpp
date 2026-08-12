@@ -1,4 +1,4 @@
-#include "../../src/wayland/keyboard.hpp"
+#include "../../src/wayland/keyboard.h"
 
 #include <cassert>
 

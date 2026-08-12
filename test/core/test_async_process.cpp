@@ -1,6 +1,6 @@
 
-#include "../../src/launcher/spawn.hpp"
-#include "../../src/core/async_process.hpp"
+#include "../../src/launcher/spawn.h"
+#include "../../src/core/async_process.h"
 
 #include <cassert>
 #include <dirent.h>

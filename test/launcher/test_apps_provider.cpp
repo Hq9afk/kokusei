@@ -1,5 +1,5 @@
 
-#include "../../src/launcher/apps_provider.hpp"
+#include "../../src/launcher/apps_provider.h"
 
 #include <cassert>
 #include <cmath>

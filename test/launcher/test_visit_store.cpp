@@ -1,5 +1,5 @@
 
-#include "../../src/launcher/visit_store.hpp"
+#include "../../src/launcher/visit_store.h"
 
 #include <cassert>
 #include <cstdio>

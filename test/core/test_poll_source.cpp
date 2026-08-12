@@ -1,5 +1,5 @@
 
-#include "../../src/core/poll_source.hpp"
+#include "../../src/core/poll_source.h"
 
 #include <cassert>
 #include <fcntl.h>

@@ -1,4 +1,4 @@
-#include "../../src/render/image.hpp"
+#include "../../src/render/image.h"
 
 #include <cassert>
 
@@ -11,7 +11,8 @@ static bool has_nonzero_byte(const unsigned char *data, size_t count) {
 
 static void test_decode_png() {
     int width = 0, height = 0;
-    unsigned char *data = load_image_decode(KOKUSEI_DEFAULT_WALLPAPER, width, height);
+    unsigned char *data =
+        load_image_decode(KOKUSEI_DEFAULT_WALLPAPER, width, height);
     assert(data);
     assert(width == 1920);
     assert(height == 1080);
@@ -19,6 +20,4 @@ static void test_decode_png() {
     delete[] data;
 }
 
-void test_image_decode() {
-    test_decode_png();
-}
+void test_image_decode() { test_decode_png(); }

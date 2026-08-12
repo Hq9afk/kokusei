@@ -4,7 +4,10 @@
 #include <iterator>
 
 int main() {
-    struct Case { const char *name; void (*fn)(); };
+    struct Case {
+        const char *name;
+        void (*fn)();
+    };
     Case cases[] = {
         {"config", test_config},
         {"config_watch", test_config_watch},

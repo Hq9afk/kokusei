@@ -1,5 +1,5 @@
 
-#include "../../src/dbus/bluetooth/bluetooth_types.hpp"
+#include "../../src/dbus/bluetooth/bluetooth_types.h"
 
 #include <cassert>
 

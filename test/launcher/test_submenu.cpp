@@ -1,5 +1,5 @@
 
-#include "../../src/launcher/submenu.hpp"
+#include "../../src/launcher/submenu.h"
 
 #include <cassert>
 

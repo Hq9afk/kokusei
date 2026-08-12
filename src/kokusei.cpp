@@ -1,17 +1,19 @@
-#include "app/config.hpp"
-#include "app/ipc.hpp"
-#include "app/single_instance_lock.hpp"
-#include "bar/bar.hpp"
-#include "core/deferred_call.hpp"
-#include "core/log.hpp"
-#include "core/poll_source.hpp"
-#include "core/sdbus_poll_source.hpp"
-#include "idle/idle.hpp"
-#include "notification/notification_draw.hpp"
-#include "render/image.hpp"
-#include "wayland/hyprland.hpp"
-#include "wayland/layer_surface.hpp"
-#include "wayland/shojiwm.hpp"
+#include "app/config.h"
+#include "app/ipc.h"
+#include "app/single_instance_lock.h"
+#include "bar/bar.h"
+#include "bar/widgets/control_center_widget.h"
+#include "bar/widgets/volume_widget.h"
+#include "core/deferred_call.h"
+#include "core/log.h"
+#include "core/poll_source.h"
+#include "core/sdbus_poll_source.h"
+#include "idle/idle.h"
+#include "notification/notification_draw.h"
+#include "render/image.h"
+#include "wayland/hyprland.h"
+#include "wayland/layer_surface.h"
+#include "wayland/shojiwm.h"
 
 #include <cerrno>
 #include <chrono>
@@ -166,14 +168,14 @@ int main(int argc, char **argv) {
         }
     }
     if (want_settings) {
-        if (!settings_init_egl(
-                app.settings, app.cfg, app.renderer, app.egl_display,
-                app.egl_config, app.egl_context, [&app] {
-                    std::vector<std::string> names;
-                    for (const auto &mon : app.outputs)
-                        names.push_back(mon->output.name);
-                    return names;
-                })) {
+        if (!settings_init_egl(app.settings, app.cfg, app.renderer,
+                               app.egl_display, app.egl_config, app.egl_context,
+                               [&app] {
+                                   std::vector<std::string> names;
+                                   for (const auto &mon : app.outputs)
+                                       names.push_back(mon->output.name);
+                                   return names;
+                               })) {
             klog("settings: EGL surface init failed");
             want_settings = false;
         } else {
@@ -725,8 +727,8 @@ int main(int argc, char **argv) {
             }
             if (mon && click.surface == mon->tray_panel.base.surface) {
                 tray_panel_handle_click(mon->tray_panel, app.tray,
-                                        mon->tray_menu, click.x,
-                                        click.y, click.button);
+                                        mon->tray_menu, click.x, click.y,
+                                        click.button);
                 tray_dispatch();
             } else if (mon && click.surface == mon->tray_menu.base.surface) {
                 tray_menu_handle_click(mon->tray_menu, app.tray, click.x,
@@ -746,16 +748,14 @@ int main(int argc, char **argv) {
             } else if (mon &&
                        click.surface == mon->bluetooth_panel.base.surface) {
                 bluetooth_panel_handle_click(mon->bluetooth_panel,
-                                             app.bluetooth, click.x,
-                                             click.y);
+                                             app.bluetooth, click.x, click.y);
                 bluetooth_dispatch();
             } else if (mon && click.surface == mon->volume_panel.base.surface) {
                 volume_panel_handle_click(mon->volume_panel, app.pipewire,
                                           click.x, click.y);
                 volume_dispatch();
             } else if (want_launcher && click.surface == app.launcher.surface) {
-                launcher_handle_click(app.launcher, click.x,
-                                      click.y);
+                launcher_handle_click(app.launcher, click.x, click.y);
                 launcher_request_frame(app.launcher);
                 rest_egl_current();
             } else if (want_settings &&

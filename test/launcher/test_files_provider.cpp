@@ -1,8 +1,9 @@
 
-#include "../../src/launcher/files_provider.hpp"
+#include "../../src/launcher/files_provider.h"
 
 #include <cassert>
 #include <cmath>
+#include <unistd.h>
 
 void test_files_provider() {
 
@@ -26,8 +27,7 @@ void test_files_provider() {
            score_path("my-notes.txt", "notes"));
     assert(score_path("readme.md", "xyz") < 0.0f);
     assert(score_path("foobar.txt", "foo*bar") > 0.0f);
-    assert(score_path("barfoo.txt", "foo*bar") <
-           0.0f);
+    assert(score_path("barfoo.txt", "foo*bar") < 0.0f);
 
     assert(score_path("foobarxxxxxxxxxxxxxxxxxxxx", "foo*bar") <
            score_path("fooxxxxxxxxxxxxxxxxxxxxbar", "foo*bar"));

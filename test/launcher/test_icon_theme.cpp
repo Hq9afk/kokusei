@@ -1,5 +1,5 @@
 
-#include "../../src/launcher/icon_theme.hpp"
+#include "../../src/launcher/icon_theme.h"
 
 #include <cassert>
 

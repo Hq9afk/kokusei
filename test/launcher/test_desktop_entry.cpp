@@ -1,5 +1,5 @@
 
-#include "../../src/launcher/desktop_entry.hpp"
+#include "../../src/launcher/desktop_entry.h"
 
 #include <cassert>
 #include <sstream>

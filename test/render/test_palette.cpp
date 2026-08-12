@@ -1,6 +1,6 @@
 
-#include "../../src/render/color_ops.hpp"
-#include "../../src/render/palette.hpp"
+#include "../../src/render/color_ops.h"
+#include "../../src/render/palette.h"
 
 #include <cassert>
 #include <cmath>

@@ -1,5 +1,5 @@
 
-#include "../../src/launcher/launch_action.hpp"
+#include "../../src/launcher/launch_action.h"
 
 #include <cassert>
 

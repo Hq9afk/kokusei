@@ -1,7 +1,8 @@
 
-#include "../../src/launcher/search.hpp"
+#include "../../src/launcher/search.h"
 
 #include <cassert>
+#include <unistd.h>
 
 void test_search() {
 
@@ -56,8 +57,7 @@ void test_search() {
     dir_entry.name = "somedir";
     dir_entry.path = "/home/user/somedir";
     dir_entry.is_dir = true;
-    dir_entry.score =
-        900.0f;
+    dir_entry.score = 900.0f;
 
     FileEntry file_entry;
     file_entry.name = "somefile.txt";
