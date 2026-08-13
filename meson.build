@@ -26,7 +26,7 @@ threads_dep        = dependency('threads')
 kokusei_font_dir = get_option('prefix') / get_option('datadir') / 'kokusei' / 'fonts'
 install_data('assets/fonts/tabler-icons.ttf', install_dir: kokusei_font_dir)
 
-# Yuji Mai font, required for logout module
+# Yuji Mai font, required for starward module
 install_data('assets/fonts/YujiMai.ttf', install_dir: kokusei_font_dir)
 
 # Default wallpaper
@@ -39,7 +39,7 @@ foreach n : ['1', '2', '3', '4', '5', '6']
   install_data('assets/bullets/' + n + '.png', install_dir: kokusei_bullet_dir)
 endforeach
 
-# Logout mascot logo
+# Starward mascot logo
 install_data('assets/logo.png', install_dir: kokusei_data_dir)
 
 wayland_scanner = find_program('wayland-scanner')
@@ -158,6 +158,7 @@ kokusei_render_main_only_sources = [
 kokusei_dbus_test_sources = [
   'src/dbus/bluetooth/bluetooth_types.cpp',
   'src/dbus/network/network_types.cpp',
+  'src/dbus/mpris/mpris_types.cpp',
 ]
 
 kokusei_dbus_main_only_sources = [
@@ -165,65 +166,65 @@ kokusei_dbus_main_only_sources = [
   'src/dbus/network/network_service.cpp',
   'src/dbus/tray/tray_service.cpp',
   'src/dbus/upower.cpp',
+  'src/dbus/mpris/mpris_service.cpp',
 ]
 
 # system/rfkill.cpp is exercised directly by test/system/test_rfkill.cpp;
 # system/pipewire.cpp links libpipewire, main-executable-only.
 kokusei_system_test_sources = [
   'src/system/rfkill.cpp',
+  'src/system/cpu_temp.cpp',
+  'src/system/gpu_temp.cpp',
+  'src/system/system_stats.cpp',
 ]
 
 kokusei_system_main_only_sources = [
   'src/system/pipewire.cpp',
 ]
 
-# All launcher pure-logic sources are exercised by test/launcher/*.cpp.
-kokusei_launcher_test_sources = [
-  'src/launcher/spawn.cpp',
-  'src/launcher/visit_store.cpp',
-  'src/launcher/icon_theme.cpp',
-  'src/launcher/desktop_entry.cpp',
-  'src/launcher/apps_provider.cpp',
-  'src/launcher/files_provider.cpp',
-  'src/launcher/search.cpp',
-  'src/launcher/submenu.cpp',
-  'src/launcher/launch_action.cpp',
+# launcher is a single merged translation unit (launcher.cpp); it touches
+# EGL/GL/Wayland directly for the panel itself, so the test binary needs its
+# own copies of the render/wayland pieces launcher.cpp calls into (normally
+# only built for the main executable) to link the pure-logic functions it
+# also tests.
+kokusei_launcher_sources = [
+  'src/launcher/launcher.cpp',
 ]
 
-# launcher_state.cpp/launcher_draw.cpp touch EGL/GL directly, no test coverage.
-kokusei_launcher_main_only_sources = [
-  'src/launcher/launcher_state.cpp',
-  'src/launcher/launcher_draw.cpp',
+kokusei_launcher_test_extra_sources = [
+  'src/render/gl.cpp',
+  'src/render/renderer.cpp',
+  'src/render/node.cpp',
+  'src/render/text.cpp',
+  'src/render/icon.cpp',
+  'src/render/texture_cache.cpp',
+  'src/render/text_field.cpp',
+  'src/wayland/frame_clock.cpp',
+  'src/wayland/output_scale.cpp',
+  'src/wayland/layer_surface.cpp',
 ]
 
-# bar/panels/**: real EGL/GL rendering, no test coverage, main-executable-only.
+# bar/panel/**: real EGL/GL rendering, no test coverage, main-executable-only.
 kokusei_bar_panels_main_only_sources = [
-  'src/bar/panels/tray_panel/tray_panel_state.cpp',
-  'src/bar/panels/tray_panel/tray_panel.cpp',
-  'src/bar/panels/tray_panel/tray_menu_state.cpp',
-  'src/bar/panels/tray_panel/tray_menu.cpp',
-  'src/bar/panels/network_panel/network_panel_state.cpp',
-  'src/bar/panels/network_panel/network_panel.cpp',
-  'src/bar/panels/bluetooth_panel/bluetooth_panel_state.cpp',
-  'src/bar/panels/bluetooth_panel/bluetooth_panel.cpp',
-  'src/bar/panels/volume_panel/volume_panel_state.cpp',
-  'src/bar/panels/volume_panel/volume_panel.cpp',
+  'src/bar/panel/tray_panel.cpp',
+  'src/bar/panel/network_panel.cpp',
+  'src/bar/panel/bluetooth_panel.cpp',
+  'src/bar/panel/volume_panel.cpp',
 ]
 
-# bar/ itself + widgets/: real EGL/GL rendering, no test coverage,
+# bar/ itself + widget/: real EGL/GL rendering, no test coverage,
 # main-executable-only.
 kokusei_bar_main_only_sources = [
   'src/bar/bar.cpp',
-  'src/bar/bar_autohide.cpp',
-  'src/bar/widgets/widget_capsule.cpp',
-  'src/bar/widgets/clock_widget.cpp',
-  'src/bar/widgets/workspace_widget.cpp',
-  'src/bar/widgets/battery_widget.cpp',
-  'src/bar/widgets/power_widget.cpp',
-  'src/bar/widgets/bluetooth_widget.cpp',
-  'src/bar/widgets/network_widget.cpp',
-  'src/bar/widgets/control_center_widget.cpp',
-  'src/bar/widgets/volume_widget.cpp',
+  'src/bar/widget/widget_capsule.cpp',
+  'src/bar/widget/clock_widget.cpp',
+  'src/bar/widget/workspace_widget.cpp',
+  'src/bar/widget/battery_widget.cpp',
+  'src/bar/widget/starward_widget.cpp',
+  'src/bar/widget/bluetooth_widget.cpp',
+  'src/bar/widget/network_widget.cpp',
+  'src/bar/widget/control_center_widget.cpp',
+  'src/bar/widget/volume_widget.cpp',
 ]
 
 # wayland/keyboard.cpp is exercised by test/wayland/test_keyboard.cpp;
@@ -235,6 +236,7 @@ kokusei_bar_main_only_sources = [
 kokusei_wayland_test_sources = [
   'src/wayland/keyboard.cpp',
   'src/wayland/pointer.cpp',
+  'src/wayland/active_output.cpp',
 ]
 
 kokusei_wayland_main_only_sources = [
@@ -252,10 +254,9 @@ kokusei_overlay_main_only_sources = [
   'src/osd/osd.cpp',
   'src/wallpaper/wallpaper.cpp',
   'src/wallpaper/wallpaper_cache.cpp',
-  'src/notification/notification_state.cpp',
-  'src/notification/notification_draw.cpp',
-  'src/logout/logout_state.cpp',
-  'src/logout/logout_draw.cpp',
+  'src/notification/notification.cpp',
+  'src/starward/starward.cpp',
+  'src/controlcenter/controlcenter.cpp',
 ]
 
 # app/config.cpp is exercised by test/app/test_config.cpp and
@@ -280,8 +281,7 @@ kokusei_settings_test_sources = [
 
 kokusei_settings_main_only_sources = [
   'src/settings/wallpaper_picker_thumbnail.cpp',
-  'src/settings/settings_state.cpp',
-  'src/settings/settings_draw.cpp',
+  'src/settings/settings.cpp',
 ]
 
 kokusei_split_sources = [
@@ -292,8 +292,7 @@ kokusei_split_sources = [
   kokusei_dbus_main_only_sources,
   kokusei_system_test_sources,
   kokusei_system_main_only_sources,
-  kokusei_launcher_test_sources,
-  kokusei_launcher_main_only_sources,
+  kokusei_launcher_sources,
   kokusei_wayland_test_sources,
   kokusei_wayland_main_only_sources,
   kokusei_overlay_main_only_sources,
@@ -310,7 +309,8 @@ kokusei_test_split_sources = [
   kokusei_render_test_sources,
   kokusei_dbus_test_sources,
   kokusei_system_test_sources,
-  kokusei_launcher_test_sources,
+  kokusei_launcher_sources,
+  kokusei_launcher_test_extra_sources,
   kokusei_wayland_test_sources,
   kokusei_app_test_sources,
   kokusei_settings_test_sources,
@@ -348,7 +348,7 @@ executable(
     '-DKOKUSEI_DEFAULT_WALLPAPER="' + kokusei_data_dir / 'default.png' + '"',
     '-DKOKUSEI_BULLET_DIR="' + kokusei_bullet_dir + '"',
     '-DKOKUSEI_YUJIMAI_FONT="' + kokusei_font_dir / 'YujiMai.ttf' + '"',
-    '-DKOKUSEI_LOGOUT_LOGO="' + kokusei_data_dir / 'logo.png' + '"',
+    '-DKOKUSEI_STARWARD_LOGO="' + kokusei_data_dir / 'logo.png' + '"',
   ],
   install: true,
   install_dir: 'bin',
@@ -358,6 +358,10 @@ kokusei_test = executable(
   'kokusei-test',
   'test/kokusei-test.cpp',
   kokusei_test_split_sources,
+  layer_shell_header,
+  layer_shell_source,
+  xdg_shell_header,
+  xdg_shell_source,
   'test/app/test_config.cpp',
   'test/app/test_wallpaper_resolve.cpp',
   'test/app/test_wallpaper_picker_sort.cpp',
@@ -366,17 +370,14 @@ kokusei_test = executable(
   'test/core/test_poll_source.cpp',
   'test/dbus/test_network_parse.cpp',
   'test/dbus/test_bluetooth.cpp',
-  'test/launcher/test_spawn_helpers.cpp',
-  'test/launcher/test_desktop_entry.cpp',
-  'test/launcher/test_visit_store.cpp',
-  'test/launcher/test_apps_provider.cpp',
-  'test/launcher/test_files_provider.cpp',
-  'test/launcher/test_search.cpp',
-  'test/launcher/test_submenu.cpp',
-  'test/launcher/test_launch_action.cpp',
-  'test/launcher/test_icon_theme.cpp',
+  'test/dbus/test_mpris.cpp',
+  'test/launcher/test_launcher.cpp',
   'test/wayland/test_keyboard.cpp',
+  'test/wayland/test_active_output.cpp',
   'test/system/test_rfkill.cpp',
+  'test/system/test_cpu_temp.cpp',
+  'test/system/test_gpu_temp.cpp',
+  'test/system/test_system_stats.cpp',
   'test/render/test_animation.cpp',
   'test/render/test_palette.cpp',
   'test/render/test_image_decode.cpp',
@@ -385,6 +386,11 @@ kokusei_test = executable(
     tomlplusplus_dep,
     xkbcommon_dep,
     wayland_client_dep,
+    wayland_egl_dep,
+    egl_dep,
+    cairo_dep,
+    pangocairo_dep,
+    freetype2_dep,
     sdbus_cpp_dep,
     libpng_dep,
     libjpeg_dep,
@@ -392,6 +398,8 @@ kokusei_test = executable(
   ],
   cpp_args: [
     '-DKOKUSEI_DEFAULT_WALLPAPER="' + kokusei_data_dir / 'default.png' + '"',
+    '-DKOKUSEI_BULLET_DIR="' + kokusei_bullet_dir + '"',
+    '-DKOKUSEI_FONT_DIR="' + kokusei_font_dir + '"',
   ],
 )
 

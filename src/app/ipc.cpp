@@ -1,11 +1,12 @@
 #include "ipc.h"
 
 #include "../bar/bar.h"
-#include "../bar/panels/bluetooth_panel/bluetooth_panel_state.h"
+#include "../bar/panel/bluetooth_panel.h"
 #include "../core/log.h"
 #include "../idle/idle.h"
-#include "../launcher/launcher_state.h"
-#include "../logout/logout_state.h"
+#include "../controlcenter/controlcenter.h"
+#include "../launcher/launcher.h"
+#include "../starward/starward.h"
 
 #include <cerrno>
 #include <cstdio>
@@ -35,7 +36,8 @@ struct IpcHandler {
 
 std::vector<IpcHandler>
 ipc_handlers(WaylandState &state, IdleState &idle, LauncherState &launcher,
-             LogoutState &logout, bool &running) {
+             StarwardState &starward, ControlCenterState &controlcenter,
+             bool &running) {
     wl_surface *bar_surface =
         state.outputs.empty() ? nullptr : state.outputs.front()->surface;
     return {
@@ -45,16 +47,70 @@ ipc_handlers(WaylandState &state, IdleState &idle, LauncherState &launcher,
         {"idle-inhibit off",
          [&idle, bar_surface] { idle_set_inhibited(idle, bar_surface, false); },
          "disable the idle inhibitor"},
-        {"launcher", [&launcher] { launcher_toggle(launcher, false); },
+        {"launcher",
+         [&state, &launcher] {
+             if (!launcher.open) {
+                 MonitorOutput *target = bar_detail::active_target_monitor(state);
+                 if (target && target->output.wl != launcher.bound_output)
+                     launcher_retarget(launcher, state.compositor,
+                                       state.layer_shell, state.display,
+                                       state.renderer, state.egl_display,
+                                       state.egl_config, state.egl_context,
+                                       target->output.wl,
+                                       target->output.name.c_str());
+             }
+             launcher_toggle(launcher, false);
+         },
          "toggle the launcher, searching from $HOME"},
-        {"launcher global", [&launcher] { launcher_toggle(launcher, true); },
+        {"launcher global",
+         [&state, &launcher] {
+             if (!launcher.open) {
+                 MonitorOutput *target = bar_detail::active_target_monitor(state);
+                 if (target && target->output.wl != launcher.bound_output)
+                     launcher_retarget(launcher, state.compositor,
+                                       state.layer_shell, state.display,
+                                       state.renderer, state.egl_display,
+                                       state.egl_config, state.egl_context,
+                                       target->output.wl,
+                                       target->output.name.c_str());
+             }
+             launcher_toggle(launcher, true);
+         },
          "toggle the launcher, searching from /"},
-        {"logout", [&logout] { logout_toggle(logout); },
-         "toggle the logout overlay"},
+        {"starward",
+         [&state, &starward] {
+             if (!starward.base.open) {
+                 MonitorOutput *target = bar_detail::active_target_monitor(state);
+                 if (target && target->output.wl != starward.bound_output)
+                     starward_retarget(starward, state.compositor,
+                                       state.layer_shell, state.display,
+                                       state.renderer, state.egl_display,
+                                       state.egl_config, state.egl_context,
+                                       target->output.wl,
+                                       target->output.name.c_str());
+             }
+             starward_toggle(starward);
+         },
+         "toggle the starward overlay"},
+        {"controlcenter",
+         [&state, &controlcenter] {
+             if (!controlcenter.base.open) {
+                 MonitorOutput *target = bar_detail::active_target_monitor(state);
+                 if (target && target->output.wl != controlcenter.bound_output)
+                     controlcenter_retarget(
+                         controlcenter, state.compositor, state.layer_shell,
+                         state.display, state.renderer, state,
+                         state.egl_display, state.egl_config,
+                         state.egl_context, target->output.wl,
+                         target->output.name.c_str());
+             }
+             controlcenter_toggle(controlcenter);
+         },
+         "toggle the control center"},
         {"settings",
          [&state] {
              if (!state.settings.base.open && state.settings_enabled) {
-                 MonitorOutput *target = bar_detail::settings_target_monitor(state);
+                 MonitorOutput *target = bar_detail::active_target_monitor(state);
                  if (target && target->output.wl != state.settings_bound_output)
                      bar_detail::settings_retarget(state, *target);
              }
@@ -110,8 +166,8 @@ int open_ipc_socket() {
 }
 
 void handle_ipc_accept(int listen_fd, WaylandState &state, IdleState &idle,
-                       LauncherState &launcher, LogoutState &logout,
-                       bool &running) {
+                       LauncherState &launcher, StarwardState &starward,
+                       ControlCenterState &controlcenter, bool &running) {
     int client_fd = accept(listen_fd, nullptr, nullptr);
     if (client_fd < 0)
         return;
@@ -125,7 +181,7 @@ void handle_ipc_accept(int listen_fd, WaylandState &state, IdleState &idle,
 
         klog("ipc: %s", cmd.c_str());
         std::vector<IpcHandler> handlers =
-            ipc_handlers(state, idle, launcher, logout, running);
+            ipc_handlers(state, idle, launcher, starward, controlcenter, running);
         if (cmd == "--help" || cmd == "help") {
             std::string help = "kokusei <verb>:\n";
             for (const IpcHandler &h : handlers)

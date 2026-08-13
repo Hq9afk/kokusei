@@ -56,6 +56,7 @@ inline constexpr const char *folder = "\ueaad";
 inline constexpr const char *folder_open = "\ufaf7";
 inline constexpr const char *gpu = "\uef8d";
 inline constexpr const char *settings = "\ueb20";
+inline constexpr const char *user = "\ueb4d";
 
 inline constexpr const char *lock = "\ueae2";
 inline constexpr const char *lock_open = "\ueae1";
@@ -85,4 +86,14 @@ inline constexpr const char *wifi1 = "\ueba4";
 inline constexpr const char *wifi2 = "\ueba5";
 inline constexpr const char *wifi_off = "\uecfa";
 
+}
+
+inline const char *volume_threshold_icon(bool muted, float level) {
+    if (muted)
+        return icon::volume_mute;
+    if (level < 0.01f)
+        return icon::volume_empty;
+    if (level < 0.5f)
+        return icon::volume_low;
+    return icon::volume_high;
 }

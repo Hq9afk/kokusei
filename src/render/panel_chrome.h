@@ -60,6 +60,9 @@ enum class PanelClickKind {
     FieldFocus,
     WallpaperSelect,
     MonitorSelect,
+    MediaPlayPause,
+    MediaNext,
+    MediaPrevious,
 };
 struct PanelClickRegion {
     PanelClickKind kind;

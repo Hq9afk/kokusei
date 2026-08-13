@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../core/log.h"
 #include "../wayland/frame_clock.h"
 #include "../wayland/layer_surface.h"
 #include "../wayland/output_scale.h"
@@ -46,6 +47,45 @@ bool overlay_panel_init_egl(OverlayPanelBase &base, EGLDisplay display,
 void overlay_panel_request_frame(OverlayPanelBase &base);
 
 void overlay_panel_toggle(OverlayPanelBase &base);
+
+void overlay_panel_destroy_surface(OverlayPanelBase &base);
+
+// Destroys base's current surface and rebinds it to target_output, falling
+// back to previous_output if target_output fails. create_surface takes a
+// wl_output* and returns bool; init_egl takes nothing and returns bool.
+// Returns the output actually bound to, or nullptr if both attempts failed.
+template <typename CreateSurface, typename InitEgl>
+inline wl_output *overlay_panel_retarget(OverlayPanelBase &base,
+                                         wl_display *display,
+                                         wl_output *previous_output,
+                                         wl_output *target_output,
+                                         const char *target_name,
+                                         CreateSurface create_surface,
+                                         InitEgl init_egl) {
+    klog("panel: %s retargeting from output=%p to '%s'",
+         base.name_space ? base.name_space : "?",
+         static_cast<void *>(previous_output), target_name);
+    overlay_panel_destroy_surface(base);
+    base.configured = false;
+    base.open = false;
+    base.opacity = 0.0f;
+
+    auto bind_to = [&](wl_output *out) -> bool {
+        if (!create_surface(out))
+            return false;
+        while (!base.configured)
+            wl_display_dispatch(display);
+        return init_egl();
+    };
+
+    if (bind_to(target_output))
+        return target_output;
+    if (previous_output && bind_to(previous_output))
+        return previous_output;
+    klog("panel: %s retarget fallback also failed",
+         base.name_space ? base.name_space : "?");
+    return nullptr;
+}
 
 template <typename OnOpen, typename OnClose>
 inline bool panel_lock_toggle(OverlayPanelBase &base, float &locked_center_x,

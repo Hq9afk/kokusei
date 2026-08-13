@@ -2,12 +2,13 @@
 
 #include "../core/log.h"
 #include "../render/palette.h"
-#include "widgets/battery_widget.h"
-#include "widgets/bluetooth_widget.h"
-#include "widgets/control_center_widget.h"
-#include "widgets/network_widget.h"
-#include "widgets/power_widget.h"
-#include "widgets/volume_widget.h"
+#include "../wayland/active_output.h"
+#include "widget/battery_widget.h"
+#include "widget/bluetooth_widget.h"
+#include "widget/control_center_widget.h"
+#include "widget/network_widget.h"
+#include "widget/starward_widget.h"
+#include "widget/volume_widget.h"
 
 #include <GLES2/gl2.h>
 #include <algorithm>
@@ -39,8 +40,8 @@ constexpr zwlr_layer_surface_v1_listener layer_surface_listener = {
 };
 
 namespace output_detail {
-void geometry(void *, wl_output *, int32_t, int32_t, int32_t, int32_t,
-             int32_t, const char *, const char *, int32_t) {}
+void geometry(void *, wl_output *, int32_t, int32_t, int32_t, int32_t, int32_t,
+              const char *, const char *, int32_t) {}
 void mode(void *, wl_output *, uint32_t, int32_t, int32_t, int32_t) {}
 void scale_event(void *data, wl_output *, int32_t factor) {
     static_cast<MonitorOutput *>(data)->output.scale = factor;
@@ -67,7 +68,7 @@ const wl_output_listener &listener() {
     };
     return l;
 }
-}
+} // namespace output_detail
 
 void registry_global(void *data, wl_registry *registry, uint32_t name,
                      const char *interface, uint32_t version) {
@@ -137,10 +138,9 @@ void monitor_output_destroy(MonitorOutput &mon) {
                           mon.wallpaper.egl_window, mon.wallpaper.egl_surface);
     destroy_layer_surface(d, mon.osd.surface, mon.osd.layer_surface,
                           mon.osd.egl_window, mon.osd.egl_surface);
-    destroy_layer_surface(d, mon.notification_view.surface,
-                          mon.notification_view.layer_surface,
-                          mon.notification_view.egl_window,
-                          mon.notification_view.egl_surface);
+    destroy_layer_surface(
+        d, mon.notification_view.surface, mon.notification_view.layer_surface,
+        mon.notification_view.egl_window, mon.notification_view.egl_surface);
     destroy_layer_surface(
         d, mon.network_panel.base.surface, mon.network_panel.base.layer_surface,
         mon.network_panel.base.egl_window, mon.network_panel.base.egl_surface);
@@ -174,15 +174,14 @@ void registry_global_remove(void *data, wl_registry *, uint32_t name) {
     state->outputs.erase(it);
 }
 
-MonitorOutput *find_monitor_by_name(WaylandState &app,
-                                    const std::string &name) {
+MonitorOutput *find_monitor_by_name_wl(WaylandState &app, wl_output *wl) {
     for (auto &mon : app.outputs)
-        if (mon->output.name == name)
+        if (mon->output.wl == wl)
             return mon.get();
     return nullptr;
 }
 
-}
+} // namespace
 
 const wl_registry_listener registry_listener = {
     .global = registry_global,
@@ -191,9 +190,26 @@ const wl_registry_listener registry_listener = {
 
 namespace bar_detail {
 
+void bar_autohide_set_surface_geometry(
+    zwlr_layer_surface_v1 *layer_surface, wl_surface *surface,
+    wl_egl_window *egl_window, int32_t width, int32_t height_px,
+    int32_t margin_top, int32_t margin_right, int32_t margin_left,
+    int32_t exclusive_zone, int32_t output_scale) {
+    zwlr_layer_surface_v1_set_size(layer_surface, 0, height_px);
+    zwlr_layer_surface_v1_set_margin(layer_surface, margin_top, margin_right, 0,
+                                     margin_left);
+    zwlr_layer_surface_v1_set_exclusive_zone(layer_surface, exclusive_zone);
+    wl_surface_commit(surface);
+    if (egl_window)
+        wl_egl_window_resize(egl_window, width * output_scale,
+                             height_px * output_scale, 0, 0);
+}
+
 void close_other_overlays(MonitorOutput &mon, PillId keep) {
-    if (keep != PillId::Power && mon.app->logout.base.open)
-        logout_toggle(mon.app->logout);
+    if (keep != PillId::Starward && mon.app->starward.base.open)
+        starward_toggle(mon.app->starward);
+    if (keep != PillId::ControlCenter && mon.app->controlcenter.base.open)
+        controlcenter_toggle(mon.app->controlcenter);
     if (keep != PillId::Wifi && mon.network_panel.base.open)
         network_panel_toggle(mon.network_panel);
     if (keep != PillId::Bluetooth && mon.bluetooth_panel.base.open)
@@ -263,7 +279,7 @@ void wallpaper_load_all_columns(MonitorOutput &mon, const Config &cfg) {
 }
 
 void wallpaper_diff_columns(MonitorOutput &mon, const Config &old_cfg,
-                           const Config &new_cfg) {
+                            const Config &new_cfg) {
     int old_count = wallpaper_effective_column_count(old_cfg, mon.output.name);
     int new_count = wallpaper_effective_column_count(new_cfg, mon.output.name);
     if (new_count != static_cast<int>(mon.wallpaper.column_textures.size()))
@@ -284,8 +300,7 @@ void wallpaper_diff_columns(MonitorOutput &mon, const Config &old_cfg,
     }
 }
 
-const std::vector<Workspace> &
-monitor_workspaces(const MonitorOutput &mon) {
+const std::vector<Workspace> &monitor_workspaces(const MonitorOutput &mon) {
     static const std::vector<Workspace> empty;
     switch (mon.app->compositor_backend) {
     case WaylandState::CompositorBackend::Hyprland: {
@@ -318,7 +333,7 @@ int monitor_active_workspace_id(const MonitorOutput &mon) {
         return -1;
     }
 }
-}
+} // namespace bar_detail
 
 bool bootstrap_egl(WaylandState &state) {
     state.egl_display =
@@ -357,9 +372,8 @@ bool bootstrap_egl(WaylandState &state) {
     return state.egl_context != EGL_NO_CONTEXT;
 }
 
-bool bar_init_egl(MonitorOutput &mon, Renderer &renderer,
-                  EGLDisplay display, EGLConfig config,
-                  EGLContext context) {
+bool bar_init_egl(MonitorOutput &mon, Renderer &renderer, EGLDisplay display,
+                  EGLConfig config, EGLContext context) {
     int32_t scale = mon.output_scale.scale;
     mon.egl_window =
         wl_egl_window_create(mon.surface, mon.width * scale,
@@ -383,8 +397,7 @@ bool bar_init_egl(MonitorOutput &mon, Renderer &renderer,
     return true;
 }
 
-void monitor_output_create_surfaces(WaylandState &app,
-                                    MonitorOutput &mon) {
+void monitor_output_create_surfaces(WaylandState &app, MonitorOutput &mon) {
     mon.autohide.enabled = autohide_effective_enabled(app.cfg, mon.output.name);
     LayerSurfaceConfig bar_cfg{
         .layer = ZWLR_LAYER_SHELL_V1_LAYER_TOP,
@@ -399,11 +412,10 @@ void monitor_output_create_surfaces(WaylandState &app,
                           .margin_top,
         .margin_right = static_cast<int32_t>(kPanelSideMargin),
         .margin_left = static_cast<int32_t>(kPanelSideMargin),
-        .exclusive_zone =
-            bar_detail::bar_autohide_geometry(mon.autohide.enabled,
-                                              mon.autohide.collapsed,
-                                              bar_detail::kBarHeight)
-                .exclusive_zone,
+        .exclusive_zone = bar_detail::bar_autohide_geometry(
+                              mon.autohide.enabled, mon.autohide.collapsed,
+                              bar_detail::kBarHeight)
+                              .exclusive_zone,
     };
     mon.layer_surface = layer_surface_create(
         mon.surface, app.compositor, app.layer_shell, bar_cfg,
@@ -431,9 +443,8 @@ void monitor_output_create_surfaces(WaylandState &app,
              mon.output.name.c_str());
 
     if (notifications_effective_enabled(app.cfg, mon.output.name) &&
-        !notification_view_create_surface(mon.notification_view,
-                                          app.compositor, app.layer_shell,
-                                          mon.output.wl))
+        !notification_view_create_surface(mon.notification_view, app.compositor,
+                                          app.layer_shell, mon.output.wl))
         klog("notification: failed to create layer surface on '%s'",
              mon.output.name.c_str());
 
@@ -459,8 +470,7 @@ void monitor_output_create_surfaces(WaylandState &app,
              mon.output.name.c_str());
 }
 
-void monitor_output_wait_configured(WaylandState &app,
-                                    MonitorOutput &mon) {
+void monitor_output_wait_configured(WaylandState &app, MonitorOutput &mon) {
     bool have_wallpaper = mon.wallpaper.layer_surface != nullptr;
     while (!(
         mon.configured && (!have_wallpaper || mon.wallpaper.configured) &&
@@ -568,8 +578,7 @@ void monitor_output_activate(WaylandState &app, MonitorOutput &mon) {
     mon.activated = true;
 }
 
-void dispatch_pill_click(MonitorOutput &mon, double click_x,
-                         double click_y) {
+void dispatch_pill_click(MonitorOutput &mon, double click_x, double click_y) {
     PointerState p = mon.app->pointer;
     p.x = click_x;
     p.y = click_y;
@@ -590,7 +599,7 @@ void bar_paint(MonitorOutput &mon) {
 
     PillId current_panel_pill =
         panel_pill(mon.network_panel, mon.bluetooth_panel, mon.volume_panel,
-                   mon.tray_panel, app.logout);
+                   mon.tray_panel, app.starward, app.controlcenter);
 
     if (mon.autohide.enabled) {
         bool want_shown = app.pointer.focused_surface == mon.surface ||
@@ -623,7 +632,8 @@ void bar_paint(MonitorOutput &mon) {
     eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
                    app.egl_context);
     app.renderer.begin_frame(mon.width, surface_height, mon.output_scale.scale);
-    app.renderer.set_opacity(mon.autohide.enabled ? mon.autohide.opacity : 1.0f);
+    app.renderer.set_opacity(mon.autohide.enabled ? mon.autohide.opacity
+                                                  : 1.0f);
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -656,9 +666,9 @@ void bar_paint(MonitorOutput &mon) {
         hovered = PillId::Volume;
 
     float x = 0.0f;
-    std::vector<Pill> power_pills = {power_pill(mon)};
-    x = draw_pills(content, mon.capsule, mon.animations, x, height, power_pills,
-                   white, pill_bg, hovered, current_panel_pill);
+    std::vector<Pill> starward_pills = {starward_pill(mon)};
+    x = draw_pills(content, mon.capsule, mon.animations, x, height,
+                   starward_pills, white, pill_bg, hovered, current_panel_pill);
 
     int active_id = monitor_active_workspace_id(mon);
     const std::vector<Workspace> &ws_list = monitor_workspaces(mon);
@@ -742,17 +752,19 @@ void apply_config_update(WaylandState &app, Config new_cfg) {
             wallpaper_request_frame(mon->wallpaper);
         }
 
-        bool new_autohide = autohide_effective_enabled(new_cfg, mon->output.name);
+        bool new_autohide =
+            autohide_effective_enabled(new_cfg, mon->output.name);
         if (new_autohide != mon->autohide.enabled) {
             monitor_autohide_apply(*mon, new_autohide);
         }
 
-        bool new_notif = notifications_effective_enabled(new_cfg, mon->output.name);
+        bool new_notif =
+            notifications_effective_enabled(new_cfg, mon->output.name);
         bool had_notif_view = mon->notification_view.layer_surface != nullptr;
         if (new_notif && !had_notif_view) {
-            if (notification_view_create_surface(mon->notification_view,
-                                                 app.compositor, app.layer_shell,
-                                                 mon->output.wl)) {
+            if (notification_view_create_surface(
+                    mon->notification_view, app.compositor, app.layer_shell,
+                    mon->output.wl)) {
                 while (!mon->notification_view.configured)
                     wl_display_dispatch(app.display);
                 if (notification_view_init_egl(
@@ -762,7 +774,8 @@ void apply_config_update(WaylandState &app, Config new_cfg) {
                                    mon->egl_surface, app.egl_context);
             }
         } else if (!new_notif && had_notif_view) {
-            destroy_layer_surface(app.egl_display, mon->notification_view.surface,
+            destroy_layer_surface(app.egl_display,
+                                  mon->notification_view.surface,
                                   mon->notification_view.layer_surface,
                                   mon->notification_view.egl_window,
                                   mon->notification_view.egl_surface);
@@ -781,63 +794,48 @@ void save_and_apply_config_update(WaylandState &app, Config new_cfg) {
     app.config_own_write_pending = true;
 }
 
-MonitorOutput *settings_target_monitor(WaylandState &app) {
-    if (app.compositor_backend == WaylandState::CompositorBackend::Hyprland &&
-        !app.hypr.focused_monitor.empty()) {
-        if (MonitorOutput *m = find_monitor_by_name(app, app.hypr.focused_monitor))
-            return m;
-    }
-    if (app.last_pointer_monitor)
-        return app.last_pointer_monitor;
-    return app.outputs.empty() ? nullptr : app.outputs.front().get();
+MonitorOutput *active_target_monitor(WaylandState &app) {
+    std::vector<Output *> outputs;
+    for (auto &mon : app.outputs)
+        outputs.push_back(&mon->output);
+    std::string focused_name =
+        app.compositor_backend == WaylandState::CompositorBackend::Hyprland
+            ? app.hypr.focused_monitor
+            : std::string();
+    wl_output *pointer_hint = app.last_pointer_monitor
+                                  ? app.last_pointer_monitor->output.wl
+                                  : nullptr;
+    wl_output *target =
+        active_output_select(outputs, focused_name, pointer_hint);
+    return target ? find_monitor_by_name_wl(app, target) : nullptr;
 }
 
 void settings_retarget(WaylandState &app, MonitorOutput &target) {
     SettingsState &s = app.settings;
-    wl_output *previous_output = app.settings_bound_output;
-    klog("settings: retargeting from output=%p to '%s'",
-         static_cast<void *>(previous_output), target.output.name.c_str());
-    destroy_layer_surface(app.egl_display, s.base.surface, s.base.layer_surface,
-                          s.base.egl_window, s.base.egl_surface);
-    s.base.configured = false;
-    s.base.open = false;
-    s.base.opacity = 0.0f;
-
-    auto bind_to = [&](wl_output *out, const char *out_name) -> bool {
-        if (!settings_create_surface(s, app.compositor, app.layer_shell, out)) {
-            klog("settings: failed to recreate layer surface on '%s'", out_name);
-            return false;
-        }
-        while (!s.base.configured)
-            wl_display_dispatch(app.display);
-        if (!settings_init_egl(
-                s, app.cfg, app.renderer, app.egl_display, app.egl_config,
-                app.egl_context, [&app] {
-                    std::vector<std::string> names;
-                    for (const auto &mon : app.outputs)
-                        names.push_back(mon->output.name);
-                    return names;
-                })) {
-            klog("settings: EGL surface init failed after retargeting to '%s'",
-                 out_name);
-            return false;
-        }
-        return true;
-    };
-
-    if (bind_to(target.output.wl, target.output.name.c_str())) {
-        app.settings_bound_output = target.output.wl;
-    } else if (previous_output != nullptr &&
-               bind_to(previous_output, "previous output")) {
-        app.settings_bound_output = previous_output;
-    } else {
-        klog("settings: retarget fallback also failed, disabling settings panel");
+    wl_output *bound = overlay_panel_retarget(
+        s.base, app.display, app.settings_bound_output, target.output.wl,
+        target.output.name.c_str(),
+        [&](wl_output *out) {
+            return settings_create_surface(s, app.compositor, app.layer_shell,
+                                           out);
+        },
+        [&] {
+            return settings_init_egl(s, app.cfg, app.renderer, app.egl_display,
+                                     app.egl_config, app.egl_context, [&app] {
+                                         std::vector<std::string> names;
+                                         for (const auto &mon : app.outputs)
+                                             names.push_back(mon->output.name);
+                                         return names;
+                                     });
+        });
+    if (bound)
+        app.settings_bound_output = bound;
+    else
         app.settings_enabled = false;
-    }
 
     if (!app.outputs.empty())
         eglMakeCurrent(app.egl_display, app.outputs.front()->egl_surface,
                        app.outputs.front()->egl_surface, app.egl_context);
 }
 
-}
+} // namespace bar_detail

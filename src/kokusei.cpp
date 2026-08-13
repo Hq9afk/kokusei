@@ -2,14 +2,14 @@
 #include "app/ipc.h"
 #include "app/single_instance_lock.h"
 #include "bar/bar.h"
-#include "bar/widgets/control_center_widget.h"
-#include "bar/widgets/volume_widget.h"
+#include "bar/widget/control_center_widget.h"
+#include "bar/widget/volume_widget.h"
 #include "core/deferred_call.h"
 #include "core/log.h"
 #include "core/poll_source.h"
 #include "core/sdbus_poll_source.h"
 #include "idle/idle.h"
-#include "notification/notification_draw.h"
+#include "notification/notification.h"
 #include "render/image.h"
 #include "wayland/hyprland.h"
 #include "wayland/layer_surface.h"
@@ -118,10 +118,15 @@ int main(int argc, char **argv) {
     if (!want_launcher)
         klog("launcher: failed to create layer surface");
 
-    bool want_logout = logout_create_surface(app.logout, app.compositor,
-                                             app.layer_shell, first.output.wl);
-    if (!want_logout)
-        klog("logout: failed to create layer surface");
+    bool want_starward = starward_create_surface(
+        app.starward, app.compositor, app.layer_shell, first.output.wl);
+    if (!want_starward)
+        klog("starward: failed to create layer surface");
+
+    bool want_controlcenter = controlcenter_create_surface(
+        app.controlcenter, app.compositor, app.layer_shell, first.output.wl);
+    if (!want_controlcenter)
+        klog("controlcenter: failed to create layer surface");
 
     bool want_settings = settings_create_surface(
         app.settings, app.compositor, app.layer_shell, first.output.wl);
@@ -129,7 +134,8 @@ int main(int argc, char **argv) {
         klog("settings: failed to create layer surface");
 
     while (!((!want_launcher || app.launcher.configured) &&
-             (!want_logout || app.logout.base.configured) &&
+             (!want_starward || app.starward.base.configured) &&
+             (!want_controlcenter || app.controlcenter.base.configured) &&
              (!want_settings || app.settings.base.configured))) {
         wl_display_dispatch(app.display);
     }
@@ -140,22 +146,24 @@ int main(int argc, char **argv) {
             klog("launcher: EGL surface init failed");
             want_launcher = false;
         } else {
+            app.launcher.bound_output = first.output.wl;
             launcher_request_frame(app.launcher);
             eglMakeCurrent(app.egl_display, first.egl_surface,
                            first.egl_surface, app.egl_context);
         }
     }
-    if (want_logout) {
-        if (!logout_init_egl(app.logout, app.renderer, app.egl_display,
-                             app.egl_config, app.egl_context)) {
-            klog("logout: EGL surface init failed");
-            want_logout = false;
+    if (want_starward) {
+        if (!starward_init_egl(app.starward, app.renderer, app.egl_display,
+                               app.egl_config, app.egl_context)) {
+            klog("starward: EGL surface init failed");
+            want_starward = false;
         } else {
-            logout_request_frame(app.logout);
+            app.starward.bound_output = first.output.wl;
+            starward_request_frame(app.starward);
             eglMakeCurrent(app.egl_display, first.egl_surface,
                            first.egl_surface, app.egl_context);
 
-            const char *logo_candidates[] = {KOKUSEI_LOGOUT_LOGO,
+            const char *logo_candidates[] = {KOKUSEI_STARWARD_LOGO,
                                              "assets/logo.png"};
             std::string logo_path = logo_candidates[1];
             for (const char *candidate : logo_candidates) {
@@ -164,7 +172,22 @@ int main(int argc, char **argv) {
                     break;
                 }
             }
-            app.logout.logo_tex = load_image_texture(logo_path);
+            app.starward.logo_tex = load_image_texture(logo_path);
+        }
+    }
+    if (want_controlcenter) {
+        if (!controlcenter_init_egl(app.controlcenter, app.renderer, app,
+                                    app.egl_display, app.egl_config,
+                                    app.egl_context)) {
+            klog("controlcenter: EGL surface init failed");
+            want_controlcenter = false;
+        } else {
+            app.controlcenter.bound_output = first.output.wl;
+            controlcenter_request_frame(
+                app.controlcenter, static_cast<float>(bar_detail::kBarHeight),
+                static_cast<float>(bar_detail::kBarTopMargin));
+            eglMakeCurrent(app.egl_display, first.egl_surface,
+                           first.egl_surface, app.egl_context);
         }
     }
     if (want_settings) {
@@ -211,6 +234,11 @@ int main(int argc, char **argv) {
     bool want_tray = tray_init(app.tray);
     if (!want_tray)
         klog("tray: no session bus available - system tray unavailable");
+    bool want_mpris = mpris_init(app.mpris);
+    if (!want_mpris)
+        klog("mpris: no session bus available - media info unavailable");
+    cpu_temp_init(app.cpu_temp);
+    gpu_temp_init(app.gpu_temp);
 
     for (auto &mon : app.outputs) {
         update_clock(*mon);
@@ -245,6 +273,8 @@ int main(int argc, char **argv) {
     } else {
         klog("timerfd_create: %s", strerror(errno));
     }
+
+    int controlcenter_poll_tick = 0;
 
     klog("started: %zu monitor(s), bar height=%d, ipc_fd=%d, timer_fd=%d",
          app.outputs.size(), bar_detail::kBarHeight, ipc_fd, timer_fd);
@@ -332,13 +362,20 @@ int main(int argc, char **argv) {
         if (ipc_fd >= 0) {
             fn_sources.emplace_back(ipc_fd, POLLIN, [&] {
                 handle_ipc_accept(ipc_fd, app, app.idle, app.launcher,
-                                  app.logout, app.running);
+                                  app.starward, app.controlcenter, app.running);
                 if (want_launcher) {
                     launcher_request_frame(app.launcher);
                     rest_egl_current();
                 }
-                if (want_logout) {
-                    logout_request_frame(app.logout);
+                if (want_starward) {
+                    starward_request_frame(app.starward);
+                    rest_egl_current();
+                }
+                if (want_controlcenter) {
+                    controlcenter_request_frame(
+                        app.controlcenter,
+                        static_cast<float>(bar_detail::kBarHeight),
+                        static_cast<float>(bar_detail::kBarTopMargin));
                     rest_egl_current();
                 }
                 bar_paint(first);
@@ -368,6 +405,20 @@ int main(int argc, char **argv) {
                     bluetooth_tick(app.bluetooth, bluetooth_notify,
                                    std::chrono::steady_clock::now(),
                                    bluetooth_dispatch);
+                }
+                if (want_controlcenter && app.controlcenter.base.open) {
+                    ++controlcenter_poll_tick;
+                    if (controlcenter_poll_tick % 2 == 0) {
+                        cpu_temp_poll(app.cpu_temp);
+                        system_stats_poll(app.system_stats);
+                    }
+                    if (controlcenter_poll_tick % 5 == 0)
+                        gpu_temp_poll(app.gpu_temp);
+                    controlcenter_request_frame(
+                        app.controlcenter,
+                        static_cast<float>(bar_detail::kBarHeight),
+                        static_cast<float>(bar_detail::kBarTopMargin));
+                    rest_egl_current();
                 }
                 if (want_launcher && app.launcher.open) {
                     app.launcher.cursor_blink_visible =
@@ -471,6 +522,21 @@ int main(int argc, char **argv) {
                 if (app.tray.dirty) {
                     app.tray.dirty = false;
                     tray_dispatch();
+                }
+            }));
+        }
+
+        if (app.mpris.bus != nullptr) {
+            fn_sources.push_back(sdbus_poll_source(*app.mpris.bus, [&] {
+                int budget = 32;
+                while (budget-- > 0 && app.mpris.bus->processPendingEvent()) {
+                }
+                if (want_controlcenter && app.controlcenter.base.open) {
+                    controlcenter_request_frame(
+                        app.controlcenter,
+                        static_cast<float>(bar_detail::kBarHeight),
+                        static_cast<float>(bar_detail::kBarTopMargin));
+                    rest_egl_current();
                 }
             }));
         }
@@ -664,10 +730,18 @@ int main(int argc, char **argv) {
                                               settings_commit, event);
                 settings_request_frame(app.settings);
                 rest_egl_current();
-            } else if (want_logout && app.logout.base.open) {
+            } else if (want_starward && app.starward.base.open) {
                 for (const KeyEvent &event : key_events)
-                    logout_handle_key_event(app.logout, event);
-                logout_request_frame(app.logout);
+                    starward_handle_key_event(app.starward, event);
+                starward_request_frame(app.starward);
+                rest_egl_current();
+            } else if (want_controlcenter && app.controlcenter.base.open) {
+                for (const KeyEvent &event : key_events)
+                    controlcenter_handle_key_event(app.controlcenter, event);
+                controlcenter_request_frame(
+                    app.controlcenter,
+                    static_cast<float>(bar_detail::kBarHeight),
+                    static_cast<float>(bar_detail::kBarTopMargin));
                 rest_egl_current();
             } else {
                 for (auto &mon : app.outputs) {
@@ -735,10 +809,19 @@ int main(int argc, char **argv) {
                                        click.y);
                 tray_menu_request_frame(mon->tray_menu);
                 rest_egl_current();
-            } else if (want_logout &&
-                       click.surface == app.logout.base.surface) {
-                logout_handle_click(app.logout, click.x, click.y);
-                logout_request_frame(app.logout);
+            } else if (want_starward &&
+                       click.surface == app.starward.base.surface) {
+                starward_handle_click(app.starward, click.x, click.y);
+                starward_request_frame(app.starward);
+                rest_egl_current();
+            } else if (want_controlcenter &&
+                       click.surface == app.controlcenter.base.surface) {
+                controlcenter_handle_click(app.controlcenter, app, click.x,
+                                           click.y);
+                controlcenter_request_frame(
+                    app.controlcenter,
+                    static_cast<float>(bar_detail::kBarHeight),
+                    static_cast<float>(bar_detail::kBarTopMargin));
                 rest_egl_current();
             } else if (mon &&
                        click.surface == mon->network_panel.base.surface) {
@@ -770,8 +853,15 @@ int main(int argc, char **argv) {
                 bluetooth_dispatch();
                 volume_dispatch();
                 tray_dispatch();
-                if (want_logout) {
-                    logout_request_frame(app.logout);
+                if (want_starward) {
+                    starward_request_frame(app.starward);
+                    rest_egl_current();
+                }
+                if (want_controlcenter) {
+                    controlcenter_request_frame(
+                        app.controlcenter,
+                        static_cast<float>(bar_detail::kBarHeight),
+                        static_cast<float>(bar_detail::kBarTopMargin));
                     rest_egl_current();
                 }
             }

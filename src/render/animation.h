@@ -39,15 +39,6 @@ class AnimationManager {
                                 owner);
     }
 
-    Id animateTimer(float from, float to, float duration_ms, Easing easing,
-                    std::function<void(float)> setter,
-                    std::function<void()> on_complete = {},
-                    uint64_t owner = 0) {
-        return animate_internal(from, to, duration_ms, easing,
-                                std::move(setter), std::move(on_complete),
-                                owner);
-    }
-
     void cancelForOwner(uint64_t owner);
 
     void tick(std::chrono::steady_clock::time_point now);

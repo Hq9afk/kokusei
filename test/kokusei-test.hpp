@@ -5,14 +5,11 @@ void test_config_watch();
 void test_monitor_overrides();
 void test_wallpaper_resolve();
 void test_wallpaper_picker_sort();
-
 void test_async_process();
 void test_deferred_call();
 void test_poll_source();
-
 void test_network_parse();
 void test_bluetooth();
-
 void test_spawn_helpers();
 void test_desktop_entry();
 void test_visit_store();
@@ -22,11 +19,13 @@ void test_search();
 void test_submenu();
 void test_launch_action();
 void test_icon_theme();
-
 void test_keyboard();
-
+void test_active_output();
 void test_rfkill();
-
+void test_cpu_temp();
+void test_gpu_temp();
+void test_system_stats();
+void test_mpris();
 void test_animation();
 void test_palette();
 void test_image_decode();

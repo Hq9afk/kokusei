@@ -33,8 +33,13 @@ int main() {
         {"icon_theme", test_icon_theme},
 
         {"keyboard", test_keyboard},
+        {"active_output", test_active_output},
 
         {"rfkill", test_rfkill},
+        {"cpu_temp", test_cpu_temp},
+        {"gpu_temp", test_gpu_temp},
+        {"system_stats", test_system_stats},
+        {"mpris", test_mpris},
 
         {"animation", test_animation},
         {"palette", test_palette},

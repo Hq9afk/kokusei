@@ -93,6 +93,25 @@ void overlay_panel_request_frame(OverlayPanelBase &base) {
     request_frame(base.frame_clock);
 }
 
+void overlay_panel_destroy_surface(OverlayPanelBase &base) {
+    if (base.egl_surface != EGL_NO_SURFACE) {
+        eglDestroySurface(base.egl_display, base.egl_surface);
+        base.egl_surface = EGL_NO_SURFACE;
+    }
+    if (base.egl_window) {
+        wl_egl_window_destroy(base.egl_window);
+        base.egl_window = nullptr;
+    }
+    if (base.layer_surface) {
+        zwlr_layer_surface_v1_destroy(base.layer_surface);
+        base.layer_surface = nullptr;
+    }
+    if (base.surface) {
+        wl_surface_destroy(base.surface);
+        base.surface = nullptr;
+    }
+}
+
 void overlay_panel_toggle(OverlayPanelBase &base) {
     if (!base.layer_surface || base.egl_surface == EGL_NO_SURFACE)
         return;

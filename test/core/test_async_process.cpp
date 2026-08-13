@@ -1,5 +1,5 @@
 
-#include "../../src/launcher/spawn.h"
+#include "../../src/launcher/launcher.h"
 #include "../../src/core/async_process.h"
 
 #include <cassert>
