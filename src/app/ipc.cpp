@@ -1,17 +1,17 @@
 #include "app/ipc.h"
 
-#include "bar/bar.h"
-#include "bar/panel/bluetooth_panel.h"
+#include "app/wayland_state.h"
 #include "core/log.h"
-#include "idle/idle.h"
-#include "controlcenter/controlcenter.h"
-#include "launcher/launcher.h"
-#include "starward/starward.h"
+#include "modules/bar.h"
+#include "modules/controlcenter.h"
+#include "modules/idle.h"
+#include "modules/launcher.h"
+#include "modules/settings.h"
+#include "modules/starward.h"
 
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
-#include <functional>
 #include <string>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -28,115 +28,42 @@ std::string ipc_socket_path() {
     return std::string(runtime_dir) + "/kokusei.sock";
 }
 
-struct IpcHandler {
-    const char *verb;
-    std::function<void()> fn;
-    const char *description;
-};
+void launcher_toggle_retargeted(WaylandState &state, bool global) {
+    LauncherState &launcher = state.launcher;
+    if (!launcher.open) {
+        MonitorOutput *target = bar_detail::active_target_monitor(state);
+        if (target && target->output.wl != launcher.bound_output)
+            launcher_retarget(launcher, state.compositor, state.layer_shell,
+                              state.display, state.renderer, state.egl_display,
+                              state.egl_config, state.egl_context,
+                              target->output.wl, target->output.name.c_str());
+    }
+    launcher_toggle(launcher, global);
+}
 
-std::vector<IpcHandler>
-ipc_handlers(WaylandState &state, IdleState &idle, LauncherState &launcher,
-             StarwardState &starward, ControlCenterState &controlcenter,
-             bool &running) {
-    wl_surface *bar_surface =
-        state.outputs.empty() ? nullptr : state.outputs.front()->surface;
-    return {
-        {"idle-inhibit on",
-         [&idle, bar_surface] { idle_set_inhibited(idle, bar_surface, true); },
-         "enable the idle inhibitor"},
-        {"idle-inhibit off",
-         [&idle, bar_surface] { idle_set_inhibited(idle, bar_surface, false); },
-         "disable the idle inhibitor"},
-        {"launcher",
-         [&state, &launcher] {
-             if (!launcher.open) {
-                 MonitorOutput *target = bar_detail::active_target_monitor(state);
-                 if (target && target->output.wl != launcher.bound_output)
-                     launcher_retarget(launcher, state.compositor,
-                                       state.layer_shell, state.display,
-                                       state.renderer, state.egl_display,
-                                       state.egl_config, state.egl_context,
-                                       target->output.wl,
-                                       target->output.name.c_str());
-             }
-             launcher_toggle(launcher, false);
-         },
-         "toggle the launcher, searching from $HOME"},
-        {"launcher global",
-         [&state, &launcher] {
-             if (!launcher.open) {
-                 MonitorOutput *target = bar_detail::active_target_monitor(state);
-                 if (target && target->output.wl != launcher.bound_output)
-                     launcher_retarget(launcher, state.compositor,
-                                       state.layer_shell, state.display,
-                                       state.renderer, state.egl_display,
-                                       state.egl_config, state.egl_context,
-                                       target->output.wl,
-                                       target->output.name.c_str());
-             }
-             launcher_toggle(launcher, true);
-         },
-         "toggle the launcher, searching from /"},
-        {"starward",
-         [&state, &starward] {
-             if (!starward.base.open) {
-                 MonitorOutput *target = bar_detail::active_target_monitor(state);
-                 if (target && target->output.wl != starward.bound_output)
-                     starward_retarget(starward, state.compositor,
-                                       state.layer_shell, state.display,
-                                       state.renderer, state.egl_display,
-                                       state.egl_config, state.egl_context,
-                                       target->output.wl,
-                                       target->output.name.c_str());
-             }
-             starward_toggle(starward);
-         },
-         "toggle the starward overlay"},
-        {"controlcenter",
-         [&state, &controlcenter] {
-             if (!controlcenter.base.open) {
-                 MonitorOutput *target = bar_detail::active_target_monitor(state);
-                 if (target && target->output.wl != controlcenter.bound_output)
-                     controlcenter_retarget(
-                         controlcenter, state.compositor, state.layer_shell,
-                         state.display, state.renderer, state,
-                         state.egl_display, state.egl_config,
-                         state.egl_context, target->output.wl,
-                         target->output.name.c_str());
-             }
-             controlcenter_toggle(controlcenter);
-         },
-         "toggle the control center"},
-        {"settings",
-         [&state] {
-             if (!state.settings.base.open && state.settings_enabled) {
-                 MonitorOutput *target = bar_detail::active_target_monitor(state);
-                 if (target && target->output.wl != state.settings_bound_output)
-                     bar_detail::settings_retarget(state, *target);
-             }
-             settings_toggle(state.settings, state.cfg, [&state](Config c) {
-                 bar_detail::save_and_apply_config_update(state, c);
-             });
-         },
-         "toggle the settings panel"},
-        {"bluetooth",
-         [&state] {
-             if (state.outputs.empty())
-                 return;
-             MonitorOutput &mon = *state.outputs.front();
-             bluetooth_panel_toggle(mon.bluetooth_panel, state.bluetooth);
-         },
-         "toggle the bluetooth panel (first monitor)"},
-        {"bar",
-         [&state] {
-             bar_detail::bar_autohide_set_enabled(state, !state.cfg.autohide);
-         },
-         "toggle the bar's autohide"},
-        {"kill", [&running] { running = false; }, "gracefully quit kokusei"},
+std::vector<IpcHandler> ipc_handlers(WaylandState &state) {
+    std::vector<IpcHandler> handlers;
+    auto append = [&handlers](std::vector<IpcHandler> module_handlers) {
+        for (IpcHandler &h : module_handlers)
+            handlers.push_back(std::move(h));
     };
+    append(idle_ipc_handlers(state));
+    append(starward_ipc_handlers(state));
+    append(controlcenter_ipc_handlers(state));
+    append(settings_ipc_handlers(state));
+    append(bar_ipc_handlers(state));
+    handlers.push_back({"launcher",
+                        [&state] { launcher_toggle_retargeted(state, false); },
+                        "toggle the launcher, searching from $HOME"});
+    handlers.push_back({"launcher global",
+                        [&state] { launcher_toggle_retargeted(state, true); },
+                        "toggle the launcher, searching from /"});
+    handlers.push_back({"kill", [&state] { state.running = false; },
+                        "gracefully quit kokusei"});
+    return handlers;
 }
 
-}
+} // namespace
 
 int open_ipc_socket() {
     std::string path = ipc_socket_path();
@@ -165,9 +92,7 @@ int open_ipc_socket() {
     return fd;
 }
 
-void handle_ipc_accept(int listen_fd, WaylandState &state, IdleState &idle,
-                       LauncherState &launcher, StarwardState &starward,
-                       ControlCenterState &controlcenter, bool &running) {
+void handle_ipc_accept(int listen_fd, WaylandState &state) {
     int client_fd = accept(listen_fd, nullptr, nullptr);
     if (client_fd < 0)
         return;
@@ -180,8 +105,7 @@ void handle_ipc_accept(int listen_fd, WaylandState &state, IdleState &idle,
             cmd.pop_back();
 
         klog("ipc: %s", cmd.c_str());
-        std::vector<IpcHandler> handlers =
-            ipc_handlers(state, idle, launcher, starward, controlcenter, running);
+        std::vector<IpcHandler> handlers = ipc_handlers(state);
         if (cmd == "--help" || cmd == "help") {
             std::string help = "kokusei <verb>:\n";
             for (const IpcHandler &h : handlers)

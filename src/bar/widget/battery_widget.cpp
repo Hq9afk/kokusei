@@ -1,6 +1,6 @@
 #include "bar/widget/battery_widget.h"
 
-#include "bar/bar.h"
+#include "modules/bar.h"
 
 #include "render/icon.h"
 #include "render/icons.h"

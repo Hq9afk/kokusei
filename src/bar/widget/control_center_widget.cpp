@@ -1,5 +1,5 @@
 #include "bar/widget/control_center_widget.h"
-#include "bar/bar.h"
+#include "modules/bar.h"
 #include "bar/panel/tray_panel.h"
 
 #include "render/icon.h"

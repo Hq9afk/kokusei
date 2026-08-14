@@ -9,7 +9,6 @@
 #include <fcntl.h>
 #include <linux/rfkill.h>
 #include <map>
-#include <optional>
 #include <unistd.h>
 
 namespace rfkill_detail {
@@ -73,13 +72,6 @@ std::vector<Entry> bluetooth_entries() {
 bool rfkill_bluetooth_hard_blocked() {
     for (const rfkill_detail::Entry &e : rfkill_detail::bluetooth_entries())
         if (e.hard)
-            return true;
-    return false;
-}
-
-bool rfkill_bluetooth_soft_blocked() {
-    for (const rfkill_detail::Entry &e : rfkill_detail::bluetooth_entries())
-        if (e.soft)
             return true;
     return false;
 }

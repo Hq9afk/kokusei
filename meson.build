@@ -191,7 +191,7 @@ kokusei_service_main_only_sources = [
 # only built for the main executable) to link the pure-logic functions it
 # also tests.
 kokusei_launcher_sources = [
-  'src/launcher/launcher.cpp',
+  'src/modules/launcher.cpp',
 ]
 
 kokusei_launcher_test_extra_sources = [
@@ -218,7 +218,7 @@ kokusei_bar_panels_main_only_sources = [
 # bar/ itself + widget/: real EGL/GL rendering, no test coverage,
 # main-executable-only.
 kokusei_bar_main_only_sources = [
-  'src/bar/bar.cpp',
+  'src/modules/bar.cpp',
   'src/bar/widget/widget_capsule.cpp',
   'src/bar/widget/clock_widget.cpp',
   'src/bar/widget/workspace_widget.cpp',
@@ -231,17 +231,17 @@ kokusei_bar_main_only_sources = [
 ]
 
 kokusei_idle_main_only_sources = [
-  'src/idle/idle.cpp',
+  'src/modules/idle.cpp',
 ]
 
 # osd/, wallpaper/, notification/: real EGL/GL rendering, no test coverage,
 # main-executable-only.
 kokusei_overlay_main_only_sources = [
-  'src/osd/osd.cpp',
-  'src/wallpaper/wallpaper.cpp',
-  'src/notification/notification.cpp',
-  'src/starward/starward.cpp',
-  'src/controlcenter/controlcenter.cpp',
+  'src/modules/osd.cpp',
+  'src/modules/wallpaper.cpp',
+  'src/modules/notification.cpp',
+  'src/modules/starward.cpp',
+  'src/modules/controlcenter.cpp',
 ]
 
 # app/config.cpp is exercised by test/app/test_config.cpp and
@@ -253,24 +253,16 @@ kokusei_app_test_sources = [
 kokusei_app_main_only_sources = [
   'src/app/single_instance_lock.cpp',
   'src/app/ipc.cpp',
+  'src/app/key_dispatch.cpp',
   'src/app/monitor_output.cpp',
 ]
 
-# settings/tabs/wallpaper_picker.cpp (wallpaper_picker_less, tested) is split
-# from wallpaper_picker_thumbnail.cpp (wallpaper_picker_request_thumbnail,
-# needs wallpaper.h's EGL surface handles - untested, and would otherwise
-# drag the whole EGL/wayland-egl/layer-shell dependency chain into the test
-# binary just to link one unused function).
-kokusei_settings_test_sources = [
-  'src/settings/tabs/wallpaper_picker.cpp',
-]
-
+# settings/: real EGL/GL rendering, no test coverage, main-executable-only.
 kokusei_settings_main_only_sources = [
-  'src/settings/tabs/wallpaper_picker_thumbnail.cpp',
-  'src/settings/settings.cpp',
-  'src/settings/tabs/wallpaper_tab.cpp',
-  'src/settings/tabs/displays_tab.cpp',
-  'src/settings/tabs/idle_tab.cpp',
+  'src/modules/settings.cpp',
+  'src/settings/wallpaper_tab.cpp',
+  'src/settings/displays_tab.cpp',
+  'src/settings/idle_tab.cpp',
 ]
 
 kokusei_split_sources = [
@@ -284,7 +276,6 @@ kokusei_split_sources = [
   kokusei_overlay_main_only_sources,
   kokusei_app_test_sources,
   kokusei_app_main_only_sources,
-  kokusei_settings_test_sources,
   kokusei_settings_main_only_sources,
   kokusei_bar_panels_main_only_sources,
   kokusei_bar_main_only_sources,
@@ -297,7 +288,6 @@ kokusei_test_split_sources = [
   kokusei_launcher_sources,
   kokusei_launcher_test_extra_sources,
   kokusei_app_test_sources,
-  kokusei_settings_test_sources,
 ]
 
 executable(
@@ -349,7 +339,6 @@ kokusei_test = executable(
   xdg_shell_source,
   'test/app/test_config.cpp',
   'test/app/test_wallpaper_resolve.cpp',
-  'test/app/test_wallpaper_picker_sort.cpp',
   'test/core/test_async_process.cpp',
   'test/core/test_deferred_call.cpp',
   'test/core/test_poll_source.cpp',

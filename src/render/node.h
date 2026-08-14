@@ -1,9 +1,10 @@
 #pragma once
 
-#include "render/renderer.h"
 #include "render/texture.h"
 #include <memory>
 #include <vector>
+
+class Renderer;
 
 enum class NodeKind { Group, Rect, RoundedRect, Texture };
 
@@ -25,7 +26,6 @@ struct Node {
     size_t live_children = 0;
 
     Node *claim_child();
-    void mark_dirty();
     void clear();
 };
 

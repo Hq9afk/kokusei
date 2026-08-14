@@ -5,7 +5,10 @@
 #include "render/node.h"
 #include "render/palette.h"
 #include "render/panel_scroll.h"
+#include "render/renderer.h"
 #include "render/text.h"
+#include "service/bluetooth_service.h"
+#include "service/keyboard.h"
 #include "service/layer_surface.h"
 
 #include <GLES2/gl2.h>

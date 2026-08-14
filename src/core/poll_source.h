@@ -5,6 +5,10 @@
 #include <poll.h>
 #include <vector>
 
+namespace sdbus {
+class IConnection;
+}
+
 class PollSource {
   public:
     virtual ~PollSource() = default;
@@ -36,3 +40,6 @@ class FnPollSource : public PollSource {
     short events2_;
     DispatchFn fn_;
 };
+
+FnPollSource sdbus_poll_source(sdbus::IConnection &bus,
+                               FnPollSource::DispatchFn on_ready);

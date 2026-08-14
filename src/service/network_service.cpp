@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <map>
 #include <sstream>
 
 namespace network_detail {

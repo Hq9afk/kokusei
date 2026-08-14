@@ -1,5 +1,5 @@
 #include "bar/widget/starward_widget.h"
-#include "bar/bar.h"
+#include "modules/bar.h"
 
 namespace bar_detail {
 

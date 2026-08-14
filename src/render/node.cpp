@@ -1,5 +1,7 @@
 #include "render/node.h"
 
+#include "render/renderer.h"
+
 Node *Node::claim_child() {
     Node *n;
     if (live_children < children.size()) {
@@ -21,11 +23,6 @@ Node *Node::claim_child() {
     n->dirty = true;
     ++live_children;
     return n;
-}
-
-void Node::mark_dirty() {
-    for (Node *n = this; n; n = n->parent)
-        n->dirty = true;
 }
 
 void Node::clear() {

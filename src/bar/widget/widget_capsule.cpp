@@ -4,13 +4,13 @@
 #include "bar/panel/tray_panel.h"
 #include "bar/panel/volume_panel.h"
 
-#include "controlcenter/controlcenter.h"
+#include "modules/controlcenter.h"
 
-#include "starward/starward.h"
+#include "modules/starward.h"
 
 #include "render/icon.h"
-#include "render/palette.h"
 #include "render/text.h"
+#include "service/pointer.h"
 
 #include <algorithm>
 

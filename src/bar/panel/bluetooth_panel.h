@@ -3,17 +3,19 @@
 #include "render/overlay_panel.h"
 #include "render/panel_chrome.h"
 #include "render/rect.h"
-#include "render/renderer.h"
 #include "render/scene.h"
 #include "render/texture_cache.h"
-#include "service/bluetooth_service.h"
-#include "service/keyboard.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 #include <EGL/egl.h>
 #include <string>
 #include <vector>
 #include <wayland-client.h>
+
+class Renderer;
+struct BluetoothState;
+struct BluetoothDeviceInfo;
+struct KeyEvent;
 
 constexpr float kBtEmptyStateHeight = 72.0f;
 constexpr float kBtSectionGapSmall = 20.0f;

@@ -27,8 +27,6 @@ std::optional<std::string> read_sysfs_string(const std::string &path);
 
 bool rfkill_bluetooth_hard_blocked();
 
-bool rfkill_bluetooth_soft_blocked();
-
 bool rfkill_set_bluetooth_soft_blocked(bool blocked);
 
 enum class BluetoothDeviceKind {

@@ -12,8 +12,8 @@
 #include "bar/panel/volume_panel.h"
 #include "bar/widget/widget_capsule.h"
 #include "bar/widget/workspace_widget.h"
-#include "notification/notification.h"
-#include "osd/osd.h"
+#include "modules/notification.h"
+#include "modules/osd.h"
 #include "render/animation.h"
 #include "render/renderer.h"
 #include "render/scene.h"
@@ -22,7 +22,7 @@
 #include "service/frame_clock.h"
 #include "service/output_scale.h"
 #include "service/workspace.h"
-#include "wallpaper/wallpaper.h"
+#include "modules/wallpaper.h"
 
 #include <chrono>
 #include <cstdint>

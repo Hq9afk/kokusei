@@ -3,7 +3,6 @@
 #include "core/log.h"
 
 #include <optional>
-#include <vector>
 
 MprisPlaybackStatus mpris_detail_parse_playback_status(const std::string &s) {
     if (s == "Playing")

@@ -1,16 +1,14 @@
 #include "app/config.h"
 #include "app/ipc.h"
+#include "app/key_dispatch.h"
 #include "app/monitor_output.h"
 #include "app/single_instance_lock.h"
-#include "bar/bar.h"
-#include "bar/widget/control_center_widget.h"
-#include "bar/widget/volume_widget.h"
 #include "core/deferred_call.h"
 #include "core/log.h"
 #include "core/poll_source.h"
-#include "core/sdbus_poll_source.h"
-#include "idle/idle.h"
-#include "notification/notification.h"
+#include "modules/bar.h"
+#include "modules/idle.h"
+#include "modules/notification.h"
 #include "render/image.h"
 #include "service/hyprland.h"
 #include "service/layer_surface.h"
@@ -287,12 +285,7 @@ int main(int argc, char **argv) {
 
         std::vector<FnPollSource> fn_sources;
 
-        auto rest_egl_current = [&app] {
-            if (!app.outputs.empty())
-                eglMakeCurrent(
-                    app.egl_display, app.outputs.front()->egl_surface,
-                    app.outputs.front()->egl_surface, app.egl_context);
-        };
+        auto rest_egl_current = [&app] { bar_detail::rest_egl_current(app); };
 
         auto settings_commit = [&app](Config c) {
             bar_detail::save_and_apply_config_update(app, c);
@@ -303,18 +296,8 @@ int main(int argc, char **argv) {
             notification_push(app.notification, "Network", summary, body, 6000);
         };
 
-        auto network_dispatch = [&](bool changed) {
-            if (!changed)
-                return;
-            for (auto &mon : app.outputs) {
-                bar_request_frame(*mon);
-                network_panel_request_frame(
-                    mon->network_panel,
-                    bar_detail::pill_center_x(mon->capsule, PillId::Wifi),
-                    static_cast<float>(bar_detail::kBarHeight),
-                    bar_detail::kBarTopMargin);
-            }
-            rest_egl_current();
+        auto network_dispatch = [&app](bool changed) {
+            bar_detail::network_panel_dispatch(app, changed);
         };
 
         auto bluetooth_notify = [&app](const std::string &summary,
@@ -323,28 +306,12 @@ int main(int argc, char **argv) {
                               6000);
         };
 
-        auto bluetooth_dispatch = [&] {
-            for (auto &mon : app.outputs) {
-                bar_request_frame(*mon);
-                bluetooth_panel_request_frame(
-                    mon->bluetooth_panel,
-                    bar_detail::pill_center_x(mon->capsule, PillId::Bluetooth),
-                    static_cast<float>(bar_detail::kBarHeight),
-                    bar_detail::kBarTopMargin);
-            }
-            rest_egl_current();
+        auto bluetooth_dispatch = [&app] {
+            bar_detail::bluetooth_panel_dispatch(app);
         };
 
-        auto volume_dispatch = [&] {
-            for (auto &mon : app.outputs) {
-                bar_request_frame(*mon);
-                volume_panel_request_frame(
-                    mon->volume_panel,
-                    bar_detail::pill_center_x(mon->capsule, PillId::Volume),
-                    static_cast<float>(bar_detail::kBarHeight),
-                    bar_detail::kBarTopMargin);
-            }
-            rest_egl_current();
+        auto volume_dispatch = [&app] {
+            bar_detail::volume_panel_dispatch(app);
         };
 
         auto tray_dispatch = [&] {
@@ -362,8 +329,7 @@ int main(int argc, char **argv) {
 
         if (ipc_fd >= 0) {
             fn_sources.emplace_back(ipc_fd, POLLIN, [&] {
-                handle_ipc_accept(ipc_fd, app, app.idle, app.launcher,
-                                  app.starward, app.controlcenter, app.running);
+                handle_ipc_accept(ipc_fd, app);
                 if (want_launcher) {
                     launcher_request_frame(app.launcher);
                     rest_egl_current();
@@ -719,57 +685,7 @@ int main(int argc, char **argv) {
             r.src->dispatch(fds, r.start);
 
         std::vector<KeyEvent> key_events = keyboard_drain_events(app.keyboard);
-        if (!key_events.empty()) {
-            if (want_launcher && app.launcher.open) {
-                for (const KeyEvent &event : key_events)
-                    launcher_handle_key_event(app.launcher, event);
-                launcher_request_frame(app.launcher);
-                rest_egl_current();
-            } else if (want_settings && app.settings.base.open) {
-                for (const KeyEvent &event : key_events)
-                    settings_handle_key_event(app.settings, app.cfg,
-                                              settings_commit, event);
-                settings_request_frame(app.settings);
-                rest_egl_current();
-            } else if (want_starward && app.starward.base.open) {
-                for (const KeyEvent &event : key_events)
-                    starward_handle_key_event(app.starward, event);
-                starward_request_frame(app.starward);
-                rest_egl_current();
-            } else if (want_controlcenter && app.controlcenter.base.open) {
-                for (const KeyEvent &event : key_events)
-                    controlcenter_handle_key_event(app.controlcenter, event);
-                controlcenter_request_frame(
-                    app.controlcenter,
-                    static_cast<float>(bar_detail::kBarHeight),
-                    static_cast<float>(bar_detail::kBarTopMargin));
-                rest_egl_current();
-            } else {
-                for (auto &mon : app.outputs) {
-                    if (mon->network_panel.base.open) {
-                        for (const KeyEvent &event : key_events)
-                            network_panel_handle_key_event(mon->network_panel,
-                                                           app.network, event);
-                        network_dispatch(true);
-                        break;
-                    }
-                    if (mon->bluetooth_panel.base.open) {
-                        for (const KeyEvent &event : key_events)
-                            bluetooth_panel_handle_key_event(
-                                mon->bluetooth_panel, app.bluetooth, event);
-                        bluetooth_dispatch();
-                        break;
-                    }
-                    if (mon->volume_panel.base.open) {
-                        for (const KeyEvent &event : key_events)
-                            volume_panel_handle_key_event(mon->volume_panel,
-                                                          app.pipewire, event);
-                        volume_dispatch();
-                        break;
-                    }
-                }
-            }
-        }
+        dispatch_key_events(app, key_events);
 
         if (want_launcher)
             launcher_search_start_pending(app.launcher);

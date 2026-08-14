@@ -1,15 +1,18 @@
 #pragma once
 
+#include <functional>
+#include <vector>
+
 struct WaylandState;
-struct IdleState;
-struct LauncherState;
-struct StarwardState;
-struct ControlCenterState;
+
+struct IpcHandler {
+    const char *verb;
+    std::function<void()> fn;
+    const char *description;
+};
 
 int open_ipc_socket();
 
-void handle_ipc_accept(int listen_fd, WaylandState &state, IdleState &idle,
-                       LauncherState &launcher, StarwardState &starward,
-                       ControlCenterState &controlcenter, bool &running);
+void handle_ipc_accept(int listen_fd, WaylandState &state);
 
 int run_ipc_client(int argc, char **argv);

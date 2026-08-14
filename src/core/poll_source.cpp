@@ -1,5 +1,16 @@
 #include "core/poll_source.h"
 
+#include <sdbus-c++/sdbus-c++.h>
+
+FnPollSource sdbus_poll_source(sdbus::IConnection &bus,
+                               FnPollSource::DispatchFn on_ready) {
+    sdbus::IConnection::PollData pd = bus.getEventLoopPollData();
+    if (pd.eventFd >= 0)
+        return FnPollSource(pd.fd, pd.events, pd.eventFd, POLLIN,
+                            std::move(on_ready));
+    return FnPollSource(pd.fd, pd.events, std::move(on_ready));
+}
+
 std::size_t FnPollSource::add_poll_fds(std::vector<pollfd> &fds) {
     if (fd_ < 0)
         return 0;

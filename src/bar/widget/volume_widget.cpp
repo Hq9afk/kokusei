@@ -1,5 +1,5 @@
 #include "bar/widget/volume_widget.h"
-#include "bar/bar.h"
+#include "modules/bar.h"
 #include "bar/panel/volume_panel.h"
 
 #include "render/icon.h"

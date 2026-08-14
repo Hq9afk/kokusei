@@ -50,8 +50,7 @@ Config load_config() {
         cfg.autohide = tbl["autohide"].value_or(cfg.autohide);
         cfg.wallpaper_path =
             tbl["wallpaper"]["path"].value_or(cfg.wallpaper_path);
-        cfg.wallpaper_dir =
-            tbl["wallpaper"]["dir"].value_or(cfg.wallpaper_dir);
+        cfg.wallpaper_dir = tbl["wallpaper"]["dir"].value_or(cfg.wallpaper_dir);
         if (const auto *columns = tbl["wallpaper"]["columns"].as_table()) {
             for (const auto &[name, val] : *columns) {
                 if (const auto *arr = val.as_array()) {
@@ -135,18 +134,17 @@ void save_config(const Config &cfg) {
     }
     toml::table wallpaper_column_counts_tbl;
     for (const auto &[name, count] : cfg.wallpaper_column_counts)
-        wallpaper_column_counts_tbl.insert_or_assign(name,
-                                                      static_cast<int64_t>(count));
+        wallpaper_column_counts_tbl.insert_or_assign(
+            name, static_cast<int64_t>(count));
     toml::table wallpaper_fill_modes_tbl;
     for (const auto &[name, mode] : cfg.wallpaper_fill_modes)
         wallpaper_fill_modes_tbl.insert_or_assign(name, mode);
     tbl.insert_or_assign(
-        "wallpaper",
-        toml::table{{"path", cfg.wallpaper_path},
-                    {"dir", cfg.wallpaper_dir},
-                    {"columns", wallpaper_columns_tbl},
-                    {"column_counts", wallpaper_column_counts_tbl},
-                    {"fill_modes", wallpaper_fill_modes_tbl}});
+        "wallpaper", toml::table{{"path", cfg.wallpaper_path},
+                                 {"dir", cfg.wallpaper_dir},
+                                 {"columns", wallpaper_columns_tbl},
+                                 {"column_counts", wallpaper_column_counts_tbl},
+                                 {"fill_modes", wallpaper_fill_modes_tbl}});
     toml::table monitor_overrides_tbl;
     for (const auto &[name, ov] : cfg.monitor_overrides)
         monitor_overrides_tbl.insert_or_assign(
@@ -155,10 +153,10 @@ void save_config(const Config &cfg) {
                               {"notifications", ov.notifications},
                               {"autohide", ov.autohide}});
     tbl.insert_or_assign(
-        "displays",
-        toml::table{{"default_osd", cfg.default_osd_enabled},
-                    {"default_notifications", cfg.default_notifications_enabled},
-                    {"monitor_overrides", monitor_overrides_tbl}});
+        "displays", toml::table{{"default_osd", cfg.default_osd_enabled},
+                                {"default_notifications",
+                                 cfg.default_notifications_enabled},
+                                {"monitor_overrides", monitor_overrides_tbl}});
     tbl.insert_or_assign(
         "idle",
         toml::table{
