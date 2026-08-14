@@ -27,4 +27,4 @@ void draw_clock_pill(Node *root, float height, int32_t surface_width,
                          pill_bg);
 }
 
-}
+} // namespace bar_detail

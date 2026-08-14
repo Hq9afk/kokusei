@@ -1,14 +1,16 @@
 #include "bar/widget/widget_capsule.h"
-
-#include "render/palette.h"
-#include "render/text.h"
-#include "render/icon.h"
-#include "controlcenter/controlcenter.h"
-#include "starward/starward.h"
 #include "bar/panel/bluetooth_panel.h"
 #include "bar/panel/network_panel.h"
 #include "bar/panel/tray_panel.h"
 #include "bar/panel/volume_panel.h"
+
+#include "controlcenter/controlcenter.h"
+
+#include "starward/starward.h"
+
+#include "render/icon.h"
+#include "render/palette.h"
+#include "render/text.h"
 
 #include <algorithm>
 
@@ -111,7 +113,8 @@ PillId hit_test_pills(const WidgetCapsuleState &capsule,
 PillId panel_pill(const NetworkPanelState &network_panel,
                   const BluetoothPanelState &bluetooth_panel,
                   const VolumePanelState &volume_panel,
-                  const TrayPanelState &tray_panel, const StarwardState &starward,
+                  const TrayPanelState &tray_panel,
+                  const StarwardState &starward,
                   const ControlCenterState &controlcenter) {
     if (network_panel.base.open)
         return PillId::Wifi;
@@ -143,8 +146,9 @@ const Texture &ensure_label_texture(WidgetCapsuleState &capsule,
 
 } // namespace
 
-void update_pill_expand(WidgetCapsuleState &capsule, AnimationManager &animations,
-                        PillId id, bool hovered_now, bool instant) {
+void update_pill_expand(WidgetCapsuleState &capsule,
+                        AnimationManager &animations, PillId id,
+                        bool hovered_now, bool instant) {
     size_t idx = pill_idx(id);
     if (capsule.pill_expand_hovered_prev[idx] == hovered_now)
         return;

@@ -1,4 +1,4 @@
-#include "wayland/hyprland.h"
+#include "service/hyprland.h"
 
 #include "core/log.h"
 

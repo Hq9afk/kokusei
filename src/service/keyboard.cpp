@@ -1,4 +1,4 @@
-#include "wayland/keyboard.h"
+#include "service/keyboard.h"
 
 #include "core/log.h"
 

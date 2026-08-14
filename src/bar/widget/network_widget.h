@@ -5,7 +5,5 @@
 struct MonitorOutput;
 
 namespace bar_detail {
-
 Pill wifi_pill(MonitorOutput &mon);
-
 }

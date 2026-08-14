@@ -7,9 +7,10 @@
 #include "render/renderer.h"
 #include "render/scene.h"
 #include "render/texture_cache.h"
-#include "system/pipewire.h"
-#include "wayland/keyboard.h"
+#include "service/keyboard.h"
+#include "service/pipewire.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
+
 #include <EGL/egl.h>
 #include <chrono>
 #include <optional>

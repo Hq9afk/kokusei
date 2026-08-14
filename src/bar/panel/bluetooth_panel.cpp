@@ -6,7 +6,8 @@
 #include "render/palette.h"
 #include "render/panel_scroll.h"
 #include "render/text.h"
-#include "wayland/layer_surface.h"
+#include "service/layer_surface.h"
+
 #include <GLES2/gl2.h>
 #include <algorithm>
 
@@ -211,6 +212,8 @@ void bluetooth_panel_handle_click(BluetoothPanelState &state,
             return;
         case PanelClickKind::HeaderAction:
         case PanelClickKind::ErrorClose:
+            return;
+        default:
             return;
         }
     }

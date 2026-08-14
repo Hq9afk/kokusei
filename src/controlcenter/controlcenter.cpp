@@ -1,19 +1,17 @@
 #include "controlcenter/controlcenter.h"
 
 #include "app/wayland_state.h"
-#include "service/mpris_service.h"
-#include "service/upower_service.h"
 #include "render/icon.h"
 #include "render/icons.h"
 #include "render/node.h"
 #include "render/palette.h"
 #include "render/panel_chrome.h"
 #include "render/text.h"
-#include "system/cpu_temp.h"
-#include "system/gpu_temp.h"
-#include "system/pipewire.h"
-#include "system/system_stats.h"
-#include "wayland/layer_surface.h"
+#include "service/layer_surface.h"
+#include "service/mpris_service.h"
+#include "service/pipewire.h"
+#include "service/system_telemetry.h"
+#include "service/upower_service.h"
 
 #include <GLES2/gl2.h>
 #include <cairo/cairo.h>
@@ -103,10 +101,10 @@ void controlcenter_handle_click(ControlCenterState &state, WaylandState &app,
             break;
         }
         case PanelClickKind::SliderDrag: {
-            float value01 = region.rect.w > 0.0f
-                                ? static_cast<float>(px - region.rect.x) /
-                                      region.rect.w
-                                : 0.0f;
+            float value01 =
+                region.rect.w > 0.0f
+                    ? static_cast<float>(px - region.rect.x) / region.rect.w
+                    : 0.0f;
             pipewire_set_node_volume(app.pipewire, app.pipewire.default_sink_id,
                                      std::clamp(value01, 0.0f, 1.0f));
             break;

@@ -5,7 +5,7 @@
 #include "render/image.h"
 #include "render/node.h"
 #include "render/palette.h"
-#include "wayland/layer_surface.h"
+#include "service/layer_surface.h"
 #include "wallpaper/wallpaper_cache.h"
 
 #include <GLES2/gl2.h>

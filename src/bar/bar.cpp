@@ -2,7 +2,7 @@
 
 #include "core/log.h"
 #include "render/palette.h"
-#include "wayland/active_output.h"
+#include "service/active_output.h"
 #include "bar/widget/battery_widget.h"
 #include "bar/widget/bluetooth_widget.h"
 #include "bar/widget/control_center_widget.h"

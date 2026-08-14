@@ -1,9 +1,10 @@
 #include "bar/widget/battery_widget.h"
 
+#include "bar/bar.h"
+
 #include "render/icon.h"
 #include "render/icons.h"
 #include "render/palette.h"
-#include "bar/bar.h"
 
 #include <string>
 
@@ -45,7 +46,7 @@ std::string battery_label(const UpowerState &u) {
     return std::to_string(u.percent) + "%";
 }
 
-}
+} // namespace
 
 namespace bar_detail {
 
@@ -60,4 +61,4 @@ Pill battery_pill(MonitorOutput &mon) {
                 battery_border_color(u)};
 }
 
-}
+} // namespace bar_detail

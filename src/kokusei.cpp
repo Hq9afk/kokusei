@@ -11,9 +11,9 @@
 #include "idle/idle.h"
 #include "notification/notification.h"
 #include "render/image.h"
-#include "wayland/hyprland.h"
-#include "wayland/layer_surface.h"
-#include "wayland/shojiwm.h"
+#include "service/hyprland.h"
+#include "service/layer_surface.h"
+#include "service/shojiwm.h"
 
 #include <cerrno>
 #include <chrono>

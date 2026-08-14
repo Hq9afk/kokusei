@@ -14,4 +14,4 @@ void volume_pill_peek_tick(MonitorOutput &mon);
 
 bool volume_pill_peek_expire(MonitorOutput &mon);
 
-}
+} // namespace bar_detail

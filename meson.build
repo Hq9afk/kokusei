@@ -16,7 +16,7 @@ pangocairo_dep     = dependency('pangocairo')
 nlohmann_json_dep  = dependency('nlohmann_json')
 sdbus_cpp_dep      = dependency('sdbus-c++')
 freetype2_dep      = dependency('freetype2')
-libpipewire_dep    = dependency('libpipewire-0.3')
+libpipewire_dep    = dependency('libpipewire-0.3', include_type: 'system')
 xkbcommon_dep      = dependency('xkbcommon')
 libpng_dep         = dependency('libpng')
 libjpeg_dep        = dependency('libjpeg')
@@ -154,29 +154,33 @@ kokusei_render_main_only_sources = [
   'src/render/overlay_panel.cpp',
 ]
 
-# D-Bus service sources: each service is a merged types+sdbus-c++ pair now,
-# so both the main executable and the test binary link these directly
-# (test/dbus/*.cpp calls the parsing functions that live in them, which
-# pulls in sdbus_cpp_dep for the test binary too).
-kokusei_dbus_sources = [
+# service sources: each dbus service is a merged types+sdbus-c++ pair, and
+# keyboard/pointer/active_output/system_telemetry are exercised directly by
+# their tests, so both the main executable and the test binary link these
+# (test/dbus/*.cpp calls the parsing functions that live in the dbus ones,
+# which pulls in sdbus_cpp_dep for the test binary too). pipewire.cpp links
+# libpipewire and frame_clock/output_scale/layer_surface/hyprland/shojiwm
+# have no test coverage - layer_surface.cpp in particular needs the
+# wlr-layer-shell generated protocol code - so those stay main-executable-only.
+kokusei_service_test_sources = [
   'src/service/bluetooth_service.cpp',
   'src/service/network_service.cpp',
   'src/service/tray_service.cpp',
   'src/service/upower_service.cpp',
   'src/service/mpris_service.cpp',
+  'src/service/system_telemetry.cpp',
+  'src/service/keyboard.cpp',
+  'src/service/pointer.cpp',
+  'src/service/active_output.cpp',
 ]
 
-# system/rfkill.cpp is exercised directly by test/system/test_rfkill.cpp;
-# system/pipewire.cpp links libpipewire, main-executable-only.
-kokusei_system_test_sources = [
-  'src/system/rfkill.cpp',
-  'src/system/cpu_temp.cpp',
-  'src/system/gpu_temp.cpp',
-  'src/system/system_stats.cpp',
-]
-
-kokusei_system_main_only_sources = [
-  'src/system/pipewire.cpp',
+kokusei_service_main_only_sources = [
+  'src/service/pipewire.cpp',
+  'src/service/frame_clock.cpp',
+  'src/service/output_scale.cpp',
+  'src/service/layer_surface.cpp',
+  'src/service/hyprland.cpp',
+  'src/service/shojiwm.cpp',
 ]
 
 # launcher is a single merged translation unit (launcher.cpp); it touches
@@ -196,9 +200,9 @@ kokusei_launcher_test_extra_sources = [
   'src/render/icon.cpp',
   'src/render/texture_cache.cpp',
   'src/render/text_field.cpp',
-  'src/wayland/frame_clock.cpp',
-  'src/wayland/output_scale.cpp',
-  'src/wayland/layer_surface.cpp',
+  'src/service/frame_clock.cpp',
+  'src/service/output_scale.cpp',
+  'src/service/layer_surface.cpp',
 ]
 
 # bar/panel/**: real EGL/GL rendering, no test coverage, main-executable-only.
@@ -224,25 +228,8 @@ kokusei_bar_main_only_sources = [
   'src/bar/widget/volume_widget.cpp',
 ]
 
-# wayland/keyboard.cpp is exercised by test/wayland/test_keyboard.cpp;
-# wayland/pointer.cpp is dragged in with it (keyboard_attach_seat calls into
-# it). The rest (idle/frame_clock/output_scale/layer_surface/hyprland/shojiwm)
-# have no test coverage - layer_surface.cpp in particular needs the
-# wlr-layer-shell generated protocol code, which is only added to the main
-# executable's sources.
-kokusei_wayland_test_sources = [
-  'src/wayland/keyboard.cpp',
-  'src/wayland/pointer.cpp',
-  'src/wayland/active_output.cpp',
-]
-
-kokusei_wayland_main_only_sources = [
+kokusei_idle_main_only_sources = [
   'src/idle/idle.cpp',
-  'src/wayland/frame_clock.cpp',
-  'src/wayland/output_scale.cpp',
-  'src/wayland/layer_surface.cpp',
-  'src/wayland/hyprland.cpp',
-  'src/wayland/shojiwm.cpp',
 ]
 
 # osd/, wallpaper/, notification/: real EGL/GL rendering, no test coverage,
@@ -288,12 +275,10 @@ kokusei_split_sources = [
   kokusei_core_split_sources,
   kokusei_render_test_sources,
   kokusei_render_main_only_sources,
-  kokusei_dbus_sources,
-  kokusei_system_test_sources,
-  kokusei_system_main_only_sources,
+  kokusei_service_test_sources,
+  kokusei_service_main_only_sources,
   kokusei_launcher_sources,
-  kokusei_wayland_test_sources,
-  kokusei_wayland_main_only_sources,
+  kokusei_idle_main_only_sources,
   kokusei_overlay_main_only_sources,
   kokusei_app_test_sources,
   kokusei_app_main_only_sources,
@@ -306,11 +291,9 @@ kokusei_split_sources = [
 kokusei_test_split_sources = [
   kokusei_core_split_sources,
   kokusei_render_test_sources,
-  kokusei_dbus_sources,
-  kokusei_system_test_sources,
+  kokusei_service_test_sources,
   kokusei_launcher_sources,
   kokusei_launcher_test_extra_sources,
-  kokusei_wayland_test_sources,
   kokusei_app_test_sources,
   kokusei_settings_test_sources,
 ]

@@ -1,4 +1,4 @@
-#include "system/cpu_temp.h"
+#include "service/system_telemetry.h"
 
 #include <cassert>
 

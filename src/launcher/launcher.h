@@ -9,9 +9,9 @@
 #include "render/text.h"
 #include "render/texture.h"
 #include "render/texture_cache.h"
-#include "wayland/frame_clock.h"
-#include "wayland/keyboard.h"
-#include "wayland/output_scale.h"
+#include "service/frame_clock.h"
+#include "service/keyboard.h"
+#include "service/output_scale.h"
 #include "launcher/launcher_config.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 

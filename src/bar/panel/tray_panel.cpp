@@ -6,7 +6,8 @@
 #include "render/node.h"
 #include "render/palette.h"
 #include "render/text.h"
-#include "wayland/layer_surface.h"
+#include "service/layer_surface.h"
+
 #include <GLES2/gl2.h>
 #include <algorithm>
 #include <linux/input-event-codes.h>

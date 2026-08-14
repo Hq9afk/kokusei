@@ -1,4 +1,4 @@
-#include "system/system_stats.h"
+#include "service/system_telemetry.h"
 
 #include <cassert>
 

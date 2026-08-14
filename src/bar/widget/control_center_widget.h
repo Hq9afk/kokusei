@@ -7,11 +7,7 @@ struct MonitorOutput;
 void init_stub_widgets(MonitorOutput &mon);
 
 namespace bar_detail {
-
 Pill tray_pill(MonitorOutput &mon);
-
 Pill cpu_pill(MonitorOutput &mon);
-
 Pill control_center_pill(MonitorOutput &mon);
-
-}
+} // namespace bar_detail

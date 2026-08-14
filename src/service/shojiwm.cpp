@@ -1,4 +1,4 @@
-#include "wayland/shojiwm.h"
+#include "service/shojiwm.h"
 
 #include "core/log.h"
 

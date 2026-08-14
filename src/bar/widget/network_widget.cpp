@@ -1,9 +1,9 @@
 #include "bar/widget/network_widget.h"
+#include "bar/bar.h"
 
-#include "service/network_service.h"
 #include "render/icon.h"
 #include "render/icons.h"
-#include "bar/bar.h"
+#include "service/network_service.h"
 
 #include <string>
 
@@ -36,7 +36,7 @@ std::string wifi_label(const NetworkState &n) {
     return label.empty() ? "Wi-Fi" : label;
 }
 
-}
+} // namespace
 
 namespace bar_detail {
 
@@ -62,4 +62,4 @@ Pill wifi_pill(MonitorOutput &mon) {
                 }};
 }
 
-}
+} // namespace bar_detail

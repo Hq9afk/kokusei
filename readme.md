@@ -33,5 +33,3 @@ kokusei
 kokusei debug
 ```
 Or run kokusei in regular mode and read the logs at `~/.local/state/kokusei/kokusei.log`
-
-## IPC calls

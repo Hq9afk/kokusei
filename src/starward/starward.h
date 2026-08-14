@@ -6,7 +6,7 @@
 #include "render/scene.h"
 #include "render/text.h"
 #include "render/texture.h"
-#include "wayland/keyboard.h"
+#include "service/keyboard.h"
 #include "starward/starward_config.h"
 
 #include <array>

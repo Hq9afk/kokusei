@@ -1,6 +1,6 @@
 #pragma once
 
-#include "wayland/workspace.h"
+#include "service/workspace.h"
 
 #include <string>
 #include <unordered_map>

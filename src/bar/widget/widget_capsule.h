@@ -5,7 +5,7 @@
 #include "render/palette.h"
 #include "render/rect.h"
 #include "render/texture.h"
-#include "wayland/pointer.h"
+#include "service/pointer.h"
 #include "bar/bar_config.h"
 
 #include <array>

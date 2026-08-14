@@ -1,4 +1,4 @@
-#include "wayland/active_output.h"
+#include "service/active_output.h"
 
 #include <cassert>
 

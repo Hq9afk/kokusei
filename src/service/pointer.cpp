@@ -1,4 +1,4 @@
-#include "wayland/pointer.h"
+#include "service/pointer.h"
 
 namespace {
 

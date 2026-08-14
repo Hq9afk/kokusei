@@ -1,10 +1,10 @@
 #include "bar/widget/volume_widget.h"
+#include "bar/bar.h"
+#include "bar/panel/volume_panel.h"
 
 #include "render/icon.h"
 #include "render/icons.h"
-#include "system/pipewire.h"
-#include "bar/bar.h"
-#include "bar/panel/volume_panel.h"
+#include "service/pipewire.h"
 
 #include <algorithm>
 #include <chrono>
@@ -27,7 +27,7 @@ std::string volume_label(const PipewireState &pw) {
     return std::to_string(static_cast<int>(std::lround(level * 100))) + "%";
 }
 
-}
+} // namespace
 
 namespace bar_detail {
 
@@ -93,4 +93,4 @@ bool volume_pill_peek_expire(MonitorOutput &mon) {
     return true;
 }
 
-}
+} // namespace bar_detail

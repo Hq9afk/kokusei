@@ -1,9 +1,9 @@
 #pragma once
 
 #include "core/log.h"
-#include "wayland/frame_clock.h"
-#include "wayland/layer_surface.h"
-#include "wayland/output_scale.h"
+#include "service/frame_clock.h"
+#include "service/layer_surface.h"
+#include "service/output_scale.h"
 #include "render/animation.h"
 
 #include <EGL/egl.h>

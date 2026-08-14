@@ -3,8 +3,8 @@
 #include "render/renderer.h"
 #include "render/scene.h"
 #include "render/texture.h"
-#include "wayland/frame_clock.h"
-#include "wayland/output_scale.h"
+#include "service/frame_clock.h"
+#include "service/output_scale.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <EGL/egl.h>
 #include <wayland-client.h>

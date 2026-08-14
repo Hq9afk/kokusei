@@ -1,7 +1,8 @@
 #pragma once
 
-#include "render/texture.h"
 #include "bar/widget/widget_capsule.h"
+
+#include "render/texture.h"
 
 #include <cstdint>
 
@@ -13,4 +14,4 @@ void draw_clock_pill(Node *root, float height, int32_t surface_width,
                      const Texture &clock_texture, const float tint[4],
                      const float pill_bg[4]);
 
-}
+} // namespace bar_detail

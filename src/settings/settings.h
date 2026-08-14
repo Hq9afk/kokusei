@@ -8,7 +8,7 @@
 #include "render/scene.h"
 #include "render/text_field.h"
 #include "render/texture_cache.h"
-#include "wayland/keyboard.h"
+#include "service/keyboard.h"
 #include "settings/settings_config.h"
 #include "settings/wallpaper_picker.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"

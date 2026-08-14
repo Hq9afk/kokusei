@@ -6,7 +6,8 @@
 #include "render/palette.h"
 #include "render/panel_scroll.h"
 #include "render/text.h"
-#include "wayland/layer_surface.h"
+#include "service/layer_surface.h"
+
 #include <GLES2/gl2.h>
 #include <algorithm>
 
@@ -284,6 +285,8 @@ void network_panel_handle_click(NetworkPanelState &state, NetworkState &net,
                 network_forget(net, state.sub_ssid);
                 network_panel_close_sub(state);
             }
+            return;
+        default:
             return;
         }
     }

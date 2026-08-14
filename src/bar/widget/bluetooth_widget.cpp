@@ -1,9 +1,10 @@
 #include "bar/widget/bluetooth_widget.h"
 
-#include "service/bluetooth_service.h"
+#include "bar/bar.h"
+
 #include "render/icon.h"
 #include "render/icons.h"
-#include "bar/bar.h"
+#include "service/bluetooth_service.h"
 
 #include <string>
 
@@ -29,7 +30,7 @@ std::string bluetooth_label(const BluetoothState &b) {
     return "Idle";
 }
 
-}
+} // namespace
 
 namespace bar_detail {
 
@@ -53,4 +54,4 @@ Pill bluetooth_pill(MonitorOutput &mon) {
                 }};
 }
 
-}
+} // namespace bar_detail
