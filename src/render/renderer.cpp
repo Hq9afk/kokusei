@@ -1,6 +1,6 @@
-#include "renderer.h"
+#include "render/renderer.h"
 
-#include "gl.h"
+#include "render/gl.h"
 
 #include <algorithm>
 #include <cmath>

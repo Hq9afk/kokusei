@@ -1,5 +1,5 @@
 
-#include "../../src/system/rfkill.h"
+#include "system/rfkill.h"
 
 #include <cassert>
 #include <cstdio>

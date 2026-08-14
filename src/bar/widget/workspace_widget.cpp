@@ -1,6 +1,6 @@
-#include "workspace_widget.h"
+#include "bar/widget/workspace_widget.h"
 
-#include "../../render/palette.h"
+#include "render/palette.h"
 
 namespace bar_detail {
 

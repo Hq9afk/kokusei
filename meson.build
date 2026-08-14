@@ -22,6 +22,8 @@ libpng_dep         = dependency('libpng')
 libjpeg_dep        = dependency('libjpeg')
 threads_dep        = dependency('threads')
 
+kokusei_inc = include_directories('src')
+
 # Tabler Icons font, required for shell-wide icons
 kokusei_font_dir = get_option('prefix') / get_option('datadir') / 'kokusei' / 'fonts'
 install_data('assets/fonts/tabler-icons.ttf', install_dir: kokusei_font_dir)
@@ -152,21 +154,16 @@ kokusei_render_main_only_sources = [
   'src/render/overlay_panel.cpp',
 ]
 
-# D-Bus sources needed by both: only the pure-parsing ones test/dbus/*.cpp
-# exercises. The live D-Bus services (bluetooth/network/tray/upower) are
-# main-executable-only, added below.
-kokusei_dbus_test_sources = [
-  'src/dbus/bluetooth/bluetooth_types.cpp',
-  'src/dbus/network/network_types.cpp',
-  'src/dbus/mpris/mpris_types.cpp',
-]
-
-kokusei_dbus_main_only_sources = [
-  'src/dbus/bluetooth/bluetooth_service.cpp',
-  'src/dbus/network/network_service.cpp',
-  'src/dbus/tray/tray_service.cpp',
-  'src/dbus/upower.cpp',
-  'src/dbus/mpris/mpris_service.cpp',
+# D-Bus service sources: each service is a merged types+sdbus-c++ pair now,
+# so both the main executable and the test binary link these directly
+# (test/dbus/*.cpp calls the parsing functions that live in them, which
+# pulls in sdbus_cpp_dep for the test binary too).
+kokusei_dbus_sources = [
+  'src/service/bluetooth_service.cpp',
+  'src/service/network_service.cpp',
+  'src/service/tray_service.cpp',
+  'src/service/upower_service.cpp',
+  'src/service/mpris_service.cpp',
 ]
 
 # system/rfkill.cpp is exercised directly by test/system/test_rfkill.cpp;
@@ -282,14 +279,16 @@ kokusei_settings_test_sources = [
 kokusei_settings_main_only_sources = [
   'src/settings/wallpaper_picker_thumbnail.cpp',
   'src/settings/settings.cpp',
+  'src/settings/tabs/wallpaper_tab.cpp',
+  'src/settings/tabs/displays_tab.cpp',
+  'src/settings/tabs/idle_tab.cpp',
 ]
 
 kokusei_split_sources = [
   kokusei_core_split_sources,
   kokusei_render_test_sources,
   kokusei_render_main_only_sources,
-  kokusei_dbus_test_sources,
-  kokusei_dbus_main_only_sources,
+  kokusei_dbus_sources,
   kokusei_system_test_sources,
   kokusei_system_main_only_sources,
   kokusei_launcher_sources,
@@ -307,7 +306,7 @@ kokusei_split_sources = [
 kokusei_test_split_sources = [
   kokusei_core_split_sources,
   kokusei_render_test_sources,
-  kokusei_dbus_test_sources,
+  kokusei_dbus_sources,
   kokusei_system_test_sources,
   kokusei_launcher_sources,
   kokusei_launcher_test_extra_sources,
@@ -326,6 +325,7 @@ executable(
   xdg_shell_source,
   idle_protocol_headers,
   idle_protocol_sources,
+  include_directories: kokusei_inc,
   dependencies: [
     wayland_client_dep,
     wayland_egl_dep,
@@ -381,6 +381,7 @@ kokusei_test = executable(
   'test/render/test_animation.cpp',
   'test/render/test_palette.cpp',
   'test/render/test_image_decode.cpp',
+  include_directories: kokusei_inc,
   dependencies: [
     threads_dep,
     tomlplusplus_dep,

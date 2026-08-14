@@ -1,7 +1,7 @@
-#include "tray_service.h"
+#include "service/tray_service.h"
 
-#include "../../core/log.h"
-#include "../../launcher/launcher.h"
+#include "core/log.h"
+#include "launcher/launcher.h"
 
 #include <filesystem>
 #include <map>

@@ -1,12 +1,12 @@
-#include "network_panel.h"
+#include "bar/panel/network_panel.h"
 
-#include "../../render/icon.h"
-#include "../../render/icons.h"
-#include "../../render/node.h"
-#include "../../render/palette.h"
-#include "../../render/panel_scroll.h"
-#include "../../render/text.h"
-#include "../../wayland/layer_surface.h"
+#include "render/icon.h"
+#include "render/icons.h"
+#include "render/node.h"
+#include "render/palette.h"
+#include "render/panel_scroll.h"
+#include "render/text.h"
+#include "wayland/layer_surface.h"
 #include <GLES2/gl2.h>
 #include <algorithm>
 

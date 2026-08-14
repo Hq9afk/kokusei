@@ -1,9 +1,9 @@
-#include "control_center_widget.h"
+#include "bar/widget/control_center_widget.h"
 
-#include "../../render/icon.h"
-#include "../../render/icons.h"
-#include "../bar.h"
-#include "../panel/tray_panel.h"
+#include "render/icon.h"
+#include "render/icons.h"
+#include "bar/bar.h"
+#include "bar/panel/tray_panel.h"
 
 void init_stub_widgets(MonitorOutput &mon) {
     mon.starward_texture = make_icon_texture(icon::power);

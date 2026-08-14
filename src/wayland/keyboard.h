@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pointer.h"
+#include "wayland/pointer.h"
 
 #include <wayland-client.h>
 #include <xkbcommon/xkbcommon.h>

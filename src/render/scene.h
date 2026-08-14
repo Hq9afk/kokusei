@@ -1,6 +1,6 @@
 #pragma once
 
-#include "node.h"
+#include "render/node.h"
 
 struct Scene {
     Node root;

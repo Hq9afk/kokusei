@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../render/overlay_panel.h"
-#include "../render/rect.h"
-#include "../render/renderer.h"
-#include "../render/scene.h"
-#include "../render/text.h"
-#include "../render/texture.h"
-#include "../wayland/keyboard.h"
-#include "starward_config.h"
+#include "render/overlay_panel.h"
+#include "render/rect.h"
+#include "render/renderer.h"
+#include "render/scene.h"
+#include "render/text.h"
+#include "render/texture.h"
+#include "wayland/keyboard.h"
+#include "starward/starward_config.h"
 
 #include <array>
 

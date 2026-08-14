@@ -1,6 +1,6 @@
 #pragma once
 
-#include "widget_capsule.h"
+#include "bar/widget/widget_capsule.h"
 
 struct MonitorOutput;
 

@@ -1,10 +1,10 @@
-#include "notification.h"
+#include "notification/notification.h"
 
-#include "../core/log.h"
-#include "../render/color_ops.h"
-#include "../render/node.h"
-#include "../render/text.h"
-#include "../wayland/layer_surface.h"
+#include "core/log.h"
+#include "render/color_ops.h"
+#include "render/node.h"
+#include "render/text.h"
+#include "wayland/layer_surface.h"
 
 #include <GLES2/gl2.h>
 

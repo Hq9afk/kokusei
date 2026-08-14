@@ -1,6 +1,6 @@
-#include "starward_widget.h"
+#include "bar/widget/starward_widget.h"
 
-#include "../bar.h"
+#include "bar/bar.h"
 
 namespace bar_detail {
 

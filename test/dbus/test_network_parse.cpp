@@ -1,5 +1,5 @@
 
-#include "../../src/dbus/network/network_types.h"
+#include "service/network_service.h"
 
 #include <cassert>
 

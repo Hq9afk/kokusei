@@ -1,6 +1,6 @@
-#include "image.h"
+#include "render/image.h"
 
-#include "../core/log.h"
+#include "core/log.h"
 
 #include <cstdio>
 #include <vector>

@@ -1,4 +1,4 @@
-#include "../../src/dbus/mpris/mpris_types.h"
+#include "service/mpris_service.h"
 
 #include <cassert>
 

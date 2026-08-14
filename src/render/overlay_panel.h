@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../core/log.h"
-#include "../wayland/frame_clock.h"
-#include "../wayland/layer_surface.h"
-#include "../wayland/output_scale.h"
-#include "animation.h"
+#include "core/log.h"
+#include "wayland/frame_clock.h"
+#include "wayland/layer_surface.h"
+#include "wayland/output_scale.h"
+#include "render/animation.h"
 
 #include <EGL/egl.h>
 #include <wayland-client.h>

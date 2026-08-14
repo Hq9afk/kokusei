@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../render/texture.h"
+#include "render/texture.h"
 #include <EGL/egl.h>
 
 #include <cstdint>

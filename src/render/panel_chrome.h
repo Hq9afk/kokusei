@@ -1,14 +1,14 @@
 #pragma once
 
-#include "icon.h"
-#include "icons.h"
-#include "node.h"
-#include "palette.h"
-#include "rect.h"
-#include "renderer.h"
-#include "text.h"
-#include "texture.h"
-#include "texture_cache.h"
+#include "render/icon.h"
+#include "render/icons.h"
+#include "render/node.h"
+#include "render/palette.h"
+#include "render/rect.h"
+#include "render/renderer.h"
+#include "render/text.h"
+#include "render/texture.h"
+#include "render/texture_cache.h"
 
 #include <string>
 #include <vector>

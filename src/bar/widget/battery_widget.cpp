@@ -1,9 +1,9 @@
-#include "battery_widget.h"
+#include "bar/widget/battery_widget.h"
 
-#include "../../render/icon.h"
-#include "../../render/icons.h"
-#include "../../render/palette.h"
-#include "../bar.h"
+#include "render/icon.h"
+#include "render/icons.h"
+#include "render/palette.h"
+#include "bar/bar.h"
 
 #include <string>
 

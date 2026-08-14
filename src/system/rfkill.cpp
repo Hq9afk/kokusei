@@ -1,6 +1,6 @@
-#include "rfkill.h"
+#include "system/rfkill.h"
 
-#include "../core/log.h"
+#include "core/log.h"
 
 #include <cerrno>
 #include <cstdio>

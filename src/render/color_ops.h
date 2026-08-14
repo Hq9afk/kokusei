@@ -1,6 +1,6 @@
 #pragma once
 
-#include "palette.h"
+#include "render/palette.h"
 
 inline constexpr Color with_alpha(Color c, float a) {
     return {c.r, c.g, c.b, a};

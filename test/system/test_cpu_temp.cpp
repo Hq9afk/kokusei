@@ -1,4 +1,4 @@
-#include "../../src/system/cpu_temp.h"
+#include "system/cpu_temp.h"
 
 #include <cassert>
 

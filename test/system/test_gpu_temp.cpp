@@ -1,4 +1,4 @@
-#include "../../src/system/gpu_temp.h"
+#include "system/gpu_temp.h"
 
 #include <cassert>
 

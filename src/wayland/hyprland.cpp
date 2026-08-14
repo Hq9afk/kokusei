@@ -1,6 +1,6 @@
-#include "hyprland.h"
+#include "wayland/hyprland.h"
 
-#include "../core/log.h"
+#include "core/log.h"
 
 #include <nlohmann/json.hpp>
 

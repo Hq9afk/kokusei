@@ -1,5 +1,5 @@
 
-#include "../../src/launcher/launcher.h"
+#include "launcher/launcher.h"
 
 #include <cassert>
 #include <cerrno>

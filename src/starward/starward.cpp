@@ -1,10 +1,10 @@
-#include "starward.h"
+#include "starward/starward.h"
 
-#include "../core/log.h"
-#include "../launcher/launcher.h"
-#include "../render/color_ops.h"
-#include "../render/node.h"
-#include "../wayland/layer_surface.h"
+#include "core/log.h"
+#include "launcher/launcher.h"
+#include "render/color_ops.h"
+#include "render/node.h"
+#include "wayland/layer_surface.h"
 
 #include <GLES2/gl2.h>
 

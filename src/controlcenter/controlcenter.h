@@ -1,12 +1,12 @@
 #pragma once
 
-#include "../render/overlay_panel.h"
-#include "../render/panel_chrome.h"
-#include "../render/renderer.h"
-#include "../render/scene.h"
-#include "../render/texture_cache.h"
-#include "../wayland/keyboard.h"
-#include "controlcenter_config.h"
+#include "render/overlay_panel.h"
+#include "render/panel_chrome.h"
+#include "render/renderer.h"
+#include "render/scene.h"
+#include "render/texture_cache.h"
+#include "wayland/keyboard.h"
+#include "controlcenter/controlcenter_config.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 #include <EGL/egl.h>

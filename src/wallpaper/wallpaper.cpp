@@ -1,12 +1,12 @@
-#include "wallpaper.h"
+#include "wallpaper/wallpaper.h"
 
-#include "../core/deferred_call.h"
-#include "../core/log.h"
-#include "../render/image.h"
-#include "../render/node.h"
-#include "../render/palette.h"
-#include "../wayland/layer_surface.h"
-#include "wallpaper_cache.h"
+#include "core/deferred_call.h"
+#include "core/log.h"
+#include "render/image.h"
+#include "render/node.h"
+#include "render/palette.h"
+#include "wayland/layer_surface.h"
+#include "wallpaper/wallpaper_cache.h"
 
 #include <GLES2/gl2.h>
 

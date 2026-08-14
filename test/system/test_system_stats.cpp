@@ -1,4 +1,4 @@
-#include "../../src/system/system_stats.h"
+#include "system/system_stats.h"
 
 #include <cassert>
 

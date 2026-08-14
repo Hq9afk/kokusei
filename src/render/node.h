@@ -1,7 +1,7 @@
 #pragma once
 
-#include "renderer.h"
-#include "texture.h"
+#include "render/renderer.h"
+#include "render/texture.h"
 #include <memory>
 #include <vector>
 

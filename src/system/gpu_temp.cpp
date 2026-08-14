@@ -1,4 +1,4 @@
-#include "gpu_temp.h"
+#include "system/gpu_temp.h"
 
 #include <cstdlib>
 #include <filesystem>

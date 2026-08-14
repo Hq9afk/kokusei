@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../../render/animation.h"
-#include "../../wayland/workspace.h"
-#include "widget_capsule.h"
+#include "render/animation.h"
+#include "wayland/workspace.h"
+#include "bar/widget/widget_capsule.h"
 
 #include <unordered_map>
 #include <vector>

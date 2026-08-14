@@ -1,5 +1,5 @@
 
-#include "../../src/core/deferred_call.h"
+#include "core/deferred_call.h"
 
 #include <cassert>
 #include <poll.h>

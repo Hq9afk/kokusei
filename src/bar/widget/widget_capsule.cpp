@@ -1,14 +1,14 @@
-#include "widget_capsule.h"
+#include "bar/widget/widget_capsule.h"
 
-#include "../../render/palette.h"
-#include "../../render/text.h"
-#include "../../render/icon.h"
-#include "../../controlcenter/controlcenter.h"
-#include "../../starward/starward.h"
-#include "../panel/bluetooth_panel.h"
-#include "../panel/network_panel.h"
-#include "../panel/tray_panel.h"
-#include "../panel/volume_panel.h"
+#include "render/palette.h"
+#include "render/text.h"
+#include "render/icon.h"
+#include "controlcenter/controlcenter.h"
+#include "starward/starward.h"
+#include "bar/panel/bluetooth_panel.h"
+#include "bar/panel/network_panel.h"
+#include "bar/panel/tray_panel.h"
+#include "bar/panel/volume_panel.h"
 
 #include <algorithm>
 

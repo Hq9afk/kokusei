@@ -1,12 +1,12 @@
 #pragma once
 
-#include "../../dbus/tray/tray_service.h"
-#include "../../render/overlay_panel.h"
-#include "../../render/panel_chrome.h"
-#include "../../render/rect.h"
-#include "../../render/renderer.h"
-#include "../../render/scene.h"
-#include "../../render/texture_cache.h"
+#include "service/tray_service.h"
+#include "render/overlay_panel.h"
+#include "render/panel_chrome.h"
+#include "render/rect.h"
+#include "render/renderer.h"
+#include "render/scene.h"
+#include "render/texture_cache.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <EGL/egl.h>
 #include <cstdint>

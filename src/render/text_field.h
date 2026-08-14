@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../wayland/keyboard.h"
+#include "wayland/keyboard.h"
 #include <string>
 
 void text_field_backspace(std::string &text);

@@ -1,5 +1,5 @@
 
-#include "../../src/app/config.h"
+#include "app/config.h"
 
 #include <cassert>
 

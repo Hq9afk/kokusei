@@ -1,6 +1,6 @@
-#include "clock_widget.h"
+#include "bar/widget/clock_widget.h"
 
-#include "../../render/text.h"
+#include "render/text.h"
 
 #include <ctime>
 

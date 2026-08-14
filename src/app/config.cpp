@@ -1,6 +1,6 @@
-#include "config.h"
+#include "app/config.h"
 
-#include "../core/log.h"
+#include "core/log.h"
 
 #include <toml++/toml.hpp>
 

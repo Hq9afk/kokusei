@@ -1,16 +1,16 @@
 #pragma once
 
-#include "../app/config.h"
-#include "../render/overlay_panel.h"
-#include "../render/panel_chrome.h"
-#include "../render/rect.h"
-#include "../render/renderer.h"
-#include "../render/scene.h"
-#include "../render/text_field.h"
-#include "../render/texture_cache.h"
-#include "../wayland/keyboard.h"
-#include "settings_config.h"
-#include "wallpaper_picker.h"
+#include "app/config.h"
+#include "render/overlay_panel.h"
+#include "render/panel_chrome.h"
+#include "render/rect.h"
+#include "render/renderer.h"
+#include "render/scene.h"
+#include "render/text_field.h"
+#include "render/texture_cache.h"
+#include "wayland/keyboard.h"
+#include "settings/settings_config.h"
+#include "settings/wallpaper_picker.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 #include <EGL/egl.h>
@@ -64,8 +64,8 @@ struct SettingsState {
     std::string displays_selected_monitor;
 };
 
-// Shared with the paint function below (draw_field_row and
-// draw_wallpaper_dirbar also read the live field text).
+// Shared with the tab paint functions (idle_tab.cpp's draw_field_row and
+// wallpaper_tab.cpp's draw_wallpaper_dirbar also read the live field text).
 std::string settings_detail_format_field(const Config &cfg, SettingsFieldId id);
 
 bool settings_create_surface(SettingsState &state, wl_compositor *compositor,

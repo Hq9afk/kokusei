@@ -1,13 +1,13 @@
-#include "osd.h"
+#include "osd/osd.h"
 
-#include "../core/log.h"
-#include "../render/color_ops.h"
-#include "../render/icon.h"
-#include "../render/icons.h"
-#include "../render/node.h"
-#include "../render/palette.h"
-#include "../render/text.h"
-#include "../wayland/layer_surface.h"
+#include "core/log.h"
+#include "render/color_ops.h"
+#include "render/icon.h"
+#include "render/icons.h"
+#include "render/node.h"
+#include "render/palette.h"
+#include "render/text.h"
+#include "wayland/layer_surface.h"
 
 #include <GLES2/gl2.h>
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../render/texture.h"
-#include "widget_capsule.h"
+#include "render/texture.h"
+#include "bar/widget/widget_capsule.h"
 
 #include <cstdint>
 

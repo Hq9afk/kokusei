@@ -1,5 +1,5 @@
 
-#include "../../src/render/animation.h"
+#include "render/animation.h"
 
 #include <cassert>
 #include <cmath>

@@ -1,9 +1,9 @@
-#include "bluetooth_widget.h"
+#include "bar/widget/bluetooth_widget.h"
 
-#include "../../dbus/bluetooth/bluetooth_service.h"
-#include "../../render/icon.h"
-#include "../../render/icons.h"
-#include "../bar.h"
+#include "service/bluetooth_service.h"
+#include "render/icon.h"
+#include "render/icons.h"
+#include "bar/bar.h"
 
 #include <string>
 

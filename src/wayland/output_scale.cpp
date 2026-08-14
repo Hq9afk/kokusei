@@ -1,4 +1,4 @@
-#include "output_scale.h"
+#include "wayland/output_scale.h"
 
 namespace {
 

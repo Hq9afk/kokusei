@@ -1,6 +1,6 @@
 #pragma once
 
-#include "texture.h"
+#include "render/texture.h"
 #include <GLES2/gl2.h>
 #include <cstdint>
 #include <vector>

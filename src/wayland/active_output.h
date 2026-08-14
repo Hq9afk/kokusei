@@ -1,6 +1,6 @@
 #pragma once
 
-#include "output.h"
+#include "wayland/output.h"
 
 #include <string>
 #include <vector>

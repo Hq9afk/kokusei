@@ -1,4 +1,4 @@
-#include "wallpaper_cache.h"
+#include "wallpaper/wallpaper_cache.h"
 
 #include <cstdint>
 #include <cstdio>

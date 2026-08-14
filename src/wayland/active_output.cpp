@@ -1,4 +1,4 @@
-#include "active_output.h"
+#include "wayland/active_output.h"
 
 wl_output *active_output_select(const std::vector<Output *> &outputs,
                                 const std::string &focused_name,

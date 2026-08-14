@@ -1,6 +1,6 @@
 
-#include "../../src/launcher/launcher.h"
-#include "../../src/core/async_process.h"
+#include "launcher/launcher.h"
+#include "core/async_process.h"
 
 #include <cassert>
 #include <dirent.h>

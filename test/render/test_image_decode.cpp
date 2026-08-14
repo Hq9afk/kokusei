@@ -1,4 +1,4 @@
-#include "../../src/render/image.h"
+#include "render/image.h"
 
 #include <cassert>
 

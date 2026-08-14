@@ -1,7 +1,7 @@
 #pragma once
 
-#include "text.h"
-#include "texture.h"
+#include "render/text.h"
+#include "render/texture.h"
 #include <functional>
 #include <list>
 #include <string>

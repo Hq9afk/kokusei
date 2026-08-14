@@ -1,6 +1,6 @@
-#include "overlay_panel.h"
+#include "render/overlay_panel.h"
 
-#include "../core/log.h"
+#include "core/log.h"
 
 namespace {
 

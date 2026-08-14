@@ -1,6 +1,6 @@
-#include "pipewire.h"
+#include "system/pipewire.h"
 
-#include "../core/log.h"
+#include "core/log.h"
 
 #include <pipewire/extensions/metadata.h>
 #include <pipewire/keys.h>

@@ -1,6 +1,6 @@
-#include "keyboard.h"
+#include "wayland/keyboard.h"
 
-#include "../core/log.h"
+#include "core/log.h"
 
 #include <algorithm>
 #include <sys/mman.h>

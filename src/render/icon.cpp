@@ -1,10 +1,10 @@
-#include "icon.h"
+#include "render/icon.h"
 
 #include <cairo/cairo-ft.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-#include "../core/log.h"
+#include "core/log.h"
 
 #include <cmath>
 

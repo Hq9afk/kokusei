@@ -1,6 +1,6 @@
-#include "upower.h"
+#include "service/upower_service.h"
 
-#include "../core/log.h"
+#include "core/log.h"
 
 #include <cmath>
 #include <map>

@@ -1,12 +1,12 @@
-#include "ipc.h"
+#include "app/ipc.h"
 
-#include "../bar/bar.h"
-#include "../bar/panel/bluetooth_panel.h"
-#include "../core/log.h"
-#include "../idle/idle.h"
-#include "../controlcenter/controlcenter.h"
-#include "../launcher/launcher.h"
-#include "../starward/starward.h"
+#include "bar/bar.h"
+#include "bar/panel/bluetooth_panel.h"
+#include "core/log.h"
+#include "idle/idle.h"
+#include "controlcenter/controlcenter.h"
+#include "launcher/launcher.h"
+#include "starward/starward.h"
 
 #include <cerrno>
 #include <cstdio>

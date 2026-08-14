@@ -1,6 +1,6 @@
 #pragma once
 
-#include "panel_chrome.h"
+#include "render/panel_chrome.h"
 
 struct PanelScrollRegion {
     float content_x = 0.0f;

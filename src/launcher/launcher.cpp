@@ -1,13 +1,13 @@
-#include "launcher.h"
+#include "launcher/launcher.h"
 
-#include "../core/log.h"
-#include "../render/icon.h"
-#include "../render/icons.h"
-#include "../render/image.h"
-#include "../render/node.h"
-#include "../render/palette.h"
-#include "../render/text_field.h"
-#include "../wayland/layer_surface.h"
+#include "core/log.h"
+#include "render/icon.h"
+#include "render/icons.h"
+#include "render/image.h"
+#include "render/node.h"
+#include "render/palette.h"
+#include "render/text_field.h"
+#include "wayland/layer_surface.h"
 
 #include <GLES2/gl2.h>
 

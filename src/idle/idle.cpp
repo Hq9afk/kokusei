@@ -1,6 +1,6 @@
-#include "idle.h"
+#include "idle/idle.h"
 
-#include "../core/log.h"
+#include "core/log.h"
 
 #include <cstdlib>
 

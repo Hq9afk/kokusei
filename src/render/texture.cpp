@@ -1,4 +1,4 @@
-#include "texture.h"
+#include "render/texture.h"
 
 Texture make_texture_rgba(int width, int height, const uint8_t *rgba,
                           bool mipmapped) {

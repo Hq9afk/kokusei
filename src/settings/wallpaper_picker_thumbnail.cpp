@@ -1,7 +1,7 @@
-#include "wallpaper_picker.h"
+#include "settings/wallpaper_picker.h"
 
-#include "../core/deferred_call.h"
-#include "../wallpaper/wallpaper.h"
+#include "core/deferred_call.h"
+#include "wallpaper/wallpaper.h"
 
 #include <thread>
 

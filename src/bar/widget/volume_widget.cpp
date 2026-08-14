@@ -1,10 +1,10 @@
-#include "volume_widget.h"
+#include "bar/widget/volume_widget.h"
 
-#include "../../render/icon.h"
-#include "../../render/icons.h"
-#include "../../system/pipewire.h"
-#include "../bar.h"
-#include "../panel/volume_panel.h"
+#include "render/icon.h"
+#include "render/icons.h"
+#include "system/pipewire.h"
+#include "bar/bar.h"
+#include "bar/panel/volume_panel.h"
 
 #include <algorithm>
 #include <chrono>

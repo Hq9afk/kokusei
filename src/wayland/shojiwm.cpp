@@ -1,6 +1,6 @@
-#include "shojiwm.h"
+#include "wayland/shojiwm.h"
 
-#include "../core/log.h"
+#include "core/log.h"
 
 #include <nlohmann/json.hpp>
 

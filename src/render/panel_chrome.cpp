@@ -1,4 +1,4 @@
-#include "panel_chrome.h"
+#include "render/panel_chrome.h"
 
 namespace panel_chrome_detail {
 

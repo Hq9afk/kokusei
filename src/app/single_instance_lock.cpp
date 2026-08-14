@@ -1,6 +1,6 @@
-#include "single_instance_lock.h"
+#include "app/single_instance_lock.h"
 
-#include "../core/log.h"
+#include "core/log.h"
 
 #include <cstdlib>
 #include <cstring>

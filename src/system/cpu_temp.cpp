@@ -1,4 +1,4 @@
-#include "cpu_temp.h"
+#include "system/cpu_temp.h"
 
 #include <filesystem>
 #include <fstream>

@@ -1,14 +1,14 @@
-#include "bar.h"
+#include "bar/bar.h"
 
-#include "../core/log.h"
-#include "../render/palette.h"
-#include "../wayland/active_output.h"
-#include "widget/battery_widget.h"
-#include "widget/bluetooth_widget.h"
-#include "widget/control_center_widget.h"
-#include "widget/network_widget.h"
-#include "widget/starward_widget.h"
-#include "widget/volume_widget.h"
+#include "core/log.h"
+#include "render/palette.h"
+#include "wayland/active_output.h"
+#include "bar/widget/battery_widget.h"
+#include "bar/widget/bluetooth_widget.h"
+#include "bar/widget/control_center_widget.h"
+#include "bar/widget/network_widget.h"
+#include "bar/widget/starward_widget.h"
+#include "bar/widget/volume_widget.h"
 
 #include <GLES2/gl2.h>
 #include <algorithm>
