@@ -172,6 +172,8 @@ kokusei_service_test_sources = [
   'src/service/keyboard.cpp',
   'src/service/pointer.cpp',
   'src/service/active_output.cpp',
+  'src/service/wallpaper_service.cpp',
+  'src/service/settings_service.cpp',
 ]
 
 kokusei_service_main_only_sources = [
@@ -237,7 +239,6 @@ kokusei_idle_main_only_sources = [
 kokusei_overlay_main_only_sources = [
   'src/osd/osd.cpp',
   'src/wallpaper/wallpaper.cpp',
-  'src/wallpaper/wallpaper_cache.cpp',
   'src/notification/notification.cpp',
   'src/starward/starward.cpp',
   'src/controlcenter/controlcenter.cpp',
@@ -252,19 +253,20 @@ kokusei_app_test_sources = [
 kokusei_app_main_only_sources = [
   'src/app/single_instance_lock.cpp',
   'src/app/ipc.cpp',
+  'src/app/monitor_output.cpp',
 ]
 
-# settings/wallpaper_picker.cpp (wallpaper_picker_less, tested) is split from
-# wallpaper_picker_thumbnail.cpp (wallpaper_picker_request_thumbnail, needs
-# wallpaper.h's EGL surface handles - untested, and would otherwise drag the
-# whole EGL/wayland-egl/layer-shell dependency chain into the test binary
-# just to link one unused function).
+# settings/tabs/wallpaper_picker.cpp (wallpaper_picker_less, tested) is split
+# from wallpaper_picker_thumbnail.cpp (wallpaper_picker_request_thumbnail,
+# needs wallpaper.h's EGL surface handles - untested, and would otherwise
+# drag the whole EGL/wayland-egl/layer-shell dependency chain into the test
+# binary just to link one unused function).
 kokusei_settings_test_sources = [
-  'src/settings/wallpaper_picker.cpp',
+  'src/settings/tabs/wallpaper_picker.cpp',
 ]
 
 kokusei_settings_main_only_sources = [
-  'src/settings/wallpaper_picker_thumbnail.cpp',
+  'src/settings/tabs/wallpaper_picker_thumbnail.cpp',
   'src/settings/settings.cpp',
   'src/settings/tabs/wallpaper_tab.cpp',
   'src/settings/tabs/displays_tab.cpp',

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "app/config.h"
 #include "render/renderer.h"
 #include "render/scene.h"
 #include "render/texture.h"
@@ -61,3 +62,6 @@ void wallpaper_decode_column_async(WallpaperState &wp, std::string path,
                                    int column_index, int column_count);
 
 void wallpaper_decode_async(WallpaperState &wp, std::string path);
+
+void wallpaper_sync_from_config(WallpaperState &wp, const Config &cfg,
+                                const std::string &monitor_name);

@@ -5,6 +5,7 @@
 #include "settings/tabs/wallpaper_tab.h"
 
 #include "core/log.h"
+#include "service/settings_service.h"
 
 #include <GLES2/gl2.h>
 
@@ -28,40 +29,6 @@ std::string settings_detail_format_field(const Config &cfg,
         return "";
     }
 }
-
-namespace {
-
-void apply_field_text(Config &cfg, SettingsFieldId id,
-                      const std::string &text) {
-    try {
-        switch (id) {
-        case SettingsFieldId::WallpaperPath:
-            cfg.wallpaper_path = text;
-            break;
-        case SettingsFieldId::WallpaperDir:
-            cfg.wallpaper_dir = text;
-            break;
-        case SettingsFieldId::IdleTimeout:
-            cfg.idle_timeout_seconds =
-                static_cast<uint32_t>(std::max(0, std::stoi(text)));
-            break;
-        case SettingsFieldId::IdleCommand:
-            cfg.idle_command = text;
-            break;
-        case SettingsFieldId::IdleResumeCommand:
-            cfg.idle_resume_command = text;
-            break;
-        default:
-            break;
-        }
-    } catch (const std::exception &) {
-        klog("settings: could not parse '%s' for field %d, keeping previous "
-             "value",
-             text.c_str(), static_cast<int>(id));
-    }
-}
-
-} // namespace
 
 bool settings_create_surface(SettingsState &state, wl_compositor *compositor,
                              zwlr_layer_shell_v1 *layer_shell,
@@ -95,7 +62,8 @@ void settings_commit_focused_field(SettingsState &state, const Config &cfg,
     if (state.focused_field == SettingsFieldId::None)
         return;
     Config updated = cfg;
-    apply_field_text(updated, state.focused_field, state.field_buffer.text);
+    settings_service_apply_field_text(updated, state.focused_field,
+                                      state.field_buffer.text);
     on_commit(updated);
     if (state.focused_field == SettingsFieldId::WallpaperDir)
         wallpaper_picker_scan(state.wallpaper_picker, updated.wallpaper_dir);
@@ -309,7 +277,7 @@ void settings_paint(SettingsState &state, const Config &cfg,
     {
         int count = state.wallpaper_selected_monitor.empty()
                         ? 1
-                        : wallpaper_effective_column_count(
+                        : wallpaper_service_column_count(
                               cfg, state.wallpaper_selected_monitor);
         state.wallpaper_selected_column =
             std::clamp(state.wallpaper_selected_column, 0, count - 1);

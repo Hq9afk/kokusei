@@ -95,7 +95,7 @@ void draw_region_row(SettingsState &state, Node *parent, int32_t scale, float x,
                      float y, const Config &cfg) {
     float cx = x;
     for (const std::string &name : state.monitor_names) {
-        int count = wallpaper_effective_column_count(cfg, name);
+        int count = wallpaper_service_column_count(cfg, name);
         for (int col = 0; col < count; ++col) {
             std::string label =
                 count > 1 ? name + "-" + std::to_string(col + 1) : name;
@@ -123,7 +123,7 @@ void draw_region_row(SettingsState &state, Node *parent, int32_t scale, float x,
 
     int count = state.wallpaper_selected_monitor.empty()
                     ? 1
-                    : wallpaper_effective_column_count(
+                    : wallpaper_service_column_count(
                           cfg, state.wallpaper_selected_monitor);
     float step_y = y;
     float sub_x = cx + kSettingsColumnStepperGap;
@@ -176,7 +176,7 @@ void draw_region_row(SettingsState &state, Node *parent, int32_t scale, float x,
 void draw_fill_mode_row(SettingsState &state, Node *parent, int32_t scale,
                         float x, float y, float w, const Config &cfg) {
     std::string mode =
-        wallpaper_effective_fill_mode(cfg, state.wallpaper_selected_monitor);
+        wallpaper_service_fill_mode(cfg, state.wallpaper_selected_monitor);
     static const char *kLabels[2] = {"Crop", "Fit"};
     static const char *kModes[2] = {"crop", "fit"};
     float widths[2];
@@ -208,7 +208,7 @@ void draw_fill_mode_row(SettingsState &state, Node *parent, int32_t scale,
         cx += bw + 6.0f;
     }
 
-    if (!wallpaper_effective_column_path(cfg, state.wallpaper_selected_monitor,
+    if (!wallpaper_service_column_path(cfg, state.wallpaper_selected_monitor,
                                          state.wallpaper_selected_column)
              .empty()) {
         const Texture *tex = cached_text(state.tcache, "Remove", scale);
@@ -259,7 +259,7 @@ void draw_wallpaper_grid(SettingsState &state, Node *parent, int32_t scale,
     float cell = kSettingsWallpaperThumbSize + kSettingsWallpaperThumbGap;
     float row_w = cols * cell - kSettingsWallpaperThumbGap;
     inset_x += (inset_w - row_w) / 2.0f;
-    std::string selected = wallpaper_effective_column_path(
+    std::string selected = wallpaper_service_column_path(
         cfg, state.wallpaper_selected_monitor, state.wallpaper_selected_column);
 
     Node *clip =
@@ -355,7 +355,7 @@ float wallpaper_tab_paint(SettingsState &state, Node *root, int32_t scale,
     state.wallpaper_grid_width = state.panel_rect.x + state.panel_rect.w -
                                  kPanelPadding - x;
     if (state.monitor_names.size() > 1 ||
-        wallpaper_effective_column_count(cfg, state.wallpaper_selected_monitor) >
+        wallpaper_service_column_count(cfg, state.wallpaper_selected_monitor) >
             1) {
         draw_region_row(state, root, scale, x, y, cfg);
         y += kSettingsMonitorChipHeight + kPanelRowGap;
@@ -408,7 +408,7 @@ bool wallpaper_tab_handle_click(SettingsState &state, const Config &cfg,
     if (region.tag == "fillmode") {
         Config updated = cfg;
         std::string cur =
-            wallpaper_effective_fill_mode(cfg, state.wallpaper_selected_monitor);
+            wallpaper_service_fill_mode(cfg, state.wallpaper_selected_monitor);
         updated.wallpaper_fill_modes[state.wallpaper_selected_monitor] =
             cur == "crop" ? "fit" : "crop";
         on_commit(updated);
@@ -421,7 +421,7 @@ bool wallpaper_tab_handle_click(SettingsState &state, const Config &cfg,
         wallpaper_picker_scan(state.wallpaper_picker, cfg.wallpaper_dir);
     } else if (region.tag == "columnadd" || region.tag == "columnsub") {
         Config updated = cfg;
-        int count = wallpaper_effective_column_count(
+        int count = wallpaper_service_column_count(
             cfg, state.wallpaper_selected_monitor);
         count = std::clamp(count + (region.tag == "columnadd" ? 1 : -1), 1, 6);
         updated.wallpaper_column_counts[state.wallpaper_selected_monitor] =

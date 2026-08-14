@@ -1,5 +1,6 @@
 #include "app/config.h"
 #include "app/ipc.h"
+#include "app/monitor_output.h"
 #include "app/single_instance_lock.h"
 #include "bar/bar.h"
 #include "bar/widget/control_center_widget.h"

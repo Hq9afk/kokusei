@@ -34,16 +34,6 @@ struct Config {
     std::string idle_resume_command;
 };
 
-int wallpaper_effective_column_count(const Config &cfg,
-                                     const std::string &monitor_name);
-
-std::string wallpaper_effective_column_path(const Config &cfg,
-                                            const std::string &monitor_name,
-                                            int column_index);
-
-std::string wallpaper_effective_fill_mode(const Config &cfg,
-                                          const std::string &monitor_name);
-
 bool osd_effective_enabled(const Config &cfg, const std::string &monitor_name);
 
 bool notifications_effective_enabled(const Config &cfg,

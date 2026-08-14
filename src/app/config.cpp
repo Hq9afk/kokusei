@@ -10,33 +10,6 @@
 #include <sys/inotify.h>
 #include <unistd.h>
 
-int wallpaper_effective_column_count(const Config &cfg,
-                                     const std::string &monitor_name) {
-    auto it = cfg.wallpaper_column_counts.find(monitor_name);
-    return it != cfg.wallpaper_column_counts.end() && it->second > 0
-              ? it->second
-              : 1;
-}
-
-std::string wallpaper_effective_column_path(const Config &cfg,
-                                            const std::string &monitor_name,
-                                            int column_index) {
-    auto it = cfg.wallpaper_columns.find(monitor_name);
-    if (it != cfg.wallpaper_columns.end() && column_index >= 0 &&
-        static_cast<size_t>(column_index) < it->second.size() &&
-        !it->second[static_cast<size_t>(column_index)].empty())
-        return it->second[static_cast<size_t>(column_index)];
-    return column_index == 0 ? cfg.wallpaper_path : "";
-}
-
-std::string wallpaper_effective_fill_mode(const Config &cfg,
-                                          const std::string &monitor_name) {
-    auto it = cfg.wallpaper_fill_modes.find(monitor_name);
-    if (it != cfg.wallpaper_fill_modes.end() && !it->second.empty())
-        return it->second;
-    return "crop";
-}
-
 bool osd_effective_enabled(const Config &cfg, const std::string &monitor_name) {
     auto it = cfg.monitor_overrides.find(monitor_name);
     if (it != cfg.monitor_overrides.end() && it->second.enabled)

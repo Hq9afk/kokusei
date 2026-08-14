@@ -6,16 +6,82 @@
 #include "render/node.h"
 #include "render/palette.h"
 #include "service/layer_surface.h"
-#include "wallpaper/wallpaper_cache.h"
+#include "service/wallpaper_service.h"
+#include "wallpaper/wallpaper_config.h"
 
 #include <GLES2/gl2.h>
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <sys/stat.h>
 #include <thread>
 
 namespace {
+
+std::string wallpaper_cache_dir() {
+    const char *cache_home = getenv("XDG_CACHE_HOME");
+    std::string base =
+        cache_home && *cache_home
+            ? std::string(cache_home)
+            : std::string(getenv("HOME") ? getenv("HOME") : "") + "/.cache";
+    for (size_t pos = 1; pos <= base.size(); ++pos) {
+        if (pos == base.size() || base[pos] == '/')
+            mkdir(base.substr(0, pos).c_str(), 0755);
+    }
+    std::string dir = base + "/kokusei";
+    mkdir(dir.c_str(), 0755);
+    dir += "/wallpaper";
+    mkdir(dir.c_str(), 0755);
+    return dir;
+}
+
+std::string wallpaper_cache_path(const std::string &path, time_t mtime,
+                                 int target_w, int target_h) {
+    std::string key = path + ":" + std::to_string(mtime) + ":" +
+                      std::to_string(target_w) + "x" + std::to_string(target_h);
+    size_t hash = std::hash<std::string>{}(key);
+    return wallpaper_cache_dir() + "/" + std::to_string(hash) + ".rgba";
+}
+
+unsigned char *wallpaper_cache_read(const std::string &cache_path,
+                                    int &out_width, int &out_height) {
+    FILE *fp = fopen(cache_path.c_str(), "rb");
+    if (!fp)
+        return nullptr;
+    uint32_t header[2];
+    if (fread(header, sizeof(uint32_t), 2, fp) != 2) {
+        fclose(fp);
+        return nullptr;
+    }
+    int width = static_cast<int>(header[0]);
+    int height = static_cast<int>(header[1]);
+    size_t pixel_bytes = static_cast<size_t>(width) * height * 4;
+    auto *data = new unsigned char[pixel_bytes];
+    size_t read = fread(data, 1, pixel_bytes, fp);
+    fclose(fp);
+    if (read != pixel_bytes) {
+        delete[] data;
+        return nullptr;
+    }
+    out_width = width;
+    out_height = height;
+    return data;
+}
+
+void wallpaper_cache_write(const std::string &cache_path, int width, int height,
+                           const unsigned char *data) {
+    FILE *fp = fopen(cache_path.c_str(), "wb");
+    if (!fp)
+        return;
+    uint32_t header[2] = {static_cast<uint32_t>(width),
+                          static_cast<uint32_t>(height)};
+    fwrite(header, sizeof(uint32_t), 2, fp);
+    fwrite(data, 1, static_cast<size_t>(width) * height * 4, fp);
+    fclose(fp);
+}
 
 void wallpaper_paint(WallpaperState &wp);
 
@@ -125,7 +191,7 @@ bool wallpaper_create_surface(WallpaperState &wp, wl_compositor *compositor,
                               wl_output *output) {
     LayerSurfaceConfig cfg{
         .layer = ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND,
-        .name_space = "kokusei-wallpaper",
+        .name_space = kWallpaperLayerNamespace,
         .anchor = ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
                   ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
                   ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT |
@@ -195,7 +261,7 @@ void wallpaper_upload_pending(WallpaperState &wp) {
 unsigned char *wallpaper_decode_scaled(const std::string &path, int target_w,
                                        int target_h, int &out_width,
                                        int &out_height) {
-    struct stat st {};
+    struct stat st{};
     bool cacheable =
         target_w > 0 && target_h > 0 && stat(path.c_str(), &st) == 0;
     std::string cache_path;
@@ -240,7 +306,7 @@ void wallpaper_decode_column_async(WallpaperState &wp, std::string path,
         (wp.width / std::max(1, column_count)) * wp.output_scale.scale;
     int target_h = wp.height * wp.output_scale.scale;
     std::thread([&wp, path = std::move(path), generation, target_w, target_h,
-                column_index] {
+                 column_index] {
         klog("wallpaper: decode start '%s' (column %d)", path.c_str(),
              column_index);
         int width = 0, height = 0;
@@ -269,4 +335,15 @@ void wallpaper_decode_column_async(WallpaperState &wp, std::string path,
 
 void wallpaper_decode_async(WallpaperState &wp, std::string path) {
     wallpaper_decode_column_async(wp, std::move(path), 0, 1);
+}
+
+void wallpaper_sync_from_config(WallpaperState &wp, const Config &cfg,
+                                const std::string &monitor_name) {
+    int count = wallpaper_service_column_count(cfg, monitor_name);
+    wp.column_textures.resize(static_cast<size_t>(count));
+    for (int i = 0; i < count; ++i) {
+        std::string path = wallpaper_service_column_path(cfg, monitor_name, i);
+        if (!path.empty())
+            wallpaper_decode_column_async(wp, path, i, count);
+    }
 }

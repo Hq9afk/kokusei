@@ -1,4 +1,4 @@
-#include "settings/wallpaper_picker.h"
+#include "settings/tabs/wallpaper_picker.h"
 
 #include <algorithm>
 #include <cassert>
