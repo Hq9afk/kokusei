@@ -55,10 +55,6 @@ void wallpaper_request_frame(WallpaperState &wp);
 
 void wallpaper_upload_pending(WallpaperState &wp);
 
-unsigned char *wallpaper_decode_scaled(const std::string &path, int target_w,
-                                       int target_h, int &out_width,
-                                       int &out_height);
-
 void wallpaper_decode_column_async(WallpaperState &wp, std::string path,
                                    int column_index, int column_count);
 

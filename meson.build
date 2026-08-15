@@ -152,6 +152,9 @@ kokusei_render_main_only_sources = [
   'src/render/text_field.cpp',
   'src/render/panel_chrome.cpp',
   'src/render/overlay_panel.cpp',
+  'src/render/toplevel_window.cpp',
+  'src/render/slider.cpp',
+  'src/render/matrix_grid.cpp',
 ]
 
 # service sources: each dbus service is a merged types+sdbus-c++ pair, and
@@ -174,37 +177,37 @@ kokusei_service_test_sources = [
   'src/service/active_output.cpp',
   'src/service/wallpaper_service.cpp',
   'src/service/settings_service.cpp',
+  'src/service/icon_theme.cpp',
 ]
 
 kokusei_service_main_only_sources = [
   'src/service/pipewire.cpp',
+  'src/service/volume_slider.cpp',
   'src/service/frame_clock.cpp',
   'src/service/output_scale.cpp',
   'src/service/layer_surface.cpp',
   'src/service/hyprland.cpp',
   'src/service/shojiwm.cpp',
+  'src/service/audio_spectrum.cpp',
 ]
 
-# launcher is a single merged translation unit (launcher.cpp); it touches
-# EGL/GL/Wayland directly for the panel itself, so the test binary needs its
-# own copies of the render/wayland pieces launcher.cpp calls into (normally
-# only built for the main executable) to link the pure-logic functions it
-# also tests.
-kokusei_launcher_sources = [
+# launcher.cpp now only touches EGL/GL/Wayland for the panel itself (the
+# 8 provider sections split out into src/launcher/*, tested directly), so it
+# no longer belongs in the shared/test-linked source list.
+kokusei_launcher_main_only_sources = [
   'src/modules/launcher.cpp',
 ]
 
-kokusei_launcher_test_extra_sources = [
-  'src/render/gl.cpp',
-  'src/render/renderer.cpp',
-  'src/render/node.cpp',
-  'src/render/text.cpp',
-  'src/render/icon.cpp',
-  'src/render/texture_cache.cpp',
-  'src/render/text_field.cpp',
-  'src/service/frame_clock.cpp',
-  'src/service/output_scale.cpp',
-  'src/service/layer_surface.cpp',
+# src/launcher/*: pure logic, no EGL/Wayland/Renderer, exercised directly by
+# test/launcher/test_launcher.cpp, shared between both binaries.
+kokusei_launcher_test_sources = [
+  'src/launcher/apps_provider.cpp',
+  'src/launcher/desktop_entry.cpp',
+  'src/launcher/files_provider.cpp',
+  'src/launcher/launch_action.cpp',
+  'src/launcher/search.cpp',
+  'src/launcher/submenu.cpp',
+  'src/launcher/visit_store.cpp',
 ]
 
 # bar/panel/**: real EGL/GL rendering, no test coverage, main-executable-only.
@@ -242,6 +245,8 @@ kokusei_overlay_main_only_sources = [
   'src/modules/notification.cpp',
   'src/modules/starward.cpp',
   'src/modules/controlcenter.cpp',
+  'src/modules/matrix.cpp',
+  'src/modules/visualizer.cpp',
 ]
 
 # app/config.cpp is exercised by test/app/test_config.cpp and
@@ -271,7 +276,8 @@ kokusei_split_sources = [
   kokusei_render_main_only_sources,
   kokusei_service_test_sources,
   kokusei_service_main_only_sources,
-  kokusei_launcher_sources,
+  kokusei_launcher_test_sources,
+  kokusei_launcher_main_only_sources,
   kokusei_idle_main_only_sources,
   kokusei_overlay_main_only_sources,
   kokusei_app_test_sources,
@@ -285,8 +291,7 @@ kokusei_test_split_sources = [
   kokusei_core_split_sources,
   kokusei_render_test_sources,
   kokusei_service_test_sources,
-  kokusei_launcher_sources,
-  kokusei_launcher_test_extra_sources,
+  kokusei_launcher_test_sources,
   kokusei_app_test_sources,
 ]
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
+#include "xdg-shell-client-protocol.h"
 #include <EGL/egl.h>
 #include <wayland-client.h>
 
@@ -12,11 +13,13 @@
 #include "service/upower_service.h"
 #include "modules/idle.h"
 #include "modules/launcher.h"
+#include "modules/matrix.h"
 #include "modules/notification.h"
 #include "modules/osd.h"
 #include "render/renderer.h"
 #include "modules/settings.h"
 #include "modules/starward.h"
+#include "modules/visualizer.h"
 #include "service/hyprland.h"
 #include "service/keyboard.h"
 #include "service/pipewire.h"
@@ -34,6 +37,7 @@ struct WaylandState {
     wl_display *display = nullptr;
     wl_compositor *compositor = nullptr;
     zwlr_layer_shell_v1 *layer_shell = nullptr;
+    xdg_wm_base *wm_base = nullptr;
     EGLDisplay egl_display = EGL_NO_DISPLAY;
     EGLConfig egl_config = nullptr;
     EGLContext egl_context = EGL_NO_CONTEXT;
@@ -45,6 +49,8 @@ struct WaylandState {
     LauncherState launcher;
     StarwardState starward;
     ControlCenterState controlcenter;
+    MatrixState matrix;
+    VisualizerState visualizer;
     SettingsState settings;
     NetworkState network;
     BluetoothState bluetooth;

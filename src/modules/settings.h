@@ -24,15 +24,6 @@
 enum class SettingsTab { Wallpaper, Displays, Idle };
 constexpr int kSettingsTabCount = 3;
 
-enum class SettingsFieldId {
-    None,
-    WallpaperPath,
-    WallpaperDir,
-    IdleTimeout,
-    IdleCommand,
-    IdleResumeCommand,
-};
-
 inline constexpr const char *kSettingsDisplaysDefaultTag = "__default__";
 
 class Renderer;

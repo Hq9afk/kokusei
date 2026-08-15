@@ -8,9 +8,11 @@
 #include "render/scene.h"
 #include "render/texture_cache.h"
 #include "service/keyboard.h"
+#include "service/volume_slider.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 #include <EGL/egl.h>
+#include <optional>
 #include <vector>
 #include <wayland-client.h>
 
@@ -26,6 +28,7 @@ struct ControlCenterState {
     std::vector<PanelClickRegion> click_regions;
     bool opened_by_widget = false;
     wl_output *bound_output = nullptr;
+    std::optional<DraggedSlider> dragging;
 
     float pending_bar_height = 0.0f;
     float pending_bar_top_margin = 0.0f;
@@ -57,6 +60,9 @@ std::vector<IpcHandler> controlcenter_ipc_handlers(WaylandState &state);
 
 void controlcenter_handle_click(ControlCenterState &state, WaylandState &app,
                                 double px, double py);
+
+void controlcenter_handle_pointer_move(ControlCenterState &state,
+                                       PipewireState &pw, double px);
 
 void controlcenter_handle_key_event(ControlCenterState &state,
                                     const KeyEvent &event);

@@ -28,3 +28,5 @@ bool async_process_poll(AsyncProcess &proc);
 pid_t async_process_cancel(AsyncProcess &proc);
 
 bool async_process_is_alive(pid_t pid);
+
+void spawn_detached(const std::string &shell_command);

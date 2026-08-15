@@ -4,6 +4,10 @@
 
 #include <string>
 
+unsigned char *wallpaper_decode_scaled(const std::string &path, int target_w,
+                                       int target_h, int &out_width,
+                                       int &out_height);
+
 int wallpaper_service_column_count(const Config &cfg,
                                    const std::string &monitor_name);
 

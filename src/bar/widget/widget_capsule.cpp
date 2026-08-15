@@ -4,10 +4,6 @@
 #include "bar/panel/tray_panel.h"
 #include "bar/panel/volume_panel.h"
 
-#include "modules/controlcenter.h"
-
-#include "modules/starward.h"
-
 #include "render/icon.h"
 #include "render/text.h"
 #include "service/pointer.h"
@@ -113,9 +109,8 @@ PillId hit_test_pills(const WidgetCapsuleState &capsule,
 PillId panel_pill(const NetworkPanelState &network_panel,
                   const BluetoothPanelState &bluetooth_panel,
                   const VolumePanelState &volume_panel,
-                  const TrayPanelState &tray_panel,
-                  const StarwardState &starward,
-                  const ControlCenterState &controlcenter) {
+                  const TrayPanelState &tray_panel, bool starward_open,
+                  bool controlcenter_open) {
     if (network_panel.base.open)
         return PillId::Wifi;
     if (bluetooth_panel.base.open)
@@ -124,9 +119,9 @@ PillId panel_pill(const NetworkPanelState &network_panel,
         return PillId::Volume;
     if (tray_panel.base.open)
         return PillId::Tray;
-    if (starward.base.open && starward.opened_by_widget)
+    if (starward_open)
         return PillId::Starward;
-    if (controlcenter.base.open && controlcenter.opened_by_widget)
+    if (controlcenter_open)
         return PillId::ControlCenter;
     return PillId::None;
 }

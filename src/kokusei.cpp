@@ -83,8 +83,9 @@ int main(int argc, char **argv) {
 
     wl_display_roundtrip(app.display);
 
-    if (!app.compositor || !app.layer_shell) {
-        klog("compositor is missing wl_compositor or zwlr_layer_shell_v1");
+    if (!app.compositor || !app.layer_shell || !app.wm_base) {
+        klog("compositor is missing wl_compositor, zwlr_layer_shell_v1, or "
+             "xdg_wm_base");
         return 1;
     }
     if (app.outputs.empty()) {
@@ -688,6 +689,14 @@ int main(int argc, char **argv) {
                                                      app.pointer.x);
                     volume_dispatch();
                 }
+                if (want_controlcenter && app.controlcenter.dragging) {
+                    controlcenter_handle_pointer_move(
+                        app.controlcenter, app.pipewire, app.pointer.x);
+                    controlcenter_request_frame(
+                        app.controlcenter,
+                        static_cast<float>(bar_detail::kBarHeight),
+                        static_cast<float>(bar_detail::kBarTopMargin));
+                }
             }
         }
         for (SourceRange &r : ranges)
@@ -716,6 +725,8 @@ int main(int argc, char **argv) {
                         volume_dispatch();
                     }
                 }
+                if (want_controlcenter && app.controlcenter.dragging)
+                    app.controlcenter.dragging.reset();
                 continue;
             }
             if (mon && mon->tray_menu.base.open &&

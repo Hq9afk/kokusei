@@ -69,6 +69,13 @@ const wl_output_listener &listener() {
 }
 } // namespace output_detail
 
+namespace xdg_wm_base_listener_detail {
+void ping(void *, xdg_wm_base *wm_base, uint32_t serial) {
+    xdg_wm_base_pong(wm_base, serial);
+}
+constexpr xdg_wm_base_listener listener{.ping = ping};
+} // namespace xdg_wm_base_listener_detail
+
 void registry_global(void *data, wl_registry *registry, uint32_t name,
                      const char *interface, uint32_t version) {
     auto *state = static_cast<WaylandState *>(data);
@@ -79,6 +86,10 @@ void registry_global(void *data, wl_registry *registry, uint32_t name,
         state->layer_shell =
             static_cast<zwlr_layer_shell_v1 *>(wl_registry_bind(
                 registry, name, &zwlr_layer_shell_v1_interface, 1));
+    } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
+        state->wm_base = static_cast<xdg_wm_base *>(wl_registry_bind(
+            registry, name, &xdg_wm_base_interface, std::min(version, 6u)));
+        xdg_wm_base_add_listener(state->wm_base, &xdg_wm_base_listener_detail::listener, nullptr);
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
         auto mon = std::make_unique<MonitorOutput>();
         mon->app = state;
@@ -343,9 +354,10 @@ void bar_paint(MonitorOutput &mon) {
 
     mon.animations.tick(std::chrono::steady_clock::now());
 
-    PillId current_panel_pill =
-        panel_pill(mon.network_panel, mon.bluetooth_panel, mon.volume_panel,
-                   mon.tray_panel, app.starward, app.controlcenter);
+    PillId current_panel_pill = panel_pill(
+        mon.network_panel, mon.bluetooth_panel, mon.volume_panel,
+        mon.tray_panel, app.starward.base.open && app.starward.opened_by_widget,
+        app.controlcenter.base.open && app.controlcenter.opened_by_widget);
 
     if (mon.autohide.enabled) {
         bool want_shown = app.pointer.focused_surface == mon.surface ||

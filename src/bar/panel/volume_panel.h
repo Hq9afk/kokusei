@@ -9,6 +9,7 @@
 #include "render/texture_cache.h"
 #include "service/keyboard.h"
 #include "service/pipewire.h"
+#include "service/volume_slider.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 #include <EGL/egl.h>
@@ -48,11 +49,6 @@ constexpr float kVolumeDeviceRowHeight =
 constexpr float kVolumeSectionHeaderHeight =
     kVolumeTextRowHeight + kVolumeSectionHeaderPad;
 constexpr float kVolumeDividerRowHeight = 1.0f;
-
-struct DraggedSlider {
-    std::string tag;
-    Rect rect;
-};
 
 struct VolumePanelState {
     OverlayPanelBase base;
@@ -104,10 +100,6 @@ std::vector<PanelRow> build_rows(const PipewireState &pw);
 float content_height(const std::vector<PanelRow> &rows);
 
 float panel_height(const std::vector<PanelRow> &rows);
-
-void draw_slider(Node *clip, std::vector<PanelClickRegion> &regions,
-                 Rect rect_local, Rect rect_absolute, float track_height,
-                 float value01, bool dimmed, const std::string &tag);
 
 } // namespace volume_panel_detail
 

@@ -1,7 +1,6 @@
 #include "service/settings_service.h"
 
 #include "core/log.h"
-#include "modules/settings.h"
 
 #include <algorithm>
 

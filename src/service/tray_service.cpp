@@ -1,7 +1,7 @@
 #include "service/tray_service.h"
 
 #include "core/log.h"
-#include "modules/launcher.h"
+#include "service/icon_theme.h"
 
 #include <filesystem>
 #include <map>

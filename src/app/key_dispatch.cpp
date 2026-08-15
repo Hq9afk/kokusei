@@ -8,8 +8,10 @@
 #include "modules/bar.h"
 #include "modules/controlcenter.h"
 #include "modules/launcher.h"
+#include "modules/matrix.h"
 #include "modules/settings.h"
 #include "modules/starward.h"
+#include "modules/visualizer.h"
 
 #include <functional>
 
@@ -61,6 +63,22 @@ std::vector<KeyDispatchTarget> singleton_targets(WaylandState &state) {
                  state.controlcenter,
                  static_cast<float>(bar_detail::kBarHeight),
                  static_cast<float>(bar_detail::kBarTopMargin));
+             bar_detail::rest_egl_current(state);
+         }},
+        {[&state] { return state.matrix.base.open; },
+         [&state](const KeyEvent &event) {
+             matrix_handle_key_event(state.matrix, state, event);
+         },
+         [&state] {
+             matrix_request_frame(state.matrix);
+             bar_detail::rest_egl_current(state);
+         }},
+        {[&state] { return state.visualizer.base.open; },
+         [&state](const KeyEvent &event) {
+             visualizer_handle_key_event(state.visualizer, state, event);
+         },
+         [&state] {
+             visualizer_request_frame(state.visualizer);
              bar_detail::rest_egl_current(state);
          }},
     };

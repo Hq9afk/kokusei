@@ -2,7 +2,6 @@
 
 #include "core/deferred_call.h"
 #include "modules/settings.h"
-#include "modules/wallpaper.h"
 #include "render/panel_scroll.h"
 #include "service/wallpaper_service.h"
 
@@ -62,15 +61,15 @@ void wallpaper_picker_scan(WallpaperPickerState &state, std::string dir) {
                 found.push_back(it->path().string());
         }
         std::sort(found.begin(), found.end(), wallpaper_picker_less);
-        DeferredCall::call_later([&state, found = std::move(found),
-                                  generation] {
-            if (generation != state.scan_generation)
-                return;
-            state.files = std::move(found);
-            state.scanning = false;
-            if (state.request_frame)
-                state.request_frame();
-        });
+        DeferredCall::call_later(
+            [&state, found = std::move(found), generation] {
+                if (generation != state.scan_generation)
+                    return;
+                state.files = std::move(found);
+                state.scanning = false;
+                if (state.request_frame)
+                    state.request_frame();
+            });
     }).detach();
 }
 
@@ -84,25 +83,25 @@ void wallpaper_picker_request_thumbnail(WallpaperPickerState &state,
     state.pending.insert(path);
     uint64_t generation = state.scan_generation;
     std::thread([&state, path, target_size, generation, display, surface,
-                context] {
+                 context] {
         int w = 0, h = 0;
         unsigned char *data =
             wallpaper_decode_scaled(path, target_size, target_size, w, h);
-        DeferredCall::call_later([&state, path, data, w, h, generation,
-                                  display, surface, context] {
-            state.pending.erase(path);
-            if (generation != state.scan_generation) {
+        DeferredCall::call_later(
+            [&state, path, data, w, h, generation, display, surface, context] {
+                state.pending.erase(path);
+                if (generation != state.scan_generation) {
+                    delete[] data;
+                    return;
+                }
+                if (!data)
+                    return;
+                eglMakeCurrent(display, surface, surface, context);
+                state.thumbnails[path] = make_texture_rgba(w, h, data, true);
                 delete[] data;
-                return;
-            }
-            if (!data)
-                return;
-            eglMakeCurrent(display, surface, surface, context);
-            state.thumbnails[path] = make_texture_rgba(w, h, data, true);
-            delete[] data;
-            if (state.request_frame)
-                state.request_frame();
-        });
+                if (state.request_frame)
+                    state.request_frame();
+            });
     }).detach();
 }
 
@@ -306,7 +305,7 @@ void draw_fill_mode_row(SettingsState &state, Node *parent, int32_t scale,
     }
 
     if (!wallpaper_service_column_path(cfg, state.wallpaper_selected_monitor,
-                                         state.wallpaper_selected_column)
+                                       state.wallpaper_selected_column)
              .empty()) {
         const Texture *tex = cached_text(state.tcache, "Remove", scale);
         float rw = (tex ? tex->width : 0) + 20.0f;
@@ -449,8 +448,8 @@ void draw_wallpaper_grid(SettingsState &state, Node *parent, int32_t scale,
 
 float wallpaper_tab_paint(SettingsState &state, Node *root, int32_t scale,
                           float x, float y, const Config &cfg) {
-    state.wallpaper_grid_width = state.panel_rect.x + state.panel_rect.w -
-                                 kPanelPadding - x;
+    state.wallpaper_grid_width =
+        state.panel_rect.x + state.panel_rect.w - kPanelPadding - x;
     if (state.monitor_names.size() > 1 ||
         wallpaper_service_column_count(cfg, state.wallpaper_selected_monitor) >
             1) {

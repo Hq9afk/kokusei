@@ -1,5 +1,14 @@
 #pragma once
 
+enum class SettingsFieldId {
+    None,
+    WallpaperPath,
+    WallpaperDir,
+    IdleTimeout,
+    IdleCommand,
+    IdleResumeCommand,
+};
+
 constexpr float kSettingsRailWidth = 140.0f;
 constexpr float kSettingsRailItemHeight = 36.0f;
 constexpr float kSettingsRailItemGap = 4.0f;

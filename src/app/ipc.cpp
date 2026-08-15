@@ -6,8 +6,10 @@
 #include "modules/controlcenter.h"
 #include "modules/idle.h"
 #include "modules/launcher.h"
+#include "modules/matrix.h"
 #include "modules/settings.h"
 #include "modules/starward.h"
+#include "modules/visualizer.h"
 
 #include <cerrno>
 #include <cstdio>
@@ -50,6 +52,8 @@ std::vector<IpcHandler> ipc_handlers(WaylandState &state) {
     append(idle_ipc_handlers(state));
     append(starward_ipc_handlers(state));
     append(controlcenter_ipc_handlers(state));
+    append(matrix_ipc_handlers(state));
+    append(visualizer_ipc_handlers(state));
     append(settings_ipc_handlers(state));
     append(bar_ipc_handlers(state));
     handlers.push_back({"launcher",

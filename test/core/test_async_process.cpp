@@ -1,5 +1,4 @@
 
-#include "modules/launcher.h"
 #include "core/async_process.h"
 
 #include <cassert>

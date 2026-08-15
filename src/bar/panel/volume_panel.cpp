@@ -3,6 +3,7 @@
 #include "render/icon.h"
 #include "render/palette.h"
 #include "render/panel_scroll.h"
+#include "render/slider.h"
 #include "render/text.h"
 #include "service/layer_surface.h"
 
@@ -54,37 +55,6 @@ float panel_height(const std::vector<PanelRow> &rows) {
               1.0f + kPanelContentGap + content_height(rows) + kPanelPadding;
     return std::min(kPanelMaxHeight, h);
 }
-
-void draw_slider(Node *clip, std::vector<PanelClickRegion> &regions,
-                 Rect rect_local, Rect rect_absolute, float track_height,
-                 float value01, bool dimmed, const std::string &tag) {
-    float track_y = rect_local.y + (rect_local.h - track_height) / 2.0f;
-    node_add_rrect(clip, rect_local.x, track_y, rect_local.w, track_height,
-                   track_height / 2.0f, 0.0f, rgba(palette::text_alpha11),
-                   kPanelNoBorder);
-    float fill_w = rect_local.w * std::clamp(value01, 0.0f, 1.0f);
-    if (fill_w > 0.0f)
-        node_add_rrect(clip, rect_local.x, track_y, fill_w, track_height,
-                       track_height / 2.0f, 0.0f,
-                       dimmed ? rgba(palette::text_muted)
-                              : rgba(palette::accent),
-                       kPanelNoBorder);
-    regions.push_back({PanelClickKind::SliderDrag, rect_absolute, tag});
-}
-
-namespace {
-
-uint32_t resolve_tag_id(const PipewireState &pw, const std::string &tag) {
-    if (tag == "sink")
-        return pw.default_sink_id;
-    if (tag == "source")
-        return pw.default_source_id;
-    if (tag.rfind("stream:", 0) == 0)
-        return static_cast<uint32_t>(std::stoul(tag.substr(7)));
-    return 0;
-}
-
-} // namespace
 
 } // namespace volume_panel_detail
 
@@ -147,15 +117,7 @@ void volume_panel_handle_pointer_move(VolumePanelState &state,
                                       PipewireState &pw, double px) {
     if (!state.dragging)
         return;
-    const DraggedSlider &drag = *state.dragging;
-    float value01 =
-        drag.rect.w > 0.0f
-            ? std::clamp(static_cast<float>(px - drag.rect.x) / drag.rect.w,
-                         0.0f, 1.0f)
-            : 0.0f;
-    uint32_t id = volume_panel_detail::resolve_tag_id(pw, drag.tag);
-    if (id != 0)
-        pipewire_set_node_volume(pw, id, value01);
+    volume_slider_apply_drag(pw, *state.dragging, px);
 }
 
 void volume_panel_handle_click(VolumePanelState &state, PipewireState &pw,
@@ -179,7 +141,7 @@ void volume_panel_handle_click(VolumePanelState &state, PipewireState &pw,
             return;
         }
         case PanelClickKind::MuteToggle: {
-            uint32_t id = volume_panel_detail::resolve_tag_id(pw, region.tag);
+            uint32_t id = volume_slider_resolve_tag_id(pw, region.tag);
             if (id != 0) {
                 auto it = pw.nodes.find(id);
                 if (it != pw.nodes.end())
@@ -212,7 +174,7 @@ void volume_panel_handle_key_event(VolumePanelState &state, PipewireState &pw,
         if (state.selected_slider_tag.empty())
             break;
         uint32_t id =
-            volume_panel_detail::resolve_tag_id(pw, state.selected_slider_tag);
+            volume_slider_resolve_tag_id(pw, state.selected_slider_tag);
         if (id == 0)
             break;
         auto it = pw.nodes.find(id);
@@ -389,9 +351,9 @@ void volume_panel_paint(VolumePanelState &state, PipewireState &pw,
             Rect slider_rect = {content_x, y, slider_right - content_x, row_h};
             Rect slider_local = {rx(slider_rect.x), ry(slider_rect.y),
                                  slider_rect.w, slider_rect.h};
-            draw_slider(clip, state.click_regions, slider_local, slider_rect,
-                        kVolumeSliderTrackHeight, muted ? 0.0f : level, muted,
-                        tag);
+            draw_slider_track(clip, state.click_regions, slider_local,
+                              slider_rect, kVolumeSliderTrackHeight,
+                              muted ? 0.0f : level, muted, tag);
         };
 
         switch (row.kind) {
@@ -476,9 +438,10 @@ void volume_panel_paint(VolumePanelState &state, PipewireState &pw,
                                 kVolumeAppSliderHeight};
             Rect slider_local = {rx(slider_rect.x), ry(slider_rect.y),
                                  slider_rect.w, slider_rect.h};
-            draw_slider(clip, state.click_regions, slider_local, slider_rect,
-                        kVolumeAppSliderTrackHeight,
-                        entry.muted ? 0.0f : entry.level, entry.muted, tag);
+            draw_slider_track(clip, state.click_regions, slider_local,
+                              slider_rect, kVolumeAppSliderTrackHeight,
+                              entry.muted ? 0.0f : entry.level, entry.muted,
+                              tag);
             break;
         }
         case RowKind::OutputDeviceRow:

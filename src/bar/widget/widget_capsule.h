@@ -103,15 +103,13 @@ struct NetworkPanelState;
 struct BluetoothPanelState;
 struct VolumePanelState;
 struct TrayPanelState;
-struct StarwardState;
-struct ControlCenterState;
 
 namespace bar_detail {
 
 PillId panel_pill(const NetworkPanelState &network_panel,
                   const BluetoothPanelState &bluetooth_panel,
                   const VolumePanelState &volume_panel,
-                  const TrayPanelState &tray_panel, const StarwardState &starward,
-                  const ControlCenterState &controlcenter);
+                  const TrayPanelState &tray_panel, bool starward_open,
+                  bool controlcenter_open);
 
 }

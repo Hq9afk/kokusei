@@ -6,6 +6,7 @@
 #include "render/icons.h"
 #include "render/node.h"
 #include "render/palette.h"
+#include "render/slider.h"
 #include "render/text.h"
 #include "service/layer_surface.h"
 #include "service/mpris_service.h"
@@ -76,6 +77,8 @@ void controlcenter_request_frame(ControlCenterState &state, float bar_height,
 void controlcenter_toggle(ControlCenterState &state, bool by_widget) {
     if (!state.base.open)
         state.opened_by_widget = by_widget;
+    else
+        state.dragging.reset();
     overlay_panel_toggle(state.base);
 }
 
@@ -115,19 +118,19 @@ void controlcenter_handle_click(ControlCenterState &state, WaylandState &app,
             controlcenter_toggle(state);
             break;
         case PanelClickKind::MuteToggle: {
-            bool muted = false;
-            pipewire_sink_level(app.pipewire, muted);
-            pipewire_set_node_muted(app.pipewire, app.pipewire.default_sink_id,
-                                    !muted);
+            uint32_t id =
+                volume_slider_resolve_tag_id(app.pipewire, region.tag);
+            if (id != 0) {
+                auto it = app.pipewire.nodes.find(id);
+                if (it != app.pipewire.nodes.end())
+                    pipewire_set_node_muted(app.pipewire, id,
+                                            !it->second.muted);
+            }
             break;
         }
         case PanelClickKind::SliderDrag: {
-            float value01 =
-                region.rect.w > 0.0f
-                    ? static_cast<float>(px - region.rect.x) / region.rect.w
-                    : 0.0f;
-            pipewire_set_node_volume(app.pipewire, app.pipewire.default_sink_id,
-                                     std::clamp(value01, 0.0f, 1.0f));
+            state.dragging = DraggedSlider{region.tag, region.rect};
+            volume_slider_apply_drag(app.pipewire, *state.dragging, px);
             break;
         }
         case PanelClickKind::MediaPlayPause:
@@ -147,6 +150,13 @@ void controlcenter_handle_click(ControlCenterState &state, WaylandState &app,
 
     if (!hit(state.panel_rect, px, py))
         controlcenter_toggle(state);
+}
+
+void controlcenter_handle_pointer_move(ControlCenterState &state,
+                                       PipewireState &pw, double px) {
+    if (!state.dragging)
+        return;
+    volume_slider_apply_drag(pw, *state.dragging, px);
 }
 
 void controlcenter_handle_key_event(ControlCenterState &state,
@@ -596,22 +606,10 @@ float draw_volume_row(Node *root, TextureCache &tcache, int32_t scale, float x,
     float mute_x = x + w - kVolumeMuteBtnSize;
     float pct_x = mute_x - kVolumePctMuteGap - kVolumePctTextWidth;
     float slider_right = pct_x - kVolumeSliderPctGap;
-    float slider_track_y =
-        slider_y + (kVolumeSliderRowHeight - kVolumeCardSliderHeight) / 2.0f;
-
-    node_add_rrect(root, x, slider_track_y, slider_right - x,
-                   kVolumeCardSliderHeight, kVolumeCardSliderHeight / 2.0f,
-                   0.0f, rgba(palette::text_alpha11), kPanelNoBorder);
-    float fill_w = (slider_right - x) * std::clamp(level, 0.0f, 1.0f);
-    if (fill_w > 0.0f)
-        node_add_rrect(root, x, slider_track_y, fill_w, kVolumeCardSliderHeight,
-                       kVolumeCardSliderHeight / 2.0f, 0.0f,
-                       muted ? rgba(palette::text_muted)
-                             : rgba(palette::accent),
-                       kPanelNoBorder);
-    regions.push_back({PanelClickKind::SliderDrag,
-                       {x, slider_y, slider_right - x, kVolumeSliderRowHeight},
-                       region_tag});
+    Rect slider_rect = {x, slider_y, slider_right - x, kVolumeSliderRowHeight};
+    draw_slider_track(root, regions, slider_rect, slider_rect,
+                      kVolumeCardSliderTrackHeight, muted ? 0.0f : level, muted,
+                      region_tag);
 
     std::string pct_label =
         muted ? "muted"
