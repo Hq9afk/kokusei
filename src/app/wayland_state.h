@@ -5,28 +5,28 @@
 #include <EGL/egl.h>
 #include <wayland-client.h>
 
+#include "app/config.h"
 #include "modules/controlcenter.h"
-#include "service/bluetooth_service.h"
-#include "service/mpris_service.h"
-#include "service/network_service.h"
-#include "service/tray_service.h"
-#include "service/upower_service.h"
 #include "modules/idle.h"
 #include "modules/launcher.h"
 #include "modules/matrix.h"
 #include "modules/notification.h"
 #include "modules/osd.h"
-#include "render/renderer.h"
 #include "modules/settings.h"
 #include "modules/starward.h"
 #include "modules/visualizer.h"
+#include "render/renderer.h"
+#include "service/bluetooth_service.h"
 #include "service/hyprland.h"
 #include "service/keyboard.h"
+#include "service/mpris_service.h"
+#include "service/network_service.h"
 #include "service/pipewire.h"
 #include "service/pointer.h"
 #include "service/shojiwm.h"
 #include "service/system_telemetry.h"
-#include "app/config.h"
+#include "service/tray_service.h"
+#include "service/upower_service.h"
 
 #include <memory>
 #include <vector>

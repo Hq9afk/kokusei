@@ -1,14 +1,14 @@
 #include "app/monitor_output.h"
 
+#include "core/log.h"
 #include "modules/bar.h"
 #include "modules/controlcenter.h"
-#include "core/log.h"
+#include "modules/settings.h"
+#include "modules/starward.h"
 #include "render/palette.h"
 #include "service/layer_surface.h"
 #include "service/settings_service.h"
 #include "service/wallpaper_service.h"
-#include "modules/settings.h"
-#include "modules/starward.h"
 
 #include <algorithm>
 

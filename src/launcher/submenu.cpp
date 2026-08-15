@@ -95,7 +95,6 @@ void submenu_open_file_actions(SubmenuState &s, const std::string &path) {
 
 bool submenu_handle_entry(SubmenuState &s, const SubmenuEntry &entry,
                           const DirLister &list_dir) {
-
     const std::string path = entry.path;
     const bool is_dir = entry.is_dir;
 

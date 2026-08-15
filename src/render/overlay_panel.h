@@ -1,10 +1,10 @@
 #pragma once
 
 #include "core/log.h"
+#include "render/animation.h"
 #include "service/frame_clock.h"
 #include "service/layer_surface.h"
 #include "service/output_scale.h"
-#include "render/animation.h"
 
 #include <EGL/egl.h>
 #include <wayland-client.h>
@@ -55,13 +55,11 @@ void overlay_panel_destroy_surface(OverlayPanelBase &base);
 // wl_output* and returns bool; init_egl takes nothing and returns bool.
 // Returns the output actually bound to, or nullptr if both attempts failed.
 template <typename CreateSurface, typename InitEgl>
-inline wl_output *overlay_panel_retarget(OverlayPanelBase &base,
-                                         wl_display *display,
-                                         wl_output *previous_output,
-                                         wl_output *target_output,
-                                         const char *target_name,
-                                         CreateSurface create_surface,
-                                         InitEgl init_egl) {
+inline wl_output *
+overlay_panel_retarget(OverlayPanelBase &base, wl_display *display,
+                       wl_output *previous_output, wl_output *target_output,
+                       const char *target_name, CreateSurface create_surface,
+                       InitEgl init_egl) {
     klog("panel: %s retargeting from output=%p to '%s'",
          base.name_space ? base.name_space : "?",
          static_cast<void *>(previous_output), target_name);

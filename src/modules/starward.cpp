@@ -323,7 +323,6 @@ void starward_toggle(StarwardState &state, bool by_widget) {
 
     bool opening = !state.base.open;
     if (opening) {
-
         state.selected_index = 0;
         state.base.open = true;
         state.base.opacity = 1.0f;
@@ -373,7 +372,6 @@ void starward_execute(StarwardState &state, int index) {
 }
 
 void starward_handle_key_event(StarwardState &state, const KeyEvent &event) {
-
     if (!state.input_ready)
         return;
     switch (event.kind) {
@@ -422,7 +420,6 @@ void starward_handle_click(StarwardState &state, double px, double py) {
     for (int i = 0; i < kStarwardButtonCount; ++i) {
         Rect r = starward_detail_button_rect(i, cx, cy);
         if (px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h) {
-
             if (state.input_ready)
                 starward_execute(state, i);
             return;

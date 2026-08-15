@@ -149,7 +149,6 @@ bool launch_non_drun(LauncherMode mode, const std::string &query) {
 
 void launch_submenu_action(const SubmenuEntry &entry, VisitStore &visits) {
     switch (entry.action) {
-
     case SubmenuEntry::Action::FileOpen:
         spawn_detached("xdg-open " +
                        launch_action_detail::shell_quote(entry.path));

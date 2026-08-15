@@ -156,7 +156,6 @@ void launcher_launch_selected(LauncherState &state) {
             return;
         SubmenuEntry entry = state.submenu.items[state.selected_index];
         if (submenu_handle_entry(state.submenu, entry, launcher_dir_lister)) {
-
             state.selected_index = 0;
             return;
         }

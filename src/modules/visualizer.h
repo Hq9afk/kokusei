@@ -18,7 +18,8 @@ struct VisualizerState {
     Renderer *renderer = nullptr;
     Scene scene;
     AudioSpectrum spectrum;
-    std::vector<float> display_values = std::vector<float>(kVisualizerBarCount, 0.0f);
+    std::vector<float> display_values =
+        std::vector<float>(kVisualizerBarCount, 0.0f);
     std::chrono::steady_clock::time_point last_frame;
     bool spectrum_ready = false;
 };

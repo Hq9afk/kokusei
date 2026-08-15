@@ -29,7 +29,8 @@ bool mpris_detail_is_local_art_url(const std::string &url) {
     return url.starts_with("file://");
 }
 
-int mpris_detail_select_player(const std::vector<MprisPlayerCandidate> &players) {
+int mpris_detail_select_player(
+    const std::vector<MprisPlayerCandidate> &players) {
     if (players.empty())
         return -1;
     for (size_t i = 0; i < players.size(); ++i)
@@ -55,7 +56,8 @@ template <typename T> std::optional<T> variant_get(const sdbus::Variant &v) {
     }
 }
 
-MprisTrackInfo parse_metadata(const std::map<std::string, sdbus::Variant> &metadata) {
+MprisTrackInfo
+parse_metadata(const std::map<std::string, sdbus::Variant> &metadata) {
     MprisTrackInfo info;
     if (auto it = metadata.find("xesam:title"); it != metadata.end())
         if (auto v = variant_get<std::string>(it->second))
@@ -89,15 +91,16 @@ std::vector<std::string> list_player_names(sdbus::IProxy &dbus_daemon) {
     return names;
 }
 
-std::optional<MprisPlaybackStatus> query_playback_status(sdbus::IConnection &bus,
-                                                         const std::string &name) {
+std::optional<MprisPlaybackStatus>
+query_playback_status(sdbus::IConnection &bus, const std::string &name) {
     try {
         auto proxy = sdbus::createProxy(bus, sdbus::ServiceName{name},
                                         sdbus::ObjectPath{kPlayerObjectPath});
         sdbus::Variant v;
         proxy->callMethod("Get")
             .onInterface(kPropertiesIface)
-            .withArguments(std::string(kPlayerIface), std::string("PlaybackStatus"))
+            .withArguments(std::string(kPlayerIface),
+                           std::string("PlaybackStatus"))
             .storeResultsTo(v);
         if (auto s = variant_get<std::string>(v))
             return mpris_detail_parse_playback_status(*s);
@@ -124,9 +127,8 @@ void subscribe_player(MprisState &state, sdbus::IConnection &bus,
                 if (auto s = variant_get<std::string>(it->second))
                     state.status = mpris_detail_parse_playback_status(*s);
             if (auto it = changed.find("Metadata"); it != changed.end())
-                if (auto m =
-                        variant_get<std::map<std::string, sdbus::Variant>>(
-                            it->second))
+                if (auto m = variant_get<std::map<std::string, sdbus::Variant>>(
+                        it->second))
                     state.track = parse_metadata(*m);
         });
 
@@ -150,7 +152,8 @@ void refresh_selected_player(MprisState &state, sdbus::IConnection &bus) {
     candidates.reserve(names.size());
     for (const std::string &name : names) {
         auto status = query_playback_status(bus, name);
-        candidates.push_back({name, status.value_or(MprisPlaybackStatus::Stopped)});
+        candidates.push_back(
+            {name, status.value_or(MprisPlaybackStatus::Stopped)});
     }
 
     int selected = mpris_detail_select_player(candidates);
@@ -165,7 +168,8 @@ void refresh_selected_player(MprisState &state, sdbus::IConnection &bus) {
     if (candidates[static_cast<size_t>(selected)].bus_name ==
         state.selected_bus_name)
         return;
-    subscribe_player(state, bus, candidates[static_cast<size_t>(selected)].bus_name);
+    subscribe_player(state, bus,
+                     candidates[static_cast<size_t>(selected)].bus_name);
 }
 
 } // namespace mpris_detail

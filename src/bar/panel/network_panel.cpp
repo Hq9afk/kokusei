@@ -662,7 +662,6 @@ void network_panel_paint(NetworkPanelState &state, NetworkState &net,
                         field_rect.y + (field_rect.h - ph->height) / 2.0f, *ph,
                         dim);
             } else {
-
                 float dot = 8.0f, gap = 4.0f;
                 size_t n = state.password_input.size();
                 float dots_w = n * dot + (n > 0 ? (n - 1) * gap : 0);

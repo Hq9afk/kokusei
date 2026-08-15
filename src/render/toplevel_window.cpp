@@ -2,22 +2,20 @@
 
 namespace {
 
-void xdg_surface_configure(void *data, xdg_surface *surface,
-                           uint32_t serial) {
+void xdg_surface_configure(void *data, xdg_surface *surface, uint32_t serial) {
     auto *base = static_cast<ToplevelWindowBase *>(data);
     xdg_surface_ack_configure(surface, serial);
 
     int32_t width = base->last_toplevel_width > 0 ? base->last_toplevel_width
-                                                   : base->pending_width;
-    int32_t height = base->last_toplevel_height > 0
-                          ? base->last_toplevel_height
-                          : base->pending_height;
+                                                  : base->pending_width;
+    int32_t height = base->last_toplevel_height > 0 ? base->last_toplevel_height
+                                                    : base->pending_height;
     base->width = width;
     base->height = height;
     int32_t scale = base->output_scale.scale;
     if (base->egl_window)
-        wl_egl_window_resize(base->egl_window, width * scale, height * scale,
-                             0, 0);
+        wl_egl_window_resize(base->egl_window, width * scale, height * scale, 0,
+                             0);
     base->configured = true;
 }
 
@@ -38,8 +36,7 @@ void xdg_toplevel_close(void *data, xdg_toplevel *) {
         base->on_close_request();
 }
 
-void xdg_toplevel_configure_bounds(void *, xdg_toplevel *, int32_t, int32_t) {
-}
+void xdg_toplevel_configure_bounds(void *, xdg_toplevel *, int32_t, int32_t) {}
 
 void xdg_toplevel_wm_capabilities(void *, xdg_toplevel *, wl_array *) {}
 

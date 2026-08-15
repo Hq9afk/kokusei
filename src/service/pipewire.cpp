@@ -51,7 +51,6 @@ void node_param_cb(void *data, int, uint32_t id, uint32_t index, uint32_t,
     bool muted = entry->muted;
 
     if (volumes_prop) {
-
         const auto *arr =
             reinterpret_cast<const spa_pod_array *>(&volumes_prop->value);
         float total = 0.0f;
@@ -97,7 +96,6 @@ void node_info_cb(void *data, const pw_node_info *info) {
         if (param.id == SPA_PARAM_Props &&
             (param.flags & SPA_PARAM_INFO_READWRITE) ==
                 SPA_PARAM_INFO_READWRITE) {
-
             pw_node_enum_params(reinterpret_cast<pw_node *>(entry->proxy), 0,
                                 SPA_PARAM_Props, 0, UINT32_MAX, nullptr);
         }

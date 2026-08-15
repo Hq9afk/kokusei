@@ -27,7 +27,6 @@ static bool wait_done(AsyncProcess &proc, int max_iters = 300) {
 }
 
 void test_async_process() {
-
     assert(!async_process_is_alive(-1));
     assert(!async_process_is_alive(0));
 

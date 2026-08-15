@@ -33,8 +33,8 @@ struct StarwardAction {
     const char *command;
 };
 
-inline constexpr std::array<StarwardAction, kStarwardButtonCount> kStarwardActions = {
-    {
+inline constexpr std::array<StarwardAction, kStarwardButtonCount>
+    kStarwardActions = {{
         {"劍", "systemctl poweroff"},
         {"光", "systemctl reboot"},
         {"如", "kokusei lock"},

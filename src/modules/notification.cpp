@@ -30,8 +30,8 @@ const Color &notification_detail_urgency_color(uint8_t urgency) {
 namespace {
 
 void notification_layer_surface_configure(void *data,
-                                           zwlr_layer_surface_v1 *layer_surface,
-                                           uint32_t serial, uint32_t, uint32_t) {
+                                          zwlr_layer_surface_v1 *layer_surface,
+                                          uint32_t serial, uint32_t, uint32_t) {
     auto *view = static_cast<NotificationView *>(data);
     zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
     view->configured = true;
@@ -69,9 +69,9 @@ int32_t resolve_timeout_ms(int32_t expire_timeout_ms) {
 constexpr int32_t kContentScale = 1;
 
 float notification_entry_height(const NotificationEntry &entry) {
-    float content_h = std::max(
-        kNotificationUrgencyDotSize,
-        notification_detail_texture_height(entry.app_name_texture));
+    float content_h =
+        std::max(kNotificationUrgencyDotSize,
+                 notification_detail_texture_height(entry.app_name_texture));
     if (entry.summary_texture.id)
         content_h += kNotificationContentSpacing +
                      notification_detail_texture_height(entry.summary_texture);
@@ -116,11 +116,17 @@ void notification_apply_content(NotificationEntry &entry,
     entry.height = notification_entry_height(entry);
 }
 
-uint64_t opacity_owner(uint32_t id) { return (static_cast<uint64_t>(id) << 2) | 0; }
+uint64_t opacity_owner(uint32_t id) {
+    return (static_cast<uint64_t>(id) << 2) | 0;
+}
 
-uint64_t slide_owner(uint32_t id) { return (static_cast<uint64_t>(id) << 2) | 1; }
+uint64_t slide_owner(uint32_t id) {
+    return (static_cast<uint64_t>(id) << 2) | 1;
+}
 
-uint64_t exit_owner(uint32_t id) { return (static_cast<uint64_t>(id) << 2) | 2; }
+uint64_t exit_owner(uint32_t id) {
+    return (static_cast<uint64_t>(id) << 2) | 2;
+}
 
 void notification_start_exit(NotificationService &service, uint32_t id) {
     auto it =
@@ -176,7 +182,8 @@ bool notification_view_create_surface(NotificationView &view,
         return false;
     view.output_scale.on_change = [&view](int32_t scale) {
         if (view.egl_window)
-            wl_egl_window_resize(view.egl_window, kNotificationSurfaceWidth * scale,
+            wl_egl_window_resize(view.egl_window,
+                                 kNotificationSurfaceWidth * scale,
                                  kNotificationSurfaceHeight * scale, 0, 0);
         if (view.frame_clock.surface)
             request_frame(view.frame_clock);
@@ -228,9 +235,10 @@ bool notification_sweep_expired(NotificationService &service) {
     return !to_exit.empty();
 }
 
-void notification_push(NotificationService &service, const std::string &app_name,
-                       const std::string &summary, const std::string &body,
-                       int32_t expire_timeout_ms, uint32_t id, uint8_t urgency) {
+void notification_push(NotificationService &service,
+                       const std::string &app_name, const std::string &summary,
+                       const std::string &body, int32_t expire_timeout_ms,
+                       uint32_t id, uint8_t urgency) {
     if (id == 0)
         id = service.next_id++;
     else if (id >= service.next_id)
@@ -276,12 +284,13 @@ bool notification_init(NotificationService &service,
         service.object
             ->addVTable(
                 sdbus::registerMethod("Notify").implementedAs(
-                    [&service](const std::string &app_name, uint32_t replaces_id,
-                             const std::string &, const std::string &summary,
-                             const std::string &body,
-                             const std::vector<std::string> &,
-                             const std::map<std::string, sdbus::Variant> &hints,
-                             int32_t expire_timeout) -> uint32_t {
+                    [&service](
+                        const std::string &app_name, uint32_t replaces_id,
+                        const std::string &, const std::string &summary,
+                        const std::string &body,
+                        const std::vector<std::string> &,
+                        const std::map<std::string, sdbus::Variant> &hints,
+                        int32_t expire_timeout) -> uint32_t {
                         uint8_t urgency = 1;
                         auto hint_it = hints.find("urgency");
                         if (hint_it != hints.end()) {
@@ -299,9 +308,9 @@ bool notification_init(NotificationService &service,
                                 return e.id == id;
                             });
                         if (existing != service.entries.end()) {
-                            notification_apply_content(
-                                *existing, app_name, summary, body, urgency,
-                                expire_timeout);
+                            notification_apply_content(*existing, app_name,
+                                                       summary, body, urgency,
+                                                       expire_timeout);
                             klog("notification: replaced id=%u", id);
                         } else {
                             notification_push(service, app_name, summary, body,
@@ -404,9 +413,9 @@ void notification_paint(NotificationView &view, NotificationService &service) {
 
         float content_x = kNotificationCardPadding;
         float content_y = kNotificationCardPadding;
-        float header_h =
-            std::max(kNotificationUrgencyDotSize,
-                     notification_detail_texture_height(entry.app_name_texture));
+        float header_h = std::max(
+            kNotificationUrgencyDotSize,
+            notification_detail_texture_height(entry.app_name_texture));
 
         blend.push_back(with_alpha(urgency_color, entry.opacity));
         node_add_rrect(card, content_x,
@@ -418,15 +427,14 @@ void notification_paint(NotificationView &view, NotificationService &service) {
 
         if (entry.app_name_texture.id) {
             blend.push_back(with_alpha(palette::text, 0.65f * entry.opacity));
-            node_add_texture(
-                card,
-                content_x + kNotificationUrgencyDotSize +
-                    kNotificationHeaderSpacing,
-                content_y +
-                    (header_h - notification_detail_texture_height(
-                                    entry.app_name_texture)) /
-                        2.0f,
-                entry.app_name_texture, rgba(blend.back()));
+            node_add_texture(card,
+                             content_x + kNotificationUrgencyDotSize +
+                                 kNotificationHeaderSpacing,
+                             content_y +
+                                 (header_h - notification_detail_texture_height(
+                                                 entry.app_name_texture)) /
+                                     2.0f,
+                             entry.app_name_texture, rgba(blend.back()));
         }
 
         float row_y = content_y + header_h;

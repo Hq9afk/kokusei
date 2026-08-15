@@ -139,7 +139,6 @@ std::vector<std::string> fd_search_argv(const std::string &pattern,
                                         const std::string &search_root,
                                         bool is_dir, int max_results, int depth,
                                         bool full_path) {
-
     std::vector<std::string> argv = {"fd", "--glob", "--ignore-case"};
     if (full_path)
         argv.push_back("--full-path");

@@ -17,6 +17,11 @@ void hypr_refresh(HyprlandState &state);
 
 bool hypr_init(HyprlandState &state);
 
-enum class HyprEventResult { None, ActiveChanged, StructuralChanged, Disconnected };
+enum class HyprEventResult {
+    None,
+    ActiveChanged,
+    StructuralChanged,
+    Disconnected
+};
 
 HyprEventResult hypr_poll_events(HyprlandState &state);

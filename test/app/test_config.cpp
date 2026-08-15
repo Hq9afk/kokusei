@@ -75,11 +75,13 @@ void test_monitor_overrides() {
 
     assert(osd_effective_enabled(cfg, "DP-1") == cfg.default_osd_enabled);
     assert(notifications_effective_enabled(cfg, "DP-1") ==
-          cfg.default_notifications_enabled);
+           cfg.default_notifications_enabled);
     assert(autohide_effective_enabled(cfg, "DP-1") == cfg.autohide);
 
-    cfg.monitor_overrides["DP-1"] = MonitorOverride{
-       .enabled = false, .osd = false, .notifications = false, .autohide = true};
+    cfg.monitor_overrides["DP-1"] = MonitorOverride{.enabled = false,
+                                                    .osd = false,
+                                                    .notifications = false,
+                                                    .autohide = true};
     assert(osd_effective_enabled(cfg, "DP-1") == cfg.default_osd_enabled);
 
     cfg.monitor_overrides["DP-1"].enabled = true;

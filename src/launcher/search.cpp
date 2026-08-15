@@ -48,7 +48,6 @@ ModeQuery detect_mode_and_query(const std::string &raw) {
             trimmed.compare(0, prefix.size(), prefix) != 0)
             continue;
         if (is_alnum_prefix(prefix)) {
-
             if (trimmed.size() > prefix.size() &&
                 !std::isspace(
                     static_cast<unsigned char>(trimmed[prefix.size()])))

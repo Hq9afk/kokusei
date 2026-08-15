@@ -1,8 +1,8 @@
 #pragma once
 
+#include "render/animation.h"
 #include "service/frame_clock.h"
 #include "service/output_scale.h"
-#include "render/animation.h"
 #include "xdg-shell-client-protocol.h"
 
 #include <EGL/egl.h>

@@ -30,7 +30,7 @@ std::string find_cpu_hwmon_sensor() {
     if (!std::filesystem::exists("/sys/class/hwmon", ec))
         return {};
     for (const auto &entry :
-        std::filesystem::directory_iterator("/sys/class/hwmon", ec)) {
+         std::filesystem::directory_iterator("/sys/class/hwmon", ec)) {
         std::string name = read_trimmed(entry.path() / "name");
         if (cpu_temp_detail_is_cpu_hwmon_name(name))
             return entry.path() / "temp1_input";
@@ -43,7 +43,7 @@ std::string find_thermal_zone_sensor() {
     if (!std::filesystem::exists("/sys/class/thermal", ec))
         return {};
     for (const auto &entry :
-        std::filesystem::directory_iterator("/sys/class/thermal", ec)) {
+         std::filesystem::directory_iterator("/sys/class/thermal", ec)) {
         if (!entry.path().filename().string().starts_with("thermal_zone"))
             continue;
         std::string type = read_trimmed(entry.path() / "type");
@@ -82,13 +82,14 @@ bool gpu_temp_detail_is_gpu_hwmon_name(const std::string &name) {
     return name == "amdgpu" || name == "i915" || name == "xe";
 }
 
-std::optional<float> gpu_temp_detail_parse_nvidia_smi_output(const std::string &text) {
+std::optional<float>
+gpu_temp_detail_parse_nvidia_smi_output(const std::string &text) {
     std::istringstream ss(text);
     std::string first_line;
     if (!std::getline(ss, first_line))
         return std::nullopt;
     while (!first_line.empty() &&
-          (first_line.back() == '\r' || first_line.back() == ' '))
+           (first_line.back() == '\r' || first_line.back() == ' '))
         first_line.pop_back();
     if (first_line.empty())
         return std::nullopt;
@@ -106,7 +107,7 @@ std::string find_gpu_hwmon_sensor() {
     if (!std::filesystem::exists("/sys/class/hwmon", ec))
         return {};
     for (const auto &entry :
-        std::filesystem::directory_iterator("/sys/class/hwmon", ec)) {
+         std::filesystem::directory_iterator("/sys/class/hwmon", ec)) {
         std::string name = read_trimmed(entry.path() / "name");
         if (gpu_temp_detail_is_gpu_hwmon_name(name))
             return entry.path() / "temp1_input";
@@ -170,7 +171,8 @@ bool gpu_temp_available(const GpuTempState &state) {
     return state.celsius >= 0.0f;
 }
 
-std::optional<CpuJiffies> system_stats_detail_parse_proc_stat(const std::string &text) {
+std::optional<CpuJiffies>
+system_stats_detail_parse_proc_stat(const std::string &text) {
     std::istringstream ss(text);
     std::string line;
     if (!std::getline(ss, line))
@@ -200,7 +202,8 @@ std::optional<CpuJiffies> system_stats_detail_parse_proc_stat(const std::string 
     return result;
 }
 
-float system_stats_detail_cpu_usage(const CpuJiffies &prev, const CpuJiffies &cur) {
+float system_stats_detail_cpu_usage(const CpuJiffies &prev,
+                                    const CpuJiffies &cur) {
     if (cur.total <= prev.total)
         return -1.0f;
     uint64_t total_delta = cur.total - prev.total;
@@ -208,10 +211,11 @@ float system_stats_detail_cpu_usage(const CpuJiffies &prev, const CpuJiffies &cu
     if (idle_delta > total_delta)
         return -1.0f;
     return static_cast<float>(total_delta - idle_delta) /
-          static_cast<float>(total_delta);
+           static_cast<float>(total_delta);
 }
 
-std::optional<MemInfo> system_stats_detail_parse_proc_meminfo(const std::string &text) {
+std::optional<MemInfo>
+system_stats_detail_parse_proc_meminfo(const std::string &text) {
     std::istringstream ss(text);
     std::string line;
     MemInfo info;
@@ -238,7 +242,7 @@ float system_stats_detail_mem_usage(const MemInfo &info) {
     if (info.total_kb == 0 || info.available_kb > info.total_kb)
         return -1.0f;
     return static_cast<float>(info.total_kb - info.available_kb) /
-          static_cast<float>(info.total_kb);
+           static_cast<float>(info.total_kb);
 }
 
 namespace {
@@ -264,6 +268,7 @@ void system_stats_poll(SystemStatsState &state) {
         state.cpu_usage = -1.0f;
     }
 
-    auto mem = system_stats_detail_parse_proc_meminfo(read_file("/proc/meminfo"));
+    auto mem =
+        system_stats_detail_parse_proc_meminfo(read_file("/proc/meminfo"));
     state.mem_usage = mem ? system_stats_detail_mem_usage(*mem) : -1.0f;
 }

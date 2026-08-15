@@ -122,8 +122,8 @@ void displays_tab_paint(SettingsState &state, Node *root, int32_t scale,
         draw_toggle_row(state, root, scale, x, y, w, "OSD", osd_val,
                         "osdenabled", true);
         y += kSettingsToggleTileHeight + kSettingsGroupSpacingSm;
-        draw_toggle_row(state, root, scale, x, y, w, "Notifications",
-                        notif_val, "notificationsenabled", true);
+        draw_toggle_row(state, root, scale, x, y, w, "Notifications", notif_val,
+                        "notificationsenabled", true);
         y += kSettingsToggleTileHeight + kSettingsGroupSpacingSm;
         draw_toggle_row(state, root, scale, x, y, w, "Bar Autohide",
                         autohide_val, "autohideenabled", true);

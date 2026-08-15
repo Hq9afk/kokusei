@@ -1,6 +1,5 @@
 #include "render/overlay_panel.h"
 
-
 namespace {
 
 void overlay_panel_configure(void *data, zwlr_layer_surface_v1 *layer_surface,

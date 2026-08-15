@@ -42,7 +42,8 @@ void matrix_toggle(MatrixState &state, WaylandState &app) {
     if (opening) {
         state.base.animations.animate(
             state.base.opacity, 1.0f, kOverlayFadeMs, Easing::EaseOutCubic,
-            [&state](float v) { state.base.opacity = v; }, {}, kOverlayFadeOwner);
+            [&state](float v) { state.base.opacity = v; }, {},
+            kOverlayFadeOwner);
         toplevel_window_request_frame(state.base);
     } else {
         state.base.animations.cancelForOwner(kOverlayFadeOwner);

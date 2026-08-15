@@ -97,7 +97,8 @@ void hypr_refresh(HyprlandState &state) {
     if (state.request_socket_path.empty())
         return;
 
-    std::string workspaces_reply = request(state.request_socket_path, "j/workspaces");
+    std::string workspaces_reply =
+        request(state.request_socket_path, "j/workspaces");
     try {
         json arr = json::parse(workspaces_reply);
         for (auto &w : arr) {
@@ -121,7 +122,8 @@ void hypr_refresh(HyprlandState &state) {
         klog("hyprland: failed to parse j/workspaces: %s", e.what());
     }
 
-    std::string monitors_reply = request(state.request_socket_path, "j/monitors");
+    std::string monitors_reply =
+        request(state.request_socket_path, "j/monitors");
     try {
         json arr = json::parse(monitors_reply);
         for (auto &m : arr) {
@@ -216,7 +218,6 @@ HyprEventResult hypr_poll_events(HyprlandState &state) {
                     result = HyprEventResult::ActiveChanged;
             }
         } else if (event == "workspacev2") {
-
             auto parts = split(data, ',');
             if (!parts.empty() && !state.focused_monitor.empty()) {
                 state.by_monitor[state.focused_monitor].active_id =
@@ -228,7 +229,6 @@ HyprEventResult hypr_poll_events(HyprlandState &state) {
                    event == "destroyworkspacev2" ||
                    event == "renameworkspace" || event == "moveworkspacev2" ||
                    event == "openwindow" || event == "closewindow") {
-
             result = HyprEventResult::StructuralChanged;
         }
     }

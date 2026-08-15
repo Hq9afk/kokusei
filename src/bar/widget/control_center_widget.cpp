@@ -1,6 +1,6 @@
 #include "bar/widget/control_center_widget.h"
-#include "modules/bar.h"
 #include "bar/panel/tray_panel.h"
+#include "modules/bar.h"
 
 #include "render/icon.h"
 #include "render/icons.h"

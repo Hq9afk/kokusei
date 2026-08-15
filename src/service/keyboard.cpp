@@ -43,7 +43,7 @@ std::optional<KeyEvent> translate_key(xkb_state *state, uint32_t keycode) {
 namespace {
 
 void keymap_cb(void *data, wl_keyboard *, uint32_t format, int32_t fd,
-              uint32_t size) {
+               uint32_t size) {
     auto *state = static_cast<KeyboardState *>(data);
     if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
         close(fd);
@@ -97,7 +97,7 @@ void leave_cb(void *data, wl_keyboard *, uint32_t, wl_surface *) {
 }
 
 void key_cb(void *data, wl_keyboard *, uint32_t, uint32_t, uint32_t key,
-           uint32_t key_state) {
+            uint32_t key_state) {
     auto *state = static_cast<KeyboardState *>(data);
     if (!state->xkb)
         return;
@@ -124,8 +124,7 @@ void key_cb(void *data, wl_keyboard *, uint32_t, uint32_t, uint32_t key,
 }
 
 void modifiers_cb(void *data, wl_keyboard *, uint32_t, uint32_t mods_depressed,
-                  uint32_t mods_latched, uint32_t mods_locked,
-                  uint32_t group) {
+                  uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
     auto *state = static_cast<KeyboardState *>(data);
     if (!state->xkb)
         return;

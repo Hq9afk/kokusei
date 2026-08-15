@@ -80,7 +80,8 @@ bool shoji_init(ShojiwmState &state) {
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, path.c_str(), sizeof(addr.sun_path) - 1);
     if (connect(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) < 0) {
-        klog("shojiwm: connect to %s failed: %s", path.c_str(), strerror(errno));
+        klog("shojiwm: connect to %s failed: %s", path.c_str(),
+             strerror(errno));
         close(fd);
         return false;
     }

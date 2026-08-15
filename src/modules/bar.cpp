@@ -89,7 +89,8 @@ void registry_global(void *data, wl_registry *registry, uint32_t name,
     } else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
         state->wm_base = static_cast<xdg_wm_base *>(wl_registry_bind(
             registry, name, &xdg_wm_base_interface, std::min(version, 6u)));
-        xdg_wm_base_add_listener(state->wm_base, &xdg_wm_base_listener_detail::listener, nullptr);
+        xdg_wm_base_add_listener(
+            state->wm_base, &xdg_wm_base_listener_detail::listener, nullptr);
     } else if (strcmp(interface, wl_output_interface.name) == 0) {
         auto mon = std::make_unique<MonitorOutput>();
         mon->app = state;
@@ -100,7 +101,6 @@ void registry_global(void *data, wl_registry *registry, uint32_t name,
                                mon.get());
         state->outputs.push_back(std::move(mon));
     } else if (strcmp(interface, wl_seat_interface.name) == 0) {
-
         state->idle.seat = static_cast<wl_seat *>(
             wl_registry_bind(registry, name, &wl_seat_interface, 3));
         state->seat_caps.keyboard = &state->keyboard;

@@ -24,7 +24,8 @@ constexpr int kMatrixDefaultWindowWidth = 480;
 constexpr int kMatrixDefaultWindowHeight = 600;
 
 inline constexpr Color kMatrixWindowBackground = {0.0f, 0.0f, 0.0f, 0.7f};
-// Matches keqing-shell's Matrix.qml: headColor: ColorConfig.text, tailColor: ColorConfig.accent.
+// Matches keqing-shell's Matrix.qml: headColor: ColorConfig.text, tailColor:
+// ColorConfig.accent.
 inline constexpr Color kMatrixHeadColor = palette::text;
 inline constexpr Color kMatrixTailColor = palette::accent;
 

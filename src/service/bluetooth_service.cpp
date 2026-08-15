@@ -413,7 +413,6 @@ void bluetooth_set_powered(BluetoothState &state, bool enabled) {
             klog("bluetooth: rfkill unblock failed, trying Powered anyway");
     }
     try {
-
         adapter->setProperty("Powered")
             .onInterface(bluetooth_detail::kAdapterIface)
             .toValue(enabled, sdbus::dont_expect_reply);

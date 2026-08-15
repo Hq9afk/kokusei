@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config/notification_config.h"
 #include "render/animation.h"
 #include "render/palette.h"
 #include "render/renderer.h"
@@ -7,7 +8,6 @@
 #include "render/texture.h"
 #include "service/frame_clock.h"
 #include "service/output_scale.h"
-#include "config/notification_config.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <EGL/egl.h>
 #include <sdbus-c++/sdbus-c++.h>

@@ -76,7 +76,6 @@ std::string strip_exec_field_codes(const std::string &exec) {
         if (code == '%') {
             out += '%';
         } else {
-
             if (i + 1 < exec.size() && exec[i + 1] == ' ') {
                 if (i + 2 >= exec.size() || exec[i + 2] != '%') {
                     ++i;

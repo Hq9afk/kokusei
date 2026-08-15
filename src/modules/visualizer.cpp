@@ -15,7 +15,8 @@ namespace {
 void retarget_spectrum(VisualizerState &state, WaylandState &app) {
     uint32_t sink_id = app.pipewire.default_sink_id;
     auto it = app.pipewire.nodes.find(sink_id);
-    std::string sink_name = it != app.pipewire.nodes.end() ? it->second.name : "";
+    std::string sink_name =
+        it != app.pipewire.nodes.end() ? it->second.name : "";
     state.spectrum.setTargetNode(sink_id, sink_name);
 }
 
@@ -57,7 +58,8 @@ void visualizer_toggle(VisualizerState &state, WaylandState &app) {
     if (opening) {
         state.base.animations.animate(
             state.base.opacity, 1.0f, kOverlayFadeMs, Easing::EaseOutCubic,
-            [&state](float v) { state.base.opacity = v; }, {}, kOverlayFadeOwner);
+            [&state](float v) { state.base.opacity = v; }, {},
+            kOverlayFadeOwner);
         toplevel_window_request_frame(state.base);
     } else {
         state.base.animations.cancelForOwner(kOverlayFadeOwner);
@@ -74,8 +76,7 @@ void visualizer_handle_key_event(VisualizerState &state, WaylandState &app,
 
 std::vector<IpcHandler> visualizer_ipc_handlers(WaylandState &state) {
     return {
-        {"visualizer",
-         [&state] { visualizer_toggle(state.visualizer, state); },
+        {"visualizer", [&state] { visualizer_toggle(state.visualizer, state); },
          "toggle the audio visualizer overlay"},
     };
 }
@@ -108,7 +109,8 @@ void visualizer_paint(VisualizerState &state) {
     const std::vector<float> &target = state.spectrum.values();
 
     float elapsed_ms =
-        std::chrono::duration<float, std::milli>(now - state.last_frame).count();
+        std::chrono::duration<float, std::milli>(now - state.last_frame)
+            .count();
     state.last_frame = now;
     // Exponential smoothing toward the latest FFT frame; a manual lerp
     // is simpler than driving kVisualizerBarCount AnimationManager
@@ -126,10 +128,11 @@ void visualizer_paint(VisualizerState &state) {
         float &v = state.display_values[static_cast<size_t>(i)];
         v += (target[static_cast<size_t>(i)] - v) * k;
         float bar_h = std::max(1.0f, v * kVisualizerBarHeightRatio * win_h);
-        float bar_x = start_x + i * (kVisualizerBarWidth + kVisualizerBarSpacing);
+        float bar_x =
+            start_x + i * (kVisualizerBarWidth + kVisualizerBarSpacing);
         node_add_rrect(&state.scene.root, bar_x, baseline_y - bar_h,
-                      kVisualizerBarWidth, bar_h, kVisualizerBarRadius, 0.0f,
-                      rgba(bar_color), kNodeTransparent);
+                       kVisualizerBarWidth, bar_h, kVisualizerBarRadius, 0.0f,
+                       rgba(bar_color), kNodeTransparent);
     }
 
     state.renderer->set_opacity(state.base.opacity);

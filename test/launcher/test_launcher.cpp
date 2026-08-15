@@ -45,7 +45,6 @@ void test_spawn_helpers() {
 }
 
 void test_desktop_entry() {
-
     assert(strip_exec_field_codes("firefox %u") == "firefox ");
     assert(strip_exec_field_codes("code %F") == "code ");
     assert(strip_exec_field_codes("app --flag") == "app --flag");
@@ -77,7 +76,6 @@ void test_desktop_entry() {
         assert(e->no_display == true);
     }
     {
-
         std::istringstream in("[Desktop Entry]\n"
                               "Type=Link\n"
                               "Name=Some Link\n"
@@ -144,7 +142,6 @@ void test_apps_provider() {
 }
 
 void test_files_provider() {
-
     assert(to_glob_pattern("notes") == "**/*notes*");
     assert(to_glob_pattern("foo/bar") == "**/foo/bar");
     assert(to_glob_pattern("/abs/path") == "/abs/path");
@@ -191,7 +188,6 @@ void test_files_provider() {
 }
 
 void test_search() {
-
     {
         auto r = detect_mode_and_query("firefox");
         assert(r.mode == LauncherMode::Drun);
@@ -208,7 +204,6 @@ void test_search() {
         assert(r.query == "cat pictures");
     }
     {
-
         auto r = detect_mode_and_query("ggwp");
         assert(r.mode == LauncherMode::Drun);
         assert(r.query == "ggwp");
@@ -224,7 +219,6 @@ void test_search() {
         assert(r.query == "");
     }
     {
-
         auto r = detect_mode_and_query("  firefox");
         assert(r.mode == LauncherMode::Drun);
         assert(r.query == "firefox");
@@ -271,7 +265,6 @@ void test_search() {
 }
 
 void test_submenu() {
-
     DirLister list_dir = [](const std::string &path, bool want_dirs) {
         std::vector<FileEntry> out;
         if (path == "/root") {
@@ -350,7 +343,6 @@ void test_submenu() {
 }
 
 void test_launch_action() {
-
     assert(launch_action_detail::shell_quote("simple") == "'simple'");
     assert(launch_action_detail::shell_quote("it's") == "'it'\\''s'");
     assert(launch_action_detail::shell_quote("a'b'c") == "'a'\\''b'\\''c'");

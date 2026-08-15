@@ -3,7 +3,7 @@
 namespace {
 
 void enter_cb(void *data, wl_pointer *, uint32_t, wl_surface *surface,
-             wl_fixed_t sx, wl_fixed_t sy) {
+              wl_fixed_t sx, wl_fixed_t sy) {
     auto *state = static_cast<PointerState *>(data);
     state->focused_surface = surface;
     state->x = wl_fixed_to_double(sx);
@@ -20,7 +20,7 @@ void leave_cb(void *data, wl_pointer *, uint32_t, wl_surface *surface) {
 }
 
 void motion_cb(void *data, wl_pointer *, uint32_t, wl_fixed_t sx,
-              wl_fixed_t sy) {
+               wl_fixed_t sy) {
     auto *state = static_cast<PointerState *>(data);
     state->x = wl_fixed_to_double(sx);
     state->y = wl_fixed_to_double(sy);
@@ -38,7 +38,7 @@ void button_cb(void *data, wl_pointer *, uint32_t, uint32_t, uint32_t button,
          state->y});
 }
 void axis_cb(void *data, wl_pointer *, uint32_t, uint32_t axis,
-            wl_fixed_t value) {
+             wl_fixed_t value) {
     if (axis != WL_POINTER_AXIS_VERTICAL_SCROLL)
         return;
     auto *state = static_cast<PointerState *>(data);

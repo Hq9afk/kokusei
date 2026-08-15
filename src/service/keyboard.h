@@ -10,7 +10,17 @@
 #include <string>
 #include <vector>
 
-enum class KeyKind { Text, Up, Down, Left, Right, Enter, Escape, Backspace, Tab };
+enum class KeyKind {
+    Text,
+    Up,
+    Down,
+    Left,
+    Right,
+    Enter,
+    Escape,
+    Backspace,
+    Tab
+};
 
 struct KeyEvent {
     KeyKind kind;

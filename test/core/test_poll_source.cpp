@@ -30,7 +30,6 @@ struct Pipe {
 };
 
 void test_poll_source() {
-
     {
         int calls = 0;
         FnPollSource src(-1, POLLIN, [&] { calls++; });

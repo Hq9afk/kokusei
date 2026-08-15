@@ -53,7 +53,6 @@ inline MonitorOutput *find_monitor_for_surface(WaylandState &app,
 }
 
 int main(int argc, char **argv) {
-
     bool want_daemonize = argc == 1;
     bool want_debug = argc > 1 && strcmp(argv[1], "debug") == 0;
     if (argc > 1 && !want_daemonize && !want_debug)
@@ -611,7 +610,6 @@ int main(int argc, char **argv) {
                 if (!ev.changed)
                     return;
                 if (app.config_own_write_pending) {
-
                     app.config_own_write_pending = false;
                     return;
                 }
@@ -633,7 +631,6 @@ int main(int argc, char **argv) {
                                     POLLIN, launcher_search_dispatch);
 
         if (app.keyboard.repeat_timer_fd >= 0) {
-
             fn_sources.emplace_back(app.keyboard.repeat_timer_fd, POLLIN, [&] {
                 keyboard_repeat_tick(app.keyboard);
             });

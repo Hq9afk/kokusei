@@ -54,10 +54,10 @@ void draw_glyph_centered(cairo_t *cr, char32_t glyph, float cell_x,
     std::string utf8 = utf8_encode(glyph);
     cairo_text_extents_t extents;
     cairo_text_extents(cr, utf8.c_str(), &extents);
-    float tx = cell_x + (kMatrixCellWidth - extents.width) / 2.0f -
-              extents.x_bearing;
+    float tx =
+        cell_x + (kMatrixCellWidth - extents.width) / 2.0f - extents.x_bearing;
     float ty = cell_y + (kMatrixCellHeight - extents.height) / 2.0f -
-              extents.y_bearing;
+               extents.y_bearing;
     cairo_set_source_rgba(cr, color.r, color.g, color.b, color.a);
     cairo_move_to(cr, std::round(tx), std::round(ty));
     cairo_show_text(cr, utf8.c_str());
@@ -69,7 +69,8 @@ char32_t MatrixGrid::random_glyph() const {
     const std::u32string &pool = matrix_glyph_pool();
     if (pool.empty())
         return U' ';
-    size_t idx = static_cast<size_t>(random01() * static_cast<float>(pool.size()));
+    size_t idx =
+        static_cast<size_t>(random01() * static_cast<float>(pool.size()));
     if (idx >= pool.size())
         idx = pool.size() - 1;
     return pool[idx];
@@ -80,24 +81,28 @@ void MatrixGrid::rebuild(int width, int height) {
     height_ = std::max(1, height);
 
     // Leave a gap between streams; filling every cell reads as too dense.
-    column_count_ = std::max(1, static_cast<int>(width_ / (kMatrixCellWidth * 2)));
+    column_count_ =
+        std::max(1, static_cast<int>(width_ / (kMatrixCellWidth * 2)));
     row_count_ = std::max(1, static_cast<int>(height_ / kMatrixCellHeight));
 
     columns_.assign(static_cast<size_t>(column_count_), Column{});
     for (Column &c : columns_)
         c.drop = start_drop();
 
-    float content_width = column_count_ * kMatrixCellWidth * 2 - kMatrixCellWidth;
+    float content_width =
+        column_count_ * kMatrixCellWidth * 2 - kMatrixCellWidth;
     offset_x_ = (width_ - content_width) / 2.0f;
     offset_y_ = (height_ - row_count_ * kMatrixCellHeight) / 2.0f;
 
     stride_ = cairo_format_stride_for_width(CAIRO_FORMAT_ARGB32, width_);
-    buffer_.assign(static_cast<size_t>(stride_) * static_cast<size_t>(height_), 0);
+    buffer_.assign(static_cast<size_t>(stride_) * static_cast<size_t>(height_),
+                   0);
     texture_ = Texture{};
 }
 
 void MatrixGrid::decay() {
-    int alpha_step = std::clamp(static_cast<int>(255.0f * kMatrixFadeAlpha), 1, 255);
+    int alpha_step =
+        std::clamp(static_cast<int>(255.0f * kMatrixFadeAlpha), 1, 255);
     for (int y = 0; y < height_; ++y) {
         uint8_t *row = buffer_.data() + static_cast<size_t>(y) * stride_;
         for (int x = 0; x < width_; ++x) {
@@ -159,8 +164,8 @@ void MatrixGrid::tick() {
         if (col.drop * kMatrixCellHeight > static_cast<float>(height_) &&
             random01() < kMatrixResetChance) {
             col.drop = col.ever_reset
-                          ? -(random01() * static_cast<float>(row_count_))
-                          : start_drop();
+                           ? -(random01() * static_cast<float>(row_count_))
+                           : start_drop();
             col.ever_reset = true;
             col.last_head_valid = false;
         }
@@ -172,5 +177,6 @@ void MatrixGrid::tick() {
     RasterizedText raster = surface_to_rgba(surface, width_, height_);
     cairo_surface_destroy(surface);
 
-    texture_ = make_texture_rgba(raster.width, raster.height, raster.rgba.data());
+    texture_ =
+        make_texture_rgba(raster.width, raster.height, raster.rgba.data());
 }

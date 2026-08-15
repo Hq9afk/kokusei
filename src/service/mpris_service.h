@@ -22,7 +22,8 @@ struct MprisPlayerCandidate {
 
 // "First Playing player, else first present player." Returns -1 if players
 // is empty.
-int mpris_detail_select_player(const std::vector<MprisPlayerCandidate> &players);
+int mpris_detail_select_player(
+    const std::vector<MprisPlayerCandidate> &players);
 
 struct MprisTrackInfo {
     std::string title;

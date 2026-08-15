@@ -16,11 +16,7 @@
 
 namespace {
 
-// In-place radix-2 Cooley-Tukey FFT (kSpectrumFftSize is a power of two).
-// noctalia (pipewire_spectrum.cpp) already vendors this exact routine
-// instead of pulling in PocketFFT for a single fixed-size real-to-complex
-// transform - reusing it here avoids adding a new third_party dependency
-// for what a 30-line function already covers.
+// Radix-2 Cooley-Tukey FFT
 void fft(std::complex<float> *data, int n) {
     for (int i = 1, j = 0; i < n; ++i) {
         int bit = n >> 1;
@@ -31,7 +27,8 @@ void fft(std::complex<float> *data, int n) {
             std::swap(data[i], data[j]);
     }
     for (int len = 2; len <= n; len <<= 1) {
-        float angle = -2.0f * std::numbers::pi_v<float> / static_cast<float>(len);
+        float angle =
+            -2.0f * std::numbers::pi_v<float> / static_cast<float>(len);
         std::complex<float> wn(std::cos(angle), std::sin(angle));
         for (int i = 0; i < n; i += len) {
             std::complex<float> w(1.0f, 0.0f);
@@ -105,14 +102,17 @@ void AudioSpectrum::computeBandBins() {
     int fft_bins = kSpectrumFftSize / 2;
 
     for (int i = 0; i < kBars; ++i) {
-        float freq_low =
-            f_low * std::pow(ratio, static_cast<float>(i) / static_cast<float>(kBars));
-        float freq_high = f_low * std::pow(ratio, static_cast<float>(i + 1) /
-                                                       static_cast<float>(kBars));
-        int bin_low = static_cast<int>(std::ceil(
-            freq_low * static_cast<float>(kSpectrumFftSize) / static_cast<float>(sample_rate_)));
-        int bin_high = static_cast<int>(std::floor(
-            freq_high * static_cast<float>(kSpectrumFftSize) / static_cast<float>(sample_rate_)));
+        float freq_low = f_low * std::pow(ratio, static_cast<float>(i) /
+                                                     static_cast<float>(kBars));
+        float freq_high =
+            f_low * std::pow(ratio, static_cast<float>(i + 1) /
+                                        static_cast<float>(kBars));
+        int bin_low = static_cast<int>(
+            std::ceil(freq_low * static_cast<float>(kSpectrumFftSize) /
+                      static_cast<float>(sample_rate_)));
+        int bin_high = static_cast<int>(
+            std::floor(freq_high * static_cast<float>(kSpectrumFftSize) /
+                       static_cast<float>(sample_rate_)));
 
         bin_low = std::clamp(bin_low, 1, fft_bins);
         bin_high = std::clamp(bin_high, bin_low, fft_bins);
@@ -128,7 +128,8 @@ void AudioSpectrum::computeBandBins() {
     }
 }
 
-void AudioSpectrum::setTargetNode(uint32_t node_id, const std::string &node_name) {
+void AudioSpectrum::setTargetNode(uint32_t node_id,
+                                  const std::string &node_name) {
     if (node_id == target_node_id_ && node_name == target_node_name_)
         return;
     target_node_id_ = node_id;
@@ -225,9 +226,11 @@ void AudioSpectrum::onProcess(void *data) {
         spa_data *d = &sbuf->datas[0];
         int channels = static_cast<int>(self->format_.channels);
         if (d->data && d->chunk && channels > 0) {
-            const auto *base = static_cast<const uint8_t *>(d->data) + d->chunk->offset;
+            const auto *base =
+                static_cast<const uint8_t *>(d->data) + d->chunk->offset;
             const auto *samples = reinterpret_cast<const float *>(base);
-            int frames = static_cast<int>(d->chunk->size / sizeof(float)) / channels;
+            int frames =
+                static_cast<int>(d->chunk->size / sizeof(float)) / channels;
             if (frames > 0) {
                 static thread_local std::vector<float> mono;
                 mono.resize(static_cast<size_t>(frames));
@@ -249,7 +252,8 @@ void AudioSpectrum::onProcess(void *data) {
     pw_stream_queue_buffer(self->stream_, buf);
 }
 
-void AudioSpectrum::onParamChanged(void *data, uint32_t id, const spa_pod *param) {
+void AudioSpectrum::onParamChanged(void *data, uint32_t id,
+                                   const spa_pod *param) {
     auto *self = static_cast<AudioSpectrum *>(data);
     if (!param || id != SPA_PARAM_Format)
         return;
@@ -272,8 +276,8 @@ void AudioSpectrum::onParamChanged(void *data, uint32_t id, const spa_pod *param
     self->computeBandBins();
 }
 
-void AudioSpectrum::onStateChanged(void *data, pw_stream_state, pw_stream_state state,
-                                   const char *error) {
+void AudioSpectrum::onStateChanged(void *data, pw_stream_state,
+                                   pw_stream_state state, const char *error) {
     (void)data;
     if (state == PW_STREAM_STATE_ERROR)
         klog("audio_spectrum: stream error: %s", error ? error : "unknown");
@@ -298,7 +302,9 @@ void AudioSpectrum::processFrame() {
         for (int i = 0; i < kSpectrumFftSize; ++i) {
             int idx = (ring_pos_ + i) % kSpectrumFftSize;
             fft_buf_[static_cast<size_t>(i)] = {
-                ring_buf_[static_cast<size_t>(idx)] * window_[static_cast<size_t>(i)], 0.0f};
+                ring_buf_[static_cast<size_t>(idx)] *
+                    window_[static_cast<size_t>(i)],
+                0.0f};
         }
     }
 
@@ -307,13 +313,15 @@ void AudioSpectrum::processFrame() {
     float current_frame_max = 1e-5f;
     for (int i = 0; i < kBars; ++i) {
         float max_mag_sq = 0.0f;
-        for (int bin = bin_low_[static_cast<size_t>(i)]; bin <= bin_high_[static_cast<size_t>(i)]; ++bin) {
+        for (int bin = bin_low_[static_cast<size_t>(i)];
+             bin <= bin_high_[static_cast<size_t>(i)]; ++bin) {
             float mag_sq = std::norm(fft_buf_[static_cast<size_t>(bin)]);
             if (mag_sq > max_mag_sq)
                 max_mag_sq = mag_sq;
         }
         float mag = std::sqrt(max_mag_sq);
-        float freq_scale = static_cast<float>(i) / static_cast<float>(kBars > 1 ? kBars - 1 : 1);
+        float freq_scale = static_cast<float>(i) /
+                           static_cast<float>(kBars > 1 ? kBars - 1 : 1);
         mag *= (2.5f + freq_scale * 4.0f);
         if (freq_scale <= 0.15f)
             mag *= 1.3f;
@@ -325,21 +333,25 @@ void AudioSpectrum::processFrame() {
     global_max_ = std::max(global_max_ * 0.995f, current_frame_max);
     float noise_gate = kSpectrumNoiseReduction * 0.01f;
     for (int i = 0; i < kBars; ++i)
-        bands_[static_cast<size_t>(i)] =
-            std::clamp((bands_[static_cast<size_t>(i)] / global_max_) - noise_gate, 0.0f, 1.0f);
+        bands_[static_cast<size_t>(i)] = std::clamp(
+            (bands_[static_cast<size_t>(i)] / global_max_) - noise_gate, 0.0f,
+            1.0f);
 
     if constexpr (kSpectrumSmoothing) {
         constexpr float kDropOff = 0.66f;
         for (int i = 1; i < kBars; ++i)
             bands_[static_cast<size_t>(i)] =
-                std::max(bands_[static_cast<size_t>(i)], bands_[static_cast<size_t>(i - 1)] * kDropOff);
+                std::max(bands_[static_cast<size_t>(i)],
+                         bands_[static_cast<size_t>(i - 1)] * kDropOff);
         for (int i = kBars - 2; i >= 0; --i)
             bands_[static_cast<size_t>(i)] =
-                std::max(bands_[static_cast<size_t>(i)], bands_[static_cast<size_t>(i + 1)] * kDropOff);
+                std::max(bands_[static_cast<size_t>(i)],
+                         bands_[static_cast<size_t>(i + 1)] * kDropOff);
     }
 
-    double gravity_mod = std::pow(60.0 / 60.0, 2.5) * 1.54 /
-                        std::max(static_cast<double>(kSpectrumNoiseReduction), 0.01);
+    double gravity_mod =
+        std::pow(60.0 / 60.0, 2.5) * 1.54 /
+        std::max(static_cast<double>(kSpectrumNoiseReduction), 0.01);
     if (gravity_mod < 1.0)
         gravity_mod = 1.0;
 
@@ -350,13 +362,15 @@ void AudioSpectrum::processFrame() {
             bands_[idx] = std::max(
                 static_cast<float>(static_cast<double>(peak_[idx]) *
                                    (1.0 - static_cast<double>(fall_[idx]) *
-                                              static_cast<double>(fall_[idx]) * gravity_mod)),
+                                              static_cast<double>(fall_[idx]) *
+                                              gravity_mod)),
                 0.0f);
             fall_[idx] += 0.028f;
         } else {
             peak_[idx] = bands_[idx];
             fall_[idx] = 0.0f;
-            bands_[idx] = prev_bands_[idx] + (bands_[idx] - prev_bands_[idx]) * 0.6f;
+            bands_[idx] =
+                prev_bands_[idx] + (bands_[idx] - prev_bands_[idx]) * 0.6f;
         }
         prev_bands_[idx] = bands_[idx];
         if (bands_[idx] > 0.01f)

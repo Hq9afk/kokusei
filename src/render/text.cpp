@@ -87,7 +87,6 @@ void font_ascent_descent(PangoFontDescription *desc, int &ascent,
 RasterizedText rasterize_text_with(const std::string &text,
                                    PangoFontDescription *desc, int32_t scale,
                                    int max_width_px) {
-
     cairo_surface_t *measure_surface =
         cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
     cairo_t *measure_cr = cairo_create(measure_surface);
