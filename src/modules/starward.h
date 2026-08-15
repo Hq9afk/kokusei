@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app/ipc.h"
+#include "config/starward_config.h"
 #include "render/overlay_panel.h"
 #include "render/rect.h"
 #include "render/renderer.h"
@@ -8,7 +9,6 @@
 #include "render/text.h"
 #include "render/texture.h"
 #include "service/keyboard.h"
-#include "config/starward_config.h"
 
 #include <array>
 #include <vector>
@@ -20,6 +20,7 @@ struct StarwardState {
     Renderer *renderer = nullptr;
     Scene scene;
     int selected_index = 0;
+    int hovered_index = -1;
     bool opened_by_widget = false;
     wl_output *bound_output = nullptr;
 
@@ -66,5 +67,9 @@ void starward_execute(StarwardState &state, int index);
 void starward_handle_key_event(StarwardState &state, const KeyEvent &event);
 
 void starward_handle_click(StarwardState &state, double px, double py);
+
+void starward_handle_hover(StarwardState &state, double px, double py);
+
+void starward_clear_hover(StarwardState &state);
 
 void starward_paint(StarwardState &state);

@@ -108,24 +108,29 @@ void cancel_open_close_tweens(StarwardState &state) {
     }
 }
 
-void trigger_highlight(StarwardState &state, int from_index, int to_index) {
-    auto animate_pair = [&state](int i, float target) {
-        if (i < 0 || i >= kStarwardButtonCount)
-            return;
-        size_t idx = static_cast<size_t>(i);
-        state.base.animations.animate(
-            state.button_highlight_scale[idx], target, kStarwardButtonScaleMs,
-            Easing::EaseOutCubic,
-            [&state, idx](float v) { state.button_highlight_scale[idx] = v; },
-            {}, button_scale_owner(i));
-        state.base.animations.animate(
-            state.button_highlight_border[idx], target, kStarwardButtonBorderMs,
-            Easing::EaseOutCubic,
-            [&state, idx](float v) { state.button_highlight_border[idx] = v; },
-            {}, button_border_owner(i));
-    };
-    animate_pair(from_index, 0.0f);
-    animate_pair(to_index, 1.0f);
+void set_button_highlight(StarwardState &state, int i, bool on) {
+    if (i < 0 || i >= kStarwardButtonCount)
+        return;
+    size_t idx = static_cast<size_t>(i);
+    float target = on ? 1.0f : 0.0f;
+    state.base.animations.animate(
+        state.button_highlight_scale[idx], target, kStarwardButtonScaleMs,
+        Easing::EaseOutCubic,
+        [&state, idx](float v) { state.button_highlight_scale[idx] = v; }, {},
+        button_scale_owner(i));
+    state.base.animations.animate(
+        state.button_highlight_border[idx], target, kStarwardButtonBorderMs,
+        Easing::EaseOutCubic,
+        [&state, idx](float v) { state.button_highlight_border[idx] = v; }, {},
+        button_border_owner(i));
+}
+
+bool is_highlighted(const StarwardState &state, int i) {
+    return i == state.selected_index || i == state.hovered_index;
+}
+
+void update_highlight(StarwardState &state, int i) {
+    set_button_highlight(state, i, is_highlighted(state, i));
 }
 
 void start_button_stagger_in(StarwardState &state) {
@@ -147,7 +152,7 @@ void start_button_stagger_in(StarwardState &state) {
                        kStarwardButtonStaggerMs,
                    kStarwardInputReadyOwner, [&state] {
                        state.input_ready = true;
-                       trigger_highlight(state, -1, state.selected_index);
+                       update_highlight(state, state.selected_index);
                    });
 }
 
@@ -176,7 +181,9 @@ void finish_close(StarwardState &state) {
 void start_close_sequence(StarwardState &state) {
     cancel_open_close_tweens(state);
     state.input_ready = false;
-    trigger_highlight(state, state.selected_index, -1);
+    update_highlight(state, state.selected_index);
+    update_highlight(state, state.hovered_index);
+    state.hovered_index = -1;
 
     for (int i = 0; i < kStarwardButtonCount; ++i) {
         int idx = kStarwardButtonCount - 1 - i;
@@ -214,6 +221,7 @@ void fast_hide(StarwardState &state) {
         state.base.animations.cancelForOwner(button_scale_owner(i));
         state.base.animations.cancelForOwner(button_border_owner(i));
     }
+    state.hovered_index = -1;
     state.logo_scale = 0.0f;
     state.input_ready = false;
     finish_close(state);
@@ -374,14 +382,16 @@ void starward_handle_key_event(StarwardState &state, const KeyEvent &event) {
         state.selected_index =
             (state.selected_index + kStarwardButtonCount - 1) %
             kStarwardButtonCount;
-        trigger_highlight(state, old, state.selected_index);
+        update_highlight(state, old);
+        update_highlight(state, state.selected_index);
         break;
     }
     case KeyKind::Right: {
         int old = state.selected_index;
         state.selected_index =
             (state.selected_index + 1) % kStarwardButtonCount;
-        trigger_highlight(state, old, state.selected_index);
+        update_highlight(state, old);
+        update_highlight(state, state.selected_index);
         break;
     }
     case KeyKind::Text:
@@ -389,8 +399,10 @@ void starward_handle_key_event(StarwardState &state, const KeyEvent &event) {
             event.text[0] <= '8') {
             int old = state.selected_index;
             state.selected_index = event.text[0] - '1';
-            if (old != state.selected_index)
-                trigger_highlight(state, old, state.selected_index);
+            if (old != state.selected_index) {
+                update_highlight(state, old);
+                update_highlight(state, state.selected_index);
+            }
         }
         break;
     case KeyKind::Enter:
@@ -417,6 +429,35 @@ void starward_handle_click(StarwardState &state, double px, double py) {
         }
     }
     starward_toggle(state);
+}
+
+void starward_handle_hover(StarwardState &state, double px, double py) {
+    if (!state.input_ready)
+        return;
+    float cx = static_cast<float>(state.base.width) / 2.0f;
+    float cy = static_cast<float>(state.base.height) / 2.0f;
+    int found = -1;
+    for (int i = 0; i < kStarwardButtonCount; ++i) {
+        Rect r = starward_detail_button_rect(i, cx, cy);
+        if (px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h) {
+            found = i;
+            break;
+        }
+    }
+    if (found == state.hovered_index)
+        return;
+    int old = state.hovered_index;
+    state.hovered_index = found;
+    update_highlight(state, old);
+    update_highlight(state, found);
+}
+
+void starward_clear_hover(StarwardState &state) {
+    if (state.hovered_index == -1)
+        return;
+    int old = state.hovered_index;
+    state.hovered_index = -1;
+    update_highlight(state, old);
 }
 
 void starward_paint(StarwardState &state) {

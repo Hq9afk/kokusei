@@ -664,6 +664,15 @@ int main(int argc, char **argv) {
                 app.pointer.dirty = false;
                 for (auto &mon : app.outputs)
                     bar_request_frame(*mon);
+                if (want_starward && app.starward.base.open) {
+                    if (app.pointer.focused_surface ==
+                        app.starward.base.surface)
+                        starward_handle_hover(app.starward, app.pointer.x,
+                                              app.pointer.y);
+                    else
+                        starward_clear_hover(app.starward);
+                    starward_request_frame(app.starward);
+                }
                 if (app.pointer.focused_surface) {
                     if (MonitorOutput *m = find_monitor_for_surface(
                             app, app.pointer.focused_surface))
