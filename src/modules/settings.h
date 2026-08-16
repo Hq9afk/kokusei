@@ -73,7 +73,8 @@ void settings_commit_focused_field(SettingsState &state, const Config &cfg,
 void settings_toggle(SettingsState &state, const Config &cfg,
                      const SettingsCommitFn &on_commit);
 
-std::vector<IpcHandler> settings_ipc_handlers(WaylandState &state);
+std::vector<IpcHandler> settings_ipc_handlers(SettingsState &settings,
+                                              WaylandState &state);
 
 void settings_focus_field(SettingsState &state, const Config &cfg,
                           const SettingsCommitFn &on_commit,

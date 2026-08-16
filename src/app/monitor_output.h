@@ -5,20 +5,11 @@
 #include <wayland-client.h>
 #include <wayland-egl.h>
 
+#include "app/per_monitor_module.h"
 #include "app/wayland_state.h"
-#include "bar/panel/bluetooth_panel.h"
-#include "bar/panel/network_panel.h"
-#include "bar/panel/tray_panel.h"
-#include "bar/panel/volume_panel.h"
-#include "bar/widget/widget_capsule.h"
-#include "bar/widget/workspace_widget.h"
-#include "modules/notification.h"
-#include "modules/osd.h"
-#include "modules/wallpaper.h"
 #include "render/animation.h"
 #include "render/renderer.h"
 #include "render/scene.h"
-#include "render/texture.h"
 #include "service/active_output.h"
 #include "service/frame_clock.h"
 #include "service/output_scale.h"
@@ -26,6 +17,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -50,39 +42,16 @@ struct MonitorOutput {
     OutputScale output_scale;
     FrameClock frame_clock;
     Scene scene;
-    Texture clock_texture;
-    Texture starward_texture;
-    Texture dock_texture;
-    Texture tray_texture;
-    Texture cpu_texture;
-    Texture control_center_texture;
-    Texture battery_icon_texture;
-    const char *battery_icon_glyph = nullptr;
-    Texture wifi_icon_texture;
-    const char *wifi_icon_glyph_cached = nullptr;
-    Texture bluetooth_icon_texture;
-    const char *bluetooth_icon_glyph_cached = nullptr;
-    Texture volume_icon_texture;
-    const char *volume_icon_glyph_cached = nullptr;
-    bool volume_peek_active = false;
-    bool volume_peek_ready = false;
-    std::chrono::steady_clock::time_point volume_peek_started_at =
-        std::chrono::steady_clock::now();
-    std::chrono::steady_clock::time_point volume_peek_deadline{};
-    float volume_peek_last_level = -1.0f;
-    bool volume_peek_last_muted = false;
-    WidgetCapsuleState capsule;
-    WorkspaceWidgetState workspace_widget;
-    AutoHideState autohide;
     AnimationManager animations;
-    NetworkPanelState network_panel;
-    BluetoothPanelState bluetooth_panel;
-    VolumePanelState volume_panel;
-    TrayPanelState tray_panel;
-    TrayMenuState tray_menu;
-    WallpaperState wallpaper;
-    OsdState osd;
-    NotificationView notification_view;
+    AutoHideState autohide;
+    std::vector<std::unique_ptr<PerMonitorModule>> modules;
+
+    template <typename T> T *module() const {
+        for (auto &m : modules)
+            if (T *t = dynamic_cast<T *>(m.get()))
+                return t;
+        return nullptr;
+    }
 };
 
 void monitor_output_destroy(MonitorOutput &mon);
@@ -90,8 +59,12 @@ void monitor_output_create_surfaces(WaylandState &app, MonitorOutput &mon);
 void monitor_output_wait_configured(WaylandState &app, MonitorOutput &mon);
 void monitor_output_finish_egl(WaylandState &app, MonitorOutput &mon);
 void monitor_output_activate(WaylandState &app, MonitorOutput &mon);
+void request_all_frames(MonitorOutput &mon);
 
 MonitorOutput *find_monitor_by_name_wl(WaylandState &app, wl_output *wl);
+MonitorOutput *find_monitor_for_surface(WaylandState &app, wl_surface *surface);
+
+struct SettingsState;
 
 namespace bar_detail {
 
@@ -99,9 +72,12 @@ const std::vector<Workspace> &monitor_workspaces(const MonitorOutput &mon);
 
 int monitor_active_workspace_id(const MonitorOutput &mon);
 
+void rest_egl_current(WaylandState &app);
+
 void apply_config_update(WaylandState &app, Config new_cfg);
 void save_and_apply_config_update(WaylandState &app, Config new_cfg);
 MonitorOutput *active_target_monitor(WaylandState &app);
-void settings_retarget(WaylandState &app, MonitorOutput &target);
+void settings_retarget(WaylandState &app, SettingsState &settings,
+                       MonitorOutput &target);
 
 }

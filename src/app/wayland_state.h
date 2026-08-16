@@ -6,15 +6,10 @@
 #include <wayland-client.h>
 
 #include "app/config.h"
-#include "modules/controlcenter.h"
+#include "app/module.h"
 #include "modules/idle.h"
-#include "modules/launcher.h"
-#include "modules/matrix.h"
 #include "modules/notification.h"
 #include "modules/osd.h"
-#include "modules/settings.h"
-#include "modules/starward.h"
-#include "modules/visualizer.h"
 #include "render/renderer.h"
 #include "service/bluetooth_service.h"
 #include "service/hyprland.h"
@@ -28,6 +23,7 @@
 #include "service/tray_service.h"
 #include "service/upower_service.h"
 
+#include <cstring>
 #include <memory>
 #include <vector>
 
@@ -46,12 +42,7 @@ struct WaylandState {
     Renderer renderer;
     IdleState idle;
     NotificationService notification;
-    LauncherState launcher;
-    StarwardState starward;
-    ControlCenterState controlcenter;
-    MatrixState matrix;
-    VisualizerState visualizer;
-    SettingsState settings;
+    std::vector<std::unique_ptr<Module>> overlays;
     NetworkState network;
     BluetoothState bluetooth;
     TrayState tray;
@@ -77,3 +68,10 @@ struct WaylandState {
     ShojiwmState shoji;
     std::vector<std::unique_ptr<MonitorOutput>> outputs;
 };
+
+inline Module *find_overlay_by_name(WaylandState &app, const char *name) {
+    for (auto &m : app.overlays)
+        if (strcmp(m->name(), name) == 0)
+            return m.get();
+    return nullptr;
+}

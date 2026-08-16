@@ -56,7 +56,9 @@ void controlcenter_request_frame(ControlCenterState &state, float bar_height,
 
 void controlcenter_toggle(ControlCenterState &state, bool by_widget = false);
 
-std::vector<IpcHandler> controlcenter_ipc_handlers(WaylandState &state);
+std::vector<IpcHandler>
+controlcenter_ipc_handlers(ControlCenterState &controlcenter,
+                          WaylandState &state);
 
 void controlcenter_handle_click(ControlCenterState &state, WaylandState &app,
                                 double px, double py);

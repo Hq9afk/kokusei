@@ -30,6 +30,7 @@ void matrix_toggle(MatrixState &state, WaylandState &app);
 void matrix_handle_key_event(MatrixState &state, WaylandState &app,
                              const KeyEvent &event);
 
-std::vector<IpcHandler> matrix_ipc_handlers(WaylandState &state);
+std::vector<IpcHandler> matrix_ipc_handlers(MatrixState &matrix,
+                                            WaylandState &state);
 
 void matrix_paint(MatrixState &state);

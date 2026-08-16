@@ -1,15 +1,15 @@
 #include "app/config.h"
 #include "app/ipc.h"
 #include "app/key_dispatch.h"
+#include "app/module_registry.h"
 #include "app/monitor_output.h"
 #include "app/single_instance_lock.h"
+#include "app/wayland_registry.h"
 #include "core/deferred_call.h"
 #include "core/log.h"
 #include "core/poll_source.h"
-#include "modules/bar.h"
 #include "modules/idle.h"
 #include "modules/notification.h"
-#include "render/image.h"
 #include "service/hyprland.h"
 #include "service/layer_surface.h"
 #include "service/shojiwm.h"
@@ -18,7 +18,6 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
-#include <filesystem>
 #include <poll.h>
 #include <sys/timerfd.h>
 #include <unistd.h>
@@ -38,17 +37,13 @@ inline void daemonize() {
     freopen("/dev/null", "w", stderr);
 }
 
-inline MonitorOutput *find_monitor_for_surface(WaylandState &app,
-                                               wl_surface *surface) {
-    for (auto &mon : app.outputs) {
-        if (surface == mon->surface ||
-            surface == mon->tray_panel.base.surface ||
-            surface == mon->tray_menu.base.surface ||
-            surface == mon->network_panel.base.surface ||
-            surface == mon->bluetooth_panel.base.surface ||
-            surface == mon->volume_panel.base.surface)
-            return mon.get();
-    }
+inline Module *find_overlay_for_surface(WaylandState &app,
+                                        wl_surface *surface) {
+    if (!surface)
+        return nullptr;
+    for (auto &m : app.overlays)
+        if (m->surface() == surface)
+            return m.get();
     return nullptr;
 }
 
@@ -97,130 +92,51 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    MonitorOutput &first = *app.outputs.front();
-    monitor_output_create_surfaces(app, first);
-    monitor_output_wait_configured(app, first);
-    if (!bar_init_egl(first, app.renderer, app.egl_display, app.egl_config,
-                      app.egl_context)) {
-        klog("EGL init failed");
-        return 1;
-    }
-    if (!app.renderer.init()) {
+    if (!renderer_bootstrap_init(app)) {
         klog("renderer init failed");
         return 1;
     }
+
+    MonitorOutput &first = *app.outputs.front();
+    monitor_output_create_surfaces(app, first);
+    monitor_output_wait_configured(app, first);
     monitor_output_finish_egl(app, first);
     first.activated = true;
 
-    bool want_launcher = launcher_create_surface(
-        app.launcher, app.compositor, app.layer_shell, first.output.wl);
-    if (!want_launcher)
-        klog("launcher: failed to create layer surface");
+    app.overlays = build_app_modules();
+    for (auto &m : app.overlays) {
+        if (!m->create_surface(app, first.output.wl))
+            klog("overlay: failed to create layer surface");
+    }
 
-    bool want_starward = starward_create_surface(
-        app.starward, app.compositor, app.layer_shell, first.output.wl);
-    if (!want_starward)
-        klog("starward: failed to create layer surface");
-
-    bool want_controlcenter = controlcenter_create_surface(
-        app.controlcenter, app.compositor, app.layer_shell, first.output.wl);
-    if (!want_controlcenter)
-        klog("controlcenter: failed to create layer surface");
-
-    bool want_settings = settings_create_surface(
-        app.settings, app.compositor, app.layer_shell, first.output.wl);
-    if (!want_settings)
-        klog("settings: failed to create layer surface");
-
-    while (!((!want_launcher || app.launcher.configured) &&
-             (!want_starward || app.starward.base.configured) &&
-             (!want_controlcenter || app.controlcenter.base.configured) &&
-             (!want_settings || app.settings.base.configured))) {
+    for (;;) {
+        bool all_configured = true;
+        for (auto &m : app.overlays)
+            if (!m->configured())
+                all_configured = false;
+        if (all_configured)
+            break;
         wl_display_dispatch(app.display);
     }
 
-    if (want_launcher) {
-        if (!launcher_init_egl(app.launcher, app.renderer, app.egl_display,
-                               app.egl_config, app.egl_context)) {
-            klog("launcher: EGL surface init failed");
-            want_launcher = false;
-        } else {
-            app.launcher.bound_output = first.output.wl;
-            launcher_request_frame(app.launcher);
-            eglMakeCurrent(app.egl_display, first.egl_surface,
-                           first.egl_surface, app.egl_context);
+    for (auto &m : app.overlays) {
+        if (!m->surface())
+            continue;
+        if (!m->init_egl(app)) {
+            klog("overlay: EGL surface init failed");
+            continue;
         }
+        eglMakeCurrent(app.egl_display, first.egl_surface, first.egl_surface,
+                       app.egl_context);
     }
-    if (want_starward) {
-        if (!starward_init_egl(app.starward, app.renderer, app.egl_display,
-                               app.egl_config, app.egl_context)) {
-            klog("starward: EGL surface init failed");
-            want_starward = false;
-        } else {
-            app.starward.bound_output = first.output.wl;
-            starward_request_frame(app.starward);
-            eglMakeCurrent(app.egl_display, first.egl_surface,
-                           first.egl_surface, app.egl_context);
-
-            const char *logo_candidates[] = {KOKUSEI_STARWARD_LOGO,
-                                             "assets/logo.png"};
-            std::string logo_path = logo_candidates[1];
-            for (const char *candidate : logo_candidates) {
-                if (std::filesystem::exists(candidate)) {
-                    logo_path = candidate;
-                    break;
-                }
-            }
-            app.starward.logo_tex = load_image_texture(logo_path);
-        }
-    }
-    if (want_controlcenter) {
-        if (!controlcenter_init_egl(app.controlcenter, app.renderer, app,
-                                    app.egl_display, app.egl_config,
-                                    app.egl_context)) {
-            klog("controlcenter: EGL surface init failed");
-            want_controlcenter = false;
-        } else {
-            app.controlcenter.bound_output = first.output.wl;
-            controlcenter_request_frame(
-                app.controlcenter, static_cast<float>(bar_detail::kBarHeight),
-                static_cast<float>(bar_detail::kBarTopMargin));
-            eglMakeCurrent(app.egl_display, first.egl_surface,
-                           first.egl_surface, app.egl_context);
-        }
-    }
-    if (want_settings) {
-        if (!settings_init_egl(
-                app.settings, app.cfg, app.renderer, app.egl_display,
-                app.egl_config, app.egl_context,
-                [&app] {
-                    std::vector<std::string> names;
-                    for (const auto &mon : app.outputs)
-                        names.push_back(mon->output.name);
-                    return names;
-                },
-                [&app] {
-                    return app.compositor_backend ==
-                                   WaylandState::CompositorBackend::Hyprland
-                               ? app.hypr.focused_monitor
-                               : std::string();
-                })) {
-            klog("settings: EGL surface init failed");
-            want_settings = false;
-        } else {
-            eglMakeCurrent(app.egl_display, first.egl_surface,
-                           first.egl_surface, app.egl_context);
-            app.settings_bound_output = first.output.wl;
-        }
-    }
-    app.settings_enabled = want_settings;
 
     for (size_t i = 1; i < app.outputs.size(); ++i)
         monitor_output_activate(app, *app.outputs[i]);
 
     bool want_notification = notification_init(app.notification, [&app] {
         for (auto &mon : app.outputs)
-            notification_view_request_frame(mon->notification_view);
+            if (auto *nv = mon->module<NotificationViewPerMonitorModule>())
+                nv->request_frame();
     });
     if (!want_notification)
         klog("notification: D-Bus registration failed");
@@ -245,11 +161,6 @@ int main(int argc, char **argv) {
         klog("mpris: no session bus available - media info unavailable");
     cpu_temp_init(app.cpu_temp);
     gpu_temp_init(app.gpu_temp);
-
-    for (auto &mon : app.outputs) {
-        update_clock(*mon);
-        init_stub_widgets(*mon);
-    }
 
     if (shoji_init(app.shoji)) {
         app.compositor_backend = WaylandState::CompositorBackend::ShojiWM;
@@ -280,12 +191,10 @@ int main(int argc, char **argv) {
         klog("timerfd_create: %s", strerror(errno));
     }
 
-    int controlcenter_poll_tick = 0;
-
-    klog("started: %zu monitor(s), bar height=%d, ipc_fd=%d, timer_fd=%d",
-         app.outputs.size(), bar_detail::kBarHeight, ipc_fd, timer_fd);
+    klog("started: %zu monitor(s), ipc_fd=%d, timer_fd=%d", app.outputs.size(),
+         ipc_fd, timer_fd);
     for (auto &mon : app.outputs)
-        bar_request_frame(*mon);
+        request_all_frames(*mon);
 
     while (app.running) {
         wl_display_flush(app.display);
@@ -294,17 +203,17 @@ int main(int argc, char **argv) {
 
         auto rest_egl_current = [&app] { bar_detail::rest_egl_current(app); };
 
-        auto settings_commit = [&app](Config c) {
-            bar_detail::save_and_apply_config_update(app, c);
-        };
-
         auto network_notify = [&app](const std::string &summary,
                                      const std::string &body) {
             notification_push(app.notification, "Network", summary, body, 6000);
         };
 
         auto network_dispatch = [&app](bool changed) {
-            bar_detail::network_panel_dispatch(app, changed);
+            if (!changed)
+                return;
+            for (auto &mon : app.outputs)
+                request_all_frames(*mon);
+            bar_detail::rest_egl_current(app);
         };
 
         auto bluetooth_notify = [&app](const std::string &summary,
@@ -314,45 +223,25 @@ int main(int argc, char **argv) {
         };
 
         auto bluetooth_dispatch = [&app] {
-            bar_detail::bluetooth_panel_dispatch(app);
+            for (auto &mon : app.outputs)
+                request_all_frames(*mon);
+            bar_detail::rest_egl_current(app);
         };
 
         auto volume_dispatch = [&app] {
-            bar_detail::volume_panel_dispatch(app);
-        };
-
-        auto tray_dispatch = [&] {
-            for (auto &mon : app.outputs) {
-                bar_request_frame(*mon);
-                tray_panel_request_frame(
-                    mon->tray_panel,
-                    bar_detail::pill_center_x(mon->capsule, PillId::Tray),
-                    static_cast<float>(bar_detail::kBarHeight),
-                    bar_detail::kBarTopMargin);
-                tray_menu_request_frame(mon->tray_menu);
-            }
-            rest_egl_current();
+            for (auto &mon : app.outputs)
+                request_all_frames(*mon);
+            bar_detail::rest_egl_current(app);
         };
 
         if (ipc_fd >= 0) {
             fn_sources.emplace_back(ipc_fd, POLLIN, [&] {
                 handle_ipc_accept(ipc_fd, app);
-                if (want_launcher) {
-                    launcher_request_frame(app.launcher);
-                    rest_egl_current();
-                }
-                if (want_starward) {
-                    starward_request_frame(app.starward);
-                    rest_egl_current();
-                }
-                if (want_controlcenter) {
-                    controlcenter_request_frame(
-                        app.controlcenter,
-                        static_cast<float>(bar_detail::kBarHeight),
-                        static_cast<float>(bar_detail::kBarTopMargin));
-                    rest_egl_current();
-                }
-                bar_paint(first);
+                for (auto &m : app.overlays)
+                    m->request_frame();
+                rest_egl_current();
+                for (auto &mon : app.outputs)
+                    request_all_frames(*mon);
                 bluetooth_dispatch();
             });
         }
@@ -361,15 +250,14 @@ int main(int argc, char **argv) {
             fn_sources.emplace_back(timer_fd, POLLIN, [&] {
                 uint64_t expirations;
                 read(timer_fd, &expirations, sizeof(expirations));
-                for (auto &mon : app.outputs) {
-                    update_clock(*mon);
-                    bar_request_frame(*mon);
-                    if (bar_detail::volume_pill_peek_expire(*mon))
-                        bar_request_frame(*mon);
-                }
+                for (auto &mon : app.outputs)
+                    for (auto &m : mon->modules)
+                        m->timer_tick(app, *mon);
                 if (notification_sweep_expired(app.notification)) {
                     for (auto &mon : app.outputs)
-                        notification_view_request_frame(mon->notification_view);
+                        if (auto *nv =
+                                mon->module<NotificationViewPerMonitorModule>())
+                            nv->request_frame();
                 }
                 if (want_network) {
                     network_dispatch(network_tick(
@@ -380,42 +268,15 @@ int main(int argc, char **argv) {
                                    std::chrono::steady_clock::now(),
                                    bluetooth_dispatch);
                 }
-                if (want_controlcenter && app.controlcenter.base.open) {
-                    ++controlcenter_poll_tick;
-                    if (controlcenter_poll_tick % 2 == 0) {
-                        cpu_temp_poll(app.cpu_temp);
-                        system_stats_poll(app.system_stats);
-                    }
-                    if (controlcenter_poll_tick % 5 == 0)
-                        gpu_temp_poll(app.gpu_temp);
-                    controlcenter_request_frame(
-                        app.controlcenter,
-                        static_cast<float>(bar_detail::kBarHeight),
-                        static_cast<float>(bar_detail::kBarTopMargin));
-                    rest_egl_current();
-                }
-                if (want_launcher && app.launcher.open) {
-                    app.launcher.cursor_blink_visible =
-                        !app.launcher.cursor_blink_visible;
-                    launcher_request_frame(app.launcher);
-                    rest_egl_current();
-                }
-                if (want_settings &&
-                    app.settings.focused_field != SettingsFieldId::None) {
-                    app.settings.field_buffer.cursor_blink_visible =
-                        !app.settings.field_buffer.cursor_blink_visible;
-                    settings_request_frame(app.settings);
-                    rest_egl_current();
-                }
+                for (auto &m : app.overlays)
+                    if (m->timer_tick(app))
+                        rest_egl_current();
             });
         }
 
-        for (auto &mon : app.outputs) {
-            if (!mon->osd.visible ||
-                std::chrono::steady_clock::now() < mon->osd.hide_at)
-                continue;
-            osd_hide(mon->osd);
-        }
+        for (auto &mon : app.outputs)
+            for (auto &m : mon->modules)
+                m->tick(app, *mon);
 
         int compositor_fd = (app.compositor_backend ==
                              WaylandState::CompositorBackend::Hyprland)
@@ -428,7 +289,7 @@ int main(int argc, char **argv) {
             fn_sources.emplace_back(compositor_fd, POLLIN, [&] {
                 auto redraw_all = [&app] {
                     for (auto &mon : app.outputs)
-                        bar_request_frame(*mon);
+                        request_all_frames(*mon);
                 };
                 if (app.compositor_backend ==
                     WaylandState::CompositorBackend::Hyprland) {
@@ -468,7 +329,9 @@ int main(int argc, char **argv) {
                        app.notification.bus->processPendingEvent()) {
                 }
                 for (auto &mon : app.outputs)
-                    notification_view_request_frame(mon->notification_view);
+                    if (auto *nv =
+                            mon->module<NotificationViewPerMonitorModule>())
+                        nv->request_frame();
             }));
         }
 
@@ -480,7 +343,7 @@ int main(int argc, char **argv) {
                 if (app.upower.dirty) {
                     app.upower.dirty = false;
                     for (auto &mon : app.outputs)
-                        bar_request_frame(*mon);
+                        request_all_frames(*mon);
                 }
 
                 network_dispatch(app.network.dirty);
@@ -495,7 +358,9 @@ int main(int argc, char **argv) {
                 }
                 if (app.tray.dirty) {
                     app.tray.dirty = false;
-                    tray_dispatch();
+                    for (auto &mon : app.outputs)
+                        request_all_frames(*mon);
+                    rest_egl_current();
                 }
             }));
         }
@@ -505,13 +370,11 @@ int main(int argc, char **argv) {
                 int budget = 32;
                 while (budget-- > 0 && app.mpris.bus->processPendingEvent()) {
                 }
-                if (want_controlcenter && app.controlcenter.base.open) {
-                    controlcenter_request_frame(
-                        app.controlcenter,
-                        static_cast<float>(bar_detail::kBarHeight),
-                        static_cast<float>(bar_detail::kBarTopMargin));
-                    rest_egl_current();
-                }
+                for (auto &m : app.overlays)
+                    if (m->is_open()) {
+                        m->request_frame();
+                        rest_egl_current();
+                    }
             }));
         }
 
@@ -567,10 +430,11 @@ int main(int argc, char **argv) {
                     float level = pipewire_sink_level(app.pipewire, muted);
                     for (auto &mon : app.outputs) {
                         if (osd_effective_enabled(app.cfg, mon->output.name)) {
-                            osd_show(mon->osd, OsdKind::Volume, level, muted);
-                            osd_request_frame(mon->osd);
+                            OsdState &osd =
+                                mon->module<OsdPerMonitorModule>()->state();
+                            osd_show(osd, OsdKind::Volume, level, muted);
+                            osd_request_frame(osd);
                         }
-                        bar_detail::volume_pill_peek_tick(*mon);
                     }
                 }
                 if (change.source) {
@@ -579,8 +443,10 @@ int main(int argc, char **argv) {
                     for (auto &mon : app.outputs) {
                         if (!osd_effective_enabled(app.cfg, mon->output.name))
                             continue;
-                        osd_show(mon->osd, OsdKind::Mic, level, muted);
-                        osd_request_frame(mon->osd);
+                        OsdState &osd =
+                            mon->module<OsdPerMonitorModule>()->state();
+                        osd_show(osd, OsdKind::Mic, level, muted);
+                        osd_request_frame(osd);
                     }
                 }
                 if (change.sink || change.source)
@@ -595,8 +461,10 @@ int main(int argc, char **argv) {
                     for (auto &mon : app.outputs) {
                         if (!osd_effective_enabled(app.cfg, mon->output.name))
                             continue;
-                        osd_show(mon->osd, OsdKind::Brightness, level, false);
-                        osd_request_frame(mon->osd);
+                        OsdState &osd =
+                            mon->module<OsdPerMonitorModule>()->state();
+                        osd_show(osd, OsdKind::Brightness, level, false);
+                        osd_request_frame(osd);
                     }
                 }
             });
@@ -624,18 +492,9 @@ int main(int argc, char **argv) {
             });
         }
 
-        auto launcher_search_dispatch = [&] {
-            if (launcher_search_poll(app.launcher) && want_launcher) {
-                launcher_request_frame(app.launcher);
-                rest_egl_current();
-            }
-        };
-        if (app.launcher.search_dirs_proc.wake_fd >= 0)
-            fn_sources.emplace_back(app.launcher.search_dirs_proc.wake_fd,
-                                    POLLIN, launcher_search_dispatch);
-        if (app.launcher.search_files_proc.wake_fd >= 0)
-            fn_sources.emplace_back(app.launcher.search_files_proc.wake_fd,
-                                    POLLIN, launcher_search_dispatch);
+        for (auto &m : app.overlays)
+            for (auto &[fd, cb] : m->extra_poll_sources(app))
+                fn_sources.emplace_back(fd, POLLIN, cb);
 
         if (app.keyboard.repeat_timer_fd >= 0) {
             fn_sources.emplace_back(app.keyboard.repeat_timer_fd, POLLIN, [&] {
@@ -658,7 +517,12 @@ int main(int argc, char **argv) {
                 ranges.push_back({&src, start});
         }
 
-        int poll_timeout_ms = launcher_poll_timeout_ms(app.launcher);
+        int poll_timeout_ms = -1;
+        for (auto &m : app.overlays) {
+            int t = m->poll_timeout_ms();
+            if (t >= 0 && (poll_timeout_ms < 0 || t < poll_timeout_ms))
+                poll_timeout_ms = t;
+        }
         if (poll(fds.data(), fds.size(), poll_timeout_ms) < 0)
             break;
 
@@ -668,39 +532,19 @@ int main(int argc, char **argv) {
             if (app.pointer.dirty) {
                 app.pointer.dirty = false;
                 for (auto &mon : app.outputs)
-                    bar_request_frame(*mon);
-                if (want_starward && app.starward.base.open) {
-                    if (app.pointer.focused_surface ==
-                        app.starward.base.surface)
-                        starward_handle_hover(app.starward, app.pointer.x,
-                                              app.pointer.y);
-                    else
-                        starward_clear_hover(app.starward);
-                    starward_request_frame(app.starward);
-                }
+                    request_all_frames(*mon);
+                for (auto &m : app.overlays)
+                    m->handle_pointer_move(app, app.pointer.focused_surface,
+                                           app.pointer.x, app.pointer.y);
                 if (app.pointer.focused_surface) {
                     if (MonitorOutput *m = find_monitor_for_surface(
                             app, app.pointer.focused_surface))
                         app.last_pointer_monitor = m;
                 }
-                MonitorOutput *dragging_mon = nullptr;
                 for (auto &mon : app.outputs)
-                    if (mon->volume_panel.dragging)
-                        dragging_mon = mon.get();
-                if (dragging_mon) {
-                    volume_panel_handle_pointer_move(dragging_mon->volume_panel,
-                                                     app.pipewire,
-                                                     app.pointer.x);
-                    volume_dispatch();
-                }
-                if (want_controlcenter && app.controlcenter.dragging) {
-                    controlcenter_handle_pointer_move(
-                        app.controlcenter, app.pipewire, app.pointer.x);
-                    controlcenter_request_frame(
-                        app.controlcenter,
-                        static_cast<float>(bar_detail::kBarHeight),
-                        static_cast<float>(bar_detail::kBarTopMargin));
-                }
+                    for (auto &pm : mon->modules)
+                        pm->handle_pointer_move(app, *mon, app.pointer.x,
+                                               app.pointer.y);
             }
         }
         for (SourceRange &r : ranges)
@@ -709,129 +553,54 @@ int main(int argc, char **argv) {
         std::vector<KeyEvent> key_events = keyboard_drain_events(app.keyboard);
         dispatch_key_events(app, key_events);
 
-        if (want_launcher)
-            launcher_search_start_pending(app.launcher);
-
-        if (want_launcher && launcher_tick(app.launcher)) {
-            launcher_request_frame(app.launcher);
-            rest_egl_current();
-        }
+        for (auto &m : app.overlays)
+            if (m->tick()) {
+                m->request_frame();
+                rest_egl_current();
+            }
 
         for (const PointerClick &click : pointer_drain_clicks(app.pointer)) {
             MonitorOutput *mon = find_monitor_for_surface(app, click.surface);
-            if (click.button != BTN_LEFT &&
-                !(mon && click.surface == mon->tray_panel.base.surface))
-                continue;
             if (!click.pressed) {
-                for (auto &m : app.outputs) {
-                    if (m->volume_panel.dragging) {
-                        m->volume_panel.dragging.reset();
-                        volume_dispatch();
-                    }
-                }
-                if (want_controlcenter && app.controlcenter.dragging)
-                    app.controlcenter.dragging.reset();
+                for (auto &m : app.outputs)
+                    for (auto &pm : m->modules)
+                        pm->handle_pointer_release();
+                for (auto &m : app.overlays)
+                    m->handle_pointer_release();
                 continue;
             }
-            if (mon && mon->tray_menu.base.open &&
-                click.surface != mon->tray_menu.base.surface &&
-                click.surface != mon->tray_panel.base.surface) {
-                tray_menu_close(mon->tray_menu);
-                tray_menu_request_frame(mon->tray_menu);
-                rest_egl_current();
-            }
-            if (mon && click.surface == mon->tray_panel.base.surface) {
-                tray_panel_handle_click(mon->tray_panel, app.tray,
-                                        mon->tray_menu, click.x, click.y,
-                                        click.button);
-                tray_dispatch();
-            } else if (mon && click.surface == mon->tray_menu.base.surface) {
-                tray_menu_handle_click(mon->tray_menu, app.tray, click.x,
-                                       click.y);
-                tray_menu_request_frame(mon->tray_menu);
-                rest_egl_current();
-            } else if (want_starward &&
-                       click.surface == app.starward.base.surface) {
-                starward_handle_click(app.starward, click.x, click.y);
-                starward_request_frame(app.starward);
-                rest_egl_current();
-            } else if (want_controlcenter &&
-                       click.surface == app.controlcenter.base.surface) {
-                controlcenter_handle_click(app.controlcenter, app, click.x,
-                                           click.y);
-                controlcenter_request_frame(
-                    app.controlcenter,
-                    static_cast<float>(bar_detail::kBarHeight),
-                    static_cast<float>(bar_detail::kBarTopMargin));
-                rest_egl_current();
-            } else if (mon &&
-                       click.surface == mon->network_panel.base.surface) {
-                network_panel_handle_click(mon->network_panel, app.network,
-                                           click.x, click.y);
-                network_dispatch(true);
-            } else if (mon &&
-                       click.surface == mon->bluetooth_panel.base.surface) {
-                bluetooth_panel_handle_click(mon->bluetooth_panel,
-                                             app.bluetooth, click.x, click.y);
-                bluetooth_dispatch();
-            } else if (mon && click.surface == mon->volume_panel.base.surface) {
-                volume_panel_handle_click(mon->volume_panel, app.pipewire,
-                                          click.x, click.y);
-                volume_dispatch();
-            } else if (want_launcher && click.surface == app.launcher.surface) {
-                launcher_handle_click(app.launcher, click.x, click.y);
-                launcher_request_frame(app.launcher);
-                rest_egl_current();
-            } else if (want_settings &&
-                       click.surface == app.settings.base.surface) {
-                settings_handle_click(app.settings, app.cfg, settings_commit,
-                                      click.x, click.y);
-                settings_request_frame(app.settings);
-                rest_egl_current();
-            } else if (mon && click.surface == mon->surface) {
-                dispatch_pill_click(*mon, click.x, click.y);
-                network_dispatch(true);
-                bluetooth_dispatch();
-                volume_dispatch();
-                tray_dispatch();
-                if (want_starward) {
-                    starward_request_frame(app.starward);
+            if (click.button == BTN_LEFT) {
+                if (Module *m = find_overlay_for_surface(app, click.surface)) {
+                    m->handle_click(app, click.x, click.y);
+                    m->request_frame();
                     rest_egl_current();
+                    continue;
                 }
-                if (want_controlcenter) {
-                    controlcenter_request_frame(
-                        app.controlcenter,
-                        static_cast<float>(bar_detail::kBarHeight),
-                        static_cast<float>(bar_detail::kBarTopMargin));
-                    rest_egl_current();
+            }
+            if (!mon)
+                continue;
+            for (auto &pm : mon->modules) {
+                if (pm->owns_surface(click.surface)) {
+                    pm->handle_click(app, *mon, click.surface, click.button,
+                                     click.x, click.y);
+                    break;
                 }
             }
         }
 
         for (const PointerScroll &scroll : pointer_drain_scrolls(app.pointer)) {
             MonitorOutput *mon = find_monitor_for_surface(app, scroll.surface);
-            if (mon && scroll.surface == mon->network_panel.base.surface) {
-                network_panel_handle_scroll(mon->network_panel, app.network,
-                                            scroll.dy);
-                network_dispatch(true);
-            } else if (mon &&
-                       scroll.surface == mon->bluetooth_panel.base.surface) {
-                bluetooth_panel_handle_scroll(mon->bluetooth_panel,
-                                              app.bluetooth, scroll.dy);
-                bluetooth_dispatch();
-            } else if (mon &&
-                       scroll.surface == mon->volume_panel.base.surface) {
-                volume_panel_handle_scroll(mon->volume_panel, app.pipewire,
-                                           scroll.dy);
-                volume_dispatch();
-            } else if (mon && scroll.surface == mon->surface &&
-                       bar_detail::hit_test_pills(mon->capsule, app.pointer,
-                                                  mon->surface) ==
-                           PillId::Volume) {
-                bar_detail::volume_pill_handle_wheel(*mon, scroll.dy);
-            } else if (want_settings &&
-                       scroll.surface == app.settings.base.surface) {
-                settings_handle_scroll(app.settings, scroll.dy);
+            if (Module *m = find_overlay_for_surface(app, scroll.surface)) {
+                m->handle_scroll(app, scroll.dy);
+                continue;
+            }
+            if (!mon)
+                continue;
+            for (auto &pm : mon->modules) {
+                if (pm->owns_surface(scroll.surface)) {
+                    pm->handle_scroll(app, *mon, scroll.surface, scroll.dy);
+                    break;
+                }
             }
         }
     }

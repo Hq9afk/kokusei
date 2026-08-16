@@ -260,7 +260,9 @@ kokusei_app_main_only_sources = [
   'src/app/single_instance_lock.cpp',
   'src/app/ipc.cpp',
   'src/app/key_dispatch.cpp',
+  'src/app/module_registry.cpp',
   'src/app/monitor_output.cpp',
+  'src/app/wayland_registry.cpp',
 ]
 
 # settings/: real EGL/GL rendering, no test coverage, main-executable-only.

@@ -82,11 +82,12 @@ void controlcenter_toggle(ControlCenterState &state, bool by_widget) {
     overlay_panel_toggle(state.base);
 }
 
-std::vector<IpcHandler> controlcenter_ipc_handlers(WaylandState &state) {
+std::vector<IpcHandler>
+controlcenter_ipc_handlers(ControlCenterState &controlcenter,
+                          WaylandState &state) {
     return {
         {"controlcenter",
-         [&state] {
-             ControlCenterState &controlcenter = state.controlcenter;
+         [&controlcenter, &state] {
              if (!controlcenter.base.open) {
                  MonitorOutput *target =
                      bar_detail::active_target_monitor(state);

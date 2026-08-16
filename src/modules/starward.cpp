@@ -339,11 +339,11 @@ void starward_toggle(StarwardState &state, bool by_widget) {
     overlay_panel_request_frame(state.base);
 }
 
-std::vector<IpcHandler> starward_ipc_handlers(WaylandState &state) {
+std::vector<IpcHandler> starward_ipc_handlers(StarwardState &starward,
+                                              WaylandState &state) {
     return {
         {"starward",
-         [&state] {
-             StarwardState &starward = state.starward;
+         [&starward, &state] {
              if (!starward.base.open) {
                  MonitorOutput *target =
                      bar_detail::active_target_monitor(state);

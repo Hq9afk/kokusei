@@ -100,17 +100,18 @@ void settings_toggle(SettingsState &state, const Config &cfg,
     settings_request_frame(state);
 }
 
-std::vector<IpcHandler> settings_ipc_handlers(WaylandState &state) {
+std::vector<IpcHandler> settings_ipc_handlers(SettingsState &settings,
+                                              WaylandState &state) {
     return {
         {"settings",
-         [&state] {
-             if (!state.settings.base.open && state.settings_enabled) {
+         [&settings, &state] {
+             if (!settings.base.open && state.settings_enabled) {
                  MonitorOutput *target =
                      bar_detail::active_target_monitor(state);
                  if (target && target->output.wl != state.settings_bound_output)
-                     bar_detail::settings_retarget(state, *target);
+                     bar_detail::settings_retarget(state, settings, *target);
              }
-             settings_toggle(state.settings, state.cfg, [&state](Config c) {
+             settings_toggle(settings, state.cfg, [&state](Config c) {
                  bar_detail::save_and_apply_config_update(state, c);
              });
          },
