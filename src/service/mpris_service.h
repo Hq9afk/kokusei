@@ -20,8 +20,6 @@ struct MprisPlayerCandidate {
     MprisPlaybackStatus status;
 };
 
-// "First Playing player, else first present player." Returns -1 if players
-// is empty.
 int mpris_detail_select_player(
     const std::vector<MprisPlayerCandidate> &players);
 

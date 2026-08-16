@@ -17,4 +17,4 @@ constexpr int32_t kAutoHideStripPx = 1;
 constexpr float kAutoHideRevealMs = 150.0f;
 constexpr float kAutoHideHideMs = 150.0f;
 constexpr uint64_t kAutoHideAnimOwner = 1000;
-} // namespace bar_detail
+}

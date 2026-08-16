@@ -16,7 +16,6 @@
 
 namespace {
 
-// Radix-2 Cooley-Tukey FFT
 void fft(std::complex<float> *data, int n) {
     for (int i = 1, j = 0; i < n; ++i) {
         int bit = n >> 1;

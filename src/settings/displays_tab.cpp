@@ -44,52 +44,6 @@ void draw_displays_monitor_row(SettingsState &state, Node *parent,
         draw_tile(name, name, name == state.displays_selected_monitor);
 }
 
-void draw_toggle_switch(SettingsState &state, Node *parent, float x, float y,
-                        bool active, const char *tag) {
-    node_add_rrect(parent, x, y, kSettingsToggleTrackWidth,
-                   kSettingsToggleTrackHeight, kSettingsToggleTrackRadius, 0.0f,
-                   active ? rgba(palette::accent) : rgba(palette::text_alpha11),
-                   kPanelNoBorder);
-    float knob_x = active
-                       ? x + kSettingsToggleTrackWidth -
-                             kSettingsToggleKnobSize - kSettingsToggleKnobInset
-                       : x + kSettingsToggleKnobInset;
-    float knob_y =
-        y + (kSettingsToggleTrackHeight - kSettingsToggleKnobSize) / 2.0f;
-    node_add_rrect(parent, knob_x, knob_y, kSettingsToggleKnobSize,
-                   kSettingsToggleKnobSize, kSettingsToggleKnobRadius, 0.0f,
-                   rgba(palette::text), kPanelNoBorder);
-    state.click_regions.push_back(
-        {PanelClickKind::ToggleFlip,
-         {x, y, kSettingsToggleTrackWidth, kSettingsToggleTrackHeight},
-         tag});
-}
-
-void draw_toggle_row(SettingsState &state, Node *parent, int32_t scale, float x,
-                     float y, float w, const std::string &label, bool value,
-                     const char *tag, bool tiled) {
-    float row_h =
-        tiled ? kSettingsToggleTileHeight : kSettingsToggleTrackHeight;
-    float inset = tiled ? kSettingsToggleTileContentMargin : 0.0f;
-
-    if (tiled)
-        node_add_rrect(parent, x, y, w, row_h, kSettingsTileRadius,
-                       kSettingsToggleTileBorderWidth,
-                       rgba(palette::text_alpha04),
-                       rgba(palette::text_alpha07));
-
-    const Texture *label_tex = cached_text(state.tcache, label, scale);
-    if (label_tex)
-        node_add_texture(parent, x + inset,
-                         y + (row_h - label_tex->height) / 2.0f, *label_tex,
-                         tiled ? rgba(palette::text_alpha85)
-                               : rgba(palette::text));
-
-    float switch_x = x + w - inset - kSettingsToggleTrackWidth;
-    float switch_y = y + (row_h - kSettingsToggleTrackHeight) / 2.0f;
-    draw_toggle_switch(state, parent, switch_x, switch_y, value, tag);
-}
-
 } // namespace
 
 void displays_tab_paint(SettingsState &state, Node *root, int32_t scale,

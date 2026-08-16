@@ -35,8 +35,6 @@ struct GpuTempState {
 
 void gpu_temp_init(GpuTempState &state);
 
-// Called on a timer (5s). Reads sysfs synchronously, or kicks off/collects
-// the async nvidia-smi fallback.
 void gpu_temp_poll(GpuTempState &state);
 
 bool gpu_temp_available(const GpuTempState &state);
@@ -49,7 +47,6 @@ struct CpuJiffies {
 std::optional<CpuJiffies>
 system_stats_detail_parse_proc_stat(const std::string &text);
 
-// Returns 0..1, or -1 if either sample is invalid.
 float system_stats_detail_cpu_usage(const CpuJiffies &prev,
                                     const CpuJiffies &cur);
 
@@ -61,7 +58,6 @@ struct MemInfo {
 std::optional<MemInfo>
 system_stats_detail_parse_proc_meminfo(const std::string &text);
 
-// Returns 0..1, or -1 if unavailable.
 float system_stats_detail_mem_usage(const MemInfo &info);
 
 struct SystemStatsState {

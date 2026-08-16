@@ -60,7 +60,7 @@ inline constexpr Color electro = color("#9D3EF2");
 inline constexpr Color critical = color("#F44747");
 inline constexpr Color critical_alpha15 = color("#F4474726");
 
-} // namespace palette
+}
 
 namespace metrics {
 
@@ -69,4 +69,4 @@ inline constexpr float radius_sm = 5.0f;
 inline constexpr float border_thin = 2.0f;
 inline constexpr float border_thick = 4.0f;
 
-} // namespace metrics
+}

@@ -86,8 +86,7 @@ void visualizer_paint(VisualizerState &state) {
         return;
     auto now = std::chrono::steady_clock::now();
     state.base.animations.tick(now);
-    // Closing's on_complete (above) can destroy the surface synchronously
-    // from inside this tick(), bail before touching now-dangling EGL handles.
+
     if (state.base.egl_surface == EGL_NO_SURFACE)
         return;
     eglMakeCurrent(state.base.egl_display, state.base.egl_surface,
@@ -112,9 +111,7 @@ void visualizer_paint(VisualizerState &state) {
         std::chrono::duration<float, std::milli>(now - state.last_frame)
             .count();
     state.last_frame = now;
-    // Exponential smoothing toward the latest FFT frame; a manual lerp
-    // is simpler than driving kVisualizerBarCount AnimationManager
-    // tweens for a target that moves every frame.
+
     float k = 1.0f - std::exp(-std::max(0.0f, elapsed_ms) /
                               kVisualizerBarsAnimDurationMs);
 

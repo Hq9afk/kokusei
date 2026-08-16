@@ -80,7 +80,6 @@ void MatrixGrid::rebuild(int width, int height) {
     width_ = std::max(1, width);
     height_ = std::max(1, height);
 
-    // Leave a gap between streams; filling every cell reads as too dense.
     column_count_ =
         std::max(1, static_cast<int>(width_ / (kMatrixCellWidth * 2)));
     row_count_ = std::max(1, static_cast<int>(height_ / kMatrixCellHeight));

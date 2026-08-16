@@ -190,14 +190,21 @@ int main(int argc, char **argv) {
         }
     }
     if (want_settings) {
-        if (!settings_init_egl(app.settings, app.cfg, app.renderer,
-                               app.egl_display, app.egl_config, app.egl_context,
-                               [&app] {
-                                   std::vector<std::string> names;
-                                   for (const auto &mon : app.outputs)
-                                       names.push_back(mon->output.name);
-                                   return names;
-                               })) {
+        if (!settings_init_egl(
+                app.settings, app.cfg, app.renderer, app.egl_display,
+                app.egl_config, app.egl_context,
+                [&app] {
+                    std::vector<std::string> names;
+                    for (const auto &mon : app.outputs)
+                        names.push_back(mon->output.name);
+                    return names;
+                },
+                [&app] {
+                    return app.compositor_backend ==
+                                   WaylandState::CompositorBackend::Hyprland
+                               ? app.hypr.focused_monitor
+                               : std::string();
+                })) {
             klog("settings: EGL surface init failed");
             want_settings = false;
         } else {

@@ -99,8 +99,6 @@ void launcher_search_start_pending(LauncherState &state);
 
 bool launcher_search_poll(LauncherState &state);
 
-// Shared with the paint function below (visible_rows() resolves each app row's
-// icon).
 const Texture *launcher_icon_lookup(LauncherState &state, const std::string &id,
                                     const std::string &icon_field);
 

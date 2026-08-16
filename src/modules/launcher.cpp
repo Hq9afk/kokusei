@@ -22,8 +22,6 @@
 #include <algorithm>
 #include <cstdlib>
 
-// -- launcher --
-
 namespace {
 
 void launcher_layer_surface_configure(void *data,
@@ -254,9 +252,6 @@ void launcher_request_frame(LauncherState &state) {
     request_frame(state.frame_clock);
 }
 
-// LauncherState predates OverlayPanelBase and keeps its own surface/EGL
-// fields directly, so this mirrors overlay_panel_retarget's skeleton by hand
-// instead of reusing the template.
 void launcher_retarget(LauncherState &state, wl_compositor *compositor,
                        zwlr_layer_shell_v1 *layer_shell, wl_display *display,
                        Renderer &renderer, EGLDisplay egl_display,

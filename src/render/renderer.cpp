@@ -9,7 +9,7 @@ bool Renderer::init() {
     static const char *quad_vs = R"(
         attribute vec2 a_pos;
         uniform vec2 u_viewport;
-        uniform vec4 u_rect; // x, y, w, h in pixels
+        uniform vec4 u_rect;
         varying vec2 v_uv;
         void main() {
             v_uv = a_pos;

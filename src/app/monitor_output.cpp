@@ -36,10 +36,45 @@ void destroy_layer_surface(EGLDisplay display, wl_surface *&surface,
     }
 }
 
+std::vector<FillMode> resolve_wallpaper_fill_modes(const Config &cfg,
+                                                   const std::string &name) {
+    if (cfg.wallpaper_animated_enabled) {
+        int count = wallpaper_service_animated_column_count(cfg, name);
+        std::vector<FillMode> modes(static_cast<size_t>(count));
+        for (int i = 0; i < count; ++i) {
+            std::string mode =
+                wallpaper_service_animated_fill_mode(cfg, name, i);
+            modes[static_cast<size_t>(i)] =
+                mode == "fit" ? FillMode::Fit : FillMode::Crop;
+        }
+        return modes;
+    }
+    int count = wallpaper_service_column_count(cfg, name);
+    std::vector<FillMode> modes(static_cast<size_t>(count));
+    for (int i = 0; i < count; ++i) {
+        std::string mode = wallpaper_service_fill_mode(cfg, name, i);
+        modes[static_cast<size_t>(i)] =
+            mode == "fit" ? FillMode::Fit : FillMode::Crop;
+    }
+    return modes;
+}
+
+void wallpaper_sync_active_mode(WallpaperState &wp, const Config &cfg,
+                                const std::string &monitor_name) {
+    if (cfg.wallpaper_animated_enabled) {
+        wallpaper_animate_sync_from_config(wp, cfg, monitor_name);
+    } else {
+        if (!wp.column_animations.empty())
+            wallpaper_animate_stop_all(wp);
+        wallpaper_sync_from_config(wp, cfg, monitor_name);
+    }
+}
+
 } // namespace
 
 void monitor_output_destroy(MonitorOutput &mon) {
     EGLDisplay d = mon.app->egl_display;
+    wallpaper_animate_stop_all(mon.wallpaper);
     destroy_layer_surface(d, mon.surface, mon.layer_surface, mon.egl_window,
                           mon.egl_surface);
     destroy_layer_surface(d, mon.wallpaper.surface, mon.wallpaper.layer_surface,
@@ -110,7 +145,14 @@ void monitor_output_create_surfaces(WaylandState &app, MonitorOutput &mon) {
     output_scale_watch(mon.output_scale, mon.surface);
     wl_surface_commit(mon.surface);
 
-    if (!wallpaper_service_column_path(app.cfg, mon.output.name, 0).empty() &&
+    bool wallpaper_wanted =
+        app.cfg.wallpaper_animated_enabled
+            ? !wallpaper_service_animated_column_path(app.cfg, mon.output.name,
+                                                      0)
+                   .empty()
+            : !wallpaper_service_column_path(app.cfg, mon.output.name, 0)
+                   .empty();
+    if (wallpaper_wanted &&
         !wallpaper_create_surface(mon.wallpaper, app.compositor,
                                   app.layer_shell, mon.output.wl))
         klog("wallpaper: failed to create layer surface on '%s'",
@@ -173,11 +215,16 @@ void monitor_output_finish_egl(WaylandState &app, MonitorOutput &mon) {
     if (mon.wallpaper.layer_surface &&
         wallpaper_init_egl(mon.wallpaper, app.renderer, app.egl_display,
                            app.egl_config, app.egl_context)) {
-        mon.wallpaper.fill_mode =
-            wallpaper_service_fill_mode(app.cfg, mon.output.name) == "fit"
-                ? FillMode::Fit
-                : FillMode::Crop;
-        wallpaper_sync_from_config(mon.wallpaper, app.cfg, mon.output.name);
+        mon.wallpaper.column_fill_modes =
+            resolve_wallpaper_fill_modes(app.cfg, mon.output.name);
+        wallpaper_sync_active_mode(mon.wallpaper, app.cfg, mon.output.name);
+        mon.wallpaper.on_resize = [&app, &mon] {
+            if (!app.cfg.wallpaper_animated_enabled)
+                return;
+            wallpaper_animate_stop_all(mon.wallpaper);
+            wallpaper_animate_sync_from_config(mon.wallpaper, app.cfg,
+                                               mon.output.name);
+        };
         wallpaper_request_frame(mon.wallpaper);
         eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
                        app.egl_context);
@@ -299,13 +346,12 @@ void apply_config_update(WaylandState &app, Config new_cfg) {
     app.idle.on_resume_command = new_cfg.idle_resume_command;
 
     for (auto &mon : app.outputs) {
-        wallpaper_sync_from_config(mon->wallpaper, new_cfg, mon->output.name);
+        wallpaper_sync_active_mode(mon->wallpaper, new_cfg, mon->output.name);
 
-        std::string new_fill =
-            wallpaper_service_fill_mode(new_cfg, mon->output.name);
-        FillMode new_mode = new_fill == "fit" ? FillMode::Fit : FillMode::Crop;
-        if (new_mode != mon->wallpaper.fill_mode) {
-            mon->wallpaper.fill_mode = new_mode;
+        std::vector<FillMode> new_modes =
+            resolve_wallpaper_fill_modes(new_cfg, mon->output.name);
+        if (new_modes != mon->wallpaper.column_fill_modes) {
+            mon->wallpaper.column_fill_modes = new_modes;
             wallpaper_request_frame(mon->wallpaper);
         }
 
@@ -377,13 +423,21 @@ void settings_retarget(WaylandState &app, MonitorOutput &target) {
                                            out);
         },
         [&] {
-            return settings_init_egl(s, app.cfg, app.renderer, app.egl_display,
-                                     app.egl_config, app.egl_context, [&app] {
-                                         std::vector<std::string> names;
-                                         for (const auto &mon : app.outputs)
-                                             names.push_back(mon->output.name);
-                                         return names;
-                                     });
+            return settings_init_egl(
+                s, app.cfg, app.renderer, app.egl_display, app.egl_config,
+                app.egl_context,
+                [&app] {
+                    std::vector<std::string> names;
+                    for (const auto &mon : app.outputs)
+                        names.push_back(mon->output.name);
+                    return names;
+                },
+                [&app] {
+                    return app.compositor_backend ==
+                                   WaylandState::CompositorBackend::Hyprland
+                               ? app.hypr.focused_monitor
+                               : std::string();
+                });
         });
     if (bound)
         app.settings_bound_output = bound;

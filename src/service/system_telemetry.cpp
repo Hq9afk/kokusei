@@ -187,8 +187,7 @@ system_stats_detail_parse_proc_stat(const std::string &text) {
     int field = 0;
     while (ls >> value) {
         total += value;
-        // /proc/stat cpu fields: user nice system idle iowait irq softirq ...
-        // idle is field index 3, iowait is field index 4.
+
         if (field == 3 || field == 4)
             idle += value;
         ++field;

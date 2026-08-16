@@ -70,8 +70,7 @@ void matrix_paint(MatrixState &state) {
         return;
     auto now = std::chrono::steady_clock::now();
     state.base.animations.tick(now);
-    // Closing's on_complete (above) can destroy the surface synchronously
-    // from inside this tick(), bail before touching now-dangling EGL handles.
+
     if (state.base.egl_surface == EGL_NO_SURFACE)
         return;
     eglMakeCurrent(state.base.egl_display, state.base.egl_surface,

@@ -27,9 +27,7 @@ struct ToplevelWindowBase {
     FrameClock frame_clock;
     AnimationManager animations;
     float opacity = 0.0f;
-    // Invoked when the WM sends xdg_toplevel.close (titlebar close button,
-    // Alt+F4). The module wires this to its own toggle-closed path so a
-    // WM-initiated close fades out the same way an Escape-triggered one does.
+
     std::function<void()> on_close_request;
 };
 

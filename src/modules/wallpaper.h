@@ -11,12 +11,21 @@
 #include <wayland-egl.h>
 
 #include <cstdint>
+#include <functional>
 #include <string>
+#include <sys/types.h>
+#include <thread>
 #include <vector>
 
 class Renderer;
 
 enum class FillMode { Crop, Fit };
+
+struct AnimatedColumnPlayback {
+    pid_t pid = -1;
+    std::thread reader;
+    std::string path;
+};
 
 struct WallpaperState {
     wl_surface *surface = nullptr;
@@ -35,12 +44,15 @@ struct WallpaperState {
 
     std::vector<Texture> column_textures;
 
-    uint64_t load_generation = 0;
+    std::vector<uint64_t> column_generations;
     unsigned char *pending_pixels = nullptr;
     int pending_width = 0;
     int pending_height = 0;
     int pending_column = 0;
-    FillMode fill_mode = FillMode::Crop;
+    std::vector<FillMode> column_fill_modes;
+
+    std::vector<AnimatedColumnPlayback> column_animations;
+    std::function<void()> on_resize;
 };
 
 bool wallpaper_create_surface(WallpaperState &wp, wl_compositor *compositor,
@@ -60,3 +72,13 @@ void wallpaper_decode_column_async(WallpaperState &wp, std::string path,
 
 void wallpaper_sync_from_config(WallpaperState &wp, const Config &cfg,
                                 const std::string &monitor_name);
+
+void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
+                             int column_index, int width, int height);
+
+void wallpaper_animate_stop(WallpaperState &wp, int column_index);
+
+void wallpaper_animate_stop_all(WallpaperState &wp);
+
+void wallpaper_animate_sync_from_config(WallpaperState &wp, const Config &cfg,
+                                        const std::string &monitor_name);

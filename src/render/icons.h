@@ -86,7 +86,7 @@ inline constexpr const char *wifi1 = "\ueba4";
 inline constexpr const char *wifi2 = "\ueba5";
 inline constexpr const char *wifi_off = "\uecfa";
 
-} // namespace icon
+}
 
 inline const char *volume_threshold_icon(bool muted, float level) {
     if (muted)

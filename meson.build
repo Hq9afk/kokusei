@@ -176,6 +176,7 @@ kokusei_service_test_sources = [
   'src/service/pointer.cpp',
   'src/service/active_output.cpp',
   'src/service/wallpaper_service.cpp',
+  'src/service/wallpaper_animate_service.cpp',
   'src/service/settings_service.cpp',
   'src/service/icon_theme.cpp',
 ]

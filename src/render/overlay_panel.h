@@ -50,10 +50,6 @@ void overlay_panel_toggle(OverlayPanelBase &base);
 
 void overlay_panel_destroy_surface(OverlayPanelBase &base);
 
-// Destroys base's current surface and rebinds it to target_output, falling
-// back to previous_output if target_output fails. create_surface takes a
-// wl_output* and returns bool; init_egl takes nothing and returns bool.
-// Returns the output actually bound to, or nullptr if both attempts failed.
 template <typename CreateSurface, typename InitEgl>
 inline wl_output *
 overlay_panel_retarget(OverlayPanelBase &base, wl_display *display,

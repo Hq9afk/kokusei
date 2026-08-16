@@ -42,8 +42,6 @@ void bar_autohide_apply_geometry(MonitorOutput &mon, bool autohide,
 
 void monitor_autohide_apply(MonitorOutput &mon, bool enabled);
 
-void bar_autohide_set_enabled(WaylandState &app, bool enabled);
-
 void rest_egl_current(WaylandState &app);
 
 void network_panel_dispatch(WaylandState &app, bool changed);
@@ -54,7 +52,7 @@ bool volume_pill_peek_expire(MonitorOutput &mon);
 void volume_pill_peek_tick(MonitorOutput &mon);
 void volume_pill_handle_wheel(MonitorOutput &mon, double dy);
 
-} // namespace bar_detail
+}
 
 std::vector<IpcHandler> bar_ipc_handlers(WaylandState &state);
 

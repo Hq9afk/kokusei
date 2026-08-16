@@ -22,6 +22,8 @@ std::string settings_detail_format_field(const Config &cfg,
         return cfg.wallpaper_path;
     case SettingsFieldId::WallpaperDir:
         return cfg.wallpaper_dir;
+    case SettingsFieldId::WallpaperAnimatedDir:
+        return cfg.wallpaper_animated_dir;
     case SettingsFieldId::IdleTimeout:
         return std::to_string(cfg.idle_timeout_seconds);
     case SettingsFieldId::IdleCommand:
@@ -43,14 +45,19 @@ bool settings_create_surface(SettingsState &state, wl_compositor *compositor,
 bool settings_init_egl(
     SettingsState &state, const Config &cfg, Renderer &renderer,
     EGLDisplay display, EGLConfig config, EGLContext context,
-    std::function<std::vector<std::string>()> monitor_names_fn) {
+    std::function<std::vector<std::string>()> monitor_names_fn,
+    std::function<std::string()> focused_monitor_fn) {
     state.renderer = &renderer;
     if (!overlay_panel_init_egl(state.base, display, config, context))
         return false;
-    state.base.frame_clock.draw = [&state, &cfg, monitor_names_fn] {
-        settings_paint(state, cfg, monitor_names_fn());
+    state.base.frame_clock.draw = [&state, &cfg, monitor_names_fn,
+                                   focused_monitor_fn] {
+        settings_paint(state, cfg, monitor_names_fn(), focused_monitor_fn());
     };
-    state.wallpaper_picker.request_frame = [&state] {
+    state.wallpaper_static.picker.request_frame = [&state] {
+        settings_request_frame(state);
+    };
+    state.wallpaper_animated.picker.request_frame = [&state] {
         settings_request_frame(state);
     };
     return true;
@@ -68,8 +75,6 @@ void settings_commit_focused_field(SettingsState &state, const Config &cfg,
     settings_service_apply_field_text(updated, state.focused_field,
                                       state.field_buffer.text);
     on_commit(updated);
-    if (state.focused_field == SettingsFieldId::WallpaperDir)
-        wallpaper_picker_scan(state.wallpaper_picker, updated.wallpaper_dir);
     state.focused_field = SettingsFieldId::None;
 }
 
@@ -90,8 +95,6 @@ void settings_toggle(SettingsState &state, const Config &cfg,
         settings_commit_focused_field(state, cfg, on_commit);
     } else {
         state.active_tab = SettingsTab::Wallpaper;
-        if (state.wallpaper_picker.dir != cfg.wallpaper_dir)
-            wallpaper_picker_scan(state.wallpaper_picker, cfg.wallpaper_dir);
     }
     overlay_panel_toggle(state.base);
     settings_request_frame(state);
@@ -152,10 +155,6 @@ void settings_handle_click(SettingsState &state, const Config &cfg,
         case PanelClickKind::TabSelect:
             settings_commit_focused_field(state, cfg, on_commit);
             state.active_tab = static_cast<SettingsTab>(std::stoi(region.tag));
-            if (state.active_tab == SettingsTab::Wallpaper &&
-                state.wallpaper_picker.dir != cfg.wallpaper_dir)
-                wallpaper_picker_scan(state.wallpaper_picker,
-                                      cfg.wallpaper_dir);
             settings_request_frame(state);
             return;
         case PanelClickKind::ToggleFlip:
@@ -174,7 +173,12 @@ void settings_handle_click(SettingsState &state, const Config &cfg,
             else
                 wallpaper_tab_handle_click(state, cfg, on_commit, region);
             return;
+        case PanelClickKind::RegionSelect:
+        case PanelClickKind::AnimatedRegionSelect:
+            wallpaper_tab_handle_click(state, cfg, on_commit, region);
+            return;
         case PanelClickKind::WallpaperSelect:
+        case PanelClickKind::AnimatedWallpaperSelect:
             wallpaper_tab_handle_click(state, cfg, on_commit, region);
             return;
         default:
@@ -281,28 +285,83 @@ void draw_nav_rail(SettingsState &state, Node *parent, int32_t scale, float x,
 
 } // namespace
 
+void draw_toggle_switch(SettingsState &state, Node *parent, float x, float y,
+                        bool active, const char *tag) {
+    node_add_rrect(parent, x, y, kSettingsToggleTrackWidth,
+                   kSettingsToggleTrackHeight, kSettingsToggleTrackRadius, 0.0f,
+                   active ? rgba(palette::accent) : rgba(palette::text_alpha11),
+                   kPanelNoBorder);
+    float knob_x = active
+                       ? x + kSettingsToggleTrackWidth -
+                             kSettingsToggleKnobSize - kSettingsToggleKnobInset
+                       : x + kSettingsToggleKnobInset;
+    float knob_y =
+        y + (kSettingsToggleTrackHeight - kSettingsToggleKnobSize) / 2.0f;
+    node_add_rrect(parent, knob_x, knob_y, kSettingsToggleKnobSize,
+                   kSettingsToggleKnobSize, kSettingsToggleKnobRadius, 0.0f,
+                   rgba(palette::text), kPanelNoBorder);
+    state.click_regions.push_back(
+        {PanelClickKind::ToggleFlip,
+         {x, y, kSettingsToggleTrackWidth, kSettingsToggleTrackHeight},
+         tag});
+}
+
+void draw_toggle_row(SettingsState &state, Node *parent, int32_t scale, float x,
+                     float y, float w, const std::string &label, bool value,
+                     const char *tag, bool tiled) {
+    float row_h =
+        tiled ? kSettingsToggleTileHeight : kSettingsToggleTrackHeight;
+    float inset = tiled ? kSettingsToggleTileContentMargin : 0.0f;
+
+    if (tiled)
+        node_add_rrect(parent, x, y, w, row_h, kSettingsTileRadius,
+                       kSettingsToggleTileBorderWidth,
+                       rgba(palette::text_alpha04),
+                       rgba(palette::text_alpha07));
+
+    const Texture *label_tex = cached_text(state.tcache, label, scale);
+    if (label_tex)
+        node_add_texture(parent, x + inset,
+                         y + (row_h - label_tex->height) / 2.0f, *label_tex,
+                         tiled ? rgba(palette::text_alpha85)
+                               : rgba(palette::text));
+
+    float switch_x = x + w - inset - kSettingsToggleTrackWidth;
+    float switch_y = y + (row_h - kSettingsToggleTrackHeight) / 2.0f;
+    draw_toggle_switch(state, parent, switch_x, switch_y, value, tag);
+}
+
 void settings_paint(SettingsState &state, const Config &cfg,
-                    const std::vector<std::string> &monitor_names) {
+                    const std::vector<std::string> &monitor_names,
+                    const std::string &focused_monitor) {
     if (state.base.egl_surface == EGL_NO_SURFACE)
         return;
     state.monitor_names = monitor_names;
-    if (monitor_names.size() == 1) {
-        state.wallpaper_selected_monitor = monitor_names[0];
-    } else if (state.wallpaper_selected_monitor.empty() ||
-               std::find(monitor_names.begin(), monitor_names.end(),
-                         state.wallpaper_selected_monitor) ==
-                   monitor_names.end()) {
-        state.wallpaper_selected_monitor =
-            monitor_names.empty() ? "" : monitor_names[0];
-    }
-    {
-        int count = state.wallpaper_selected_monitor.empty()
+    auto sync_region_selection = [&](WallpaperSubtabState &sub,
+                                     int (*count_fn)(const Config &,
+                                                     const std::string &)) {
+        if (monitor_names.size() == 1) {
+            sub.selected_region = monitor_names[0];
+        } else if (sub.selected_region.empty() ||
+                   std::find(monitor_names.begin(), monitor_names.end(),
+                             sub.selected_region) == monitor_names.end()) {
+            sub.selected_region =
+                !focused_monitor.empty() &&
+                        std::find(monitor_names.begin(), monitor_names.end(),
+                                  focused_monitor) != monitor_names.end()
+                    ? focused_monitor
+                : monitor_names.empty() ? ""
+                                        : monitor_names[0];
+        }
+        int count = sub.selected_region.empty()
                         ? 1
-                        : wallpaper_service_column_count(
-                              cfg, state.wallpaper_selected_monitor);
-        state.wallpaper_selected_column =
-            std::clamp(state.wallpaper_selected_column, 0, count - 1);
-    }
+                        : count_fn(cfg, sub.selected_region);
+        sub.selected_column = std::clamp(sub.selected_column, 0, count - 1);
+    };
+    sync_region_selection(state.wallpaper_static,
+                          wallpaper_service_column_count);
+    sync_region_selection(state.wallpaper_animated,
+                          wallpaper_service_animated_column_count);
 
     if (!state.displays_selected_monitor.empty() &&
         std::find(monitor_names.begin(), monitor_names.end(),

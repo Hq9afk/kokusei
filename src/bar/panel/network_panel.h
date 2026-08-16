@@ -49,8 +49,6 @@ struct NetworkPanelState {
 
 namespace network_panel_detail {
 
-// Shared with network_panel.cpp's paint function.
-
 const char *signal_icon(int pct);
 
 enum class RowKind {
@@ -80,7 +78,7 @@ float panel_height(float content_h);
 
 float sub_panel_height(const std::string &mode);
 
-} // namespace network_panel_detail
+}
 
 bool network_panel_create_surface(NetworkPanelState &state,
                                   wl_compositor *compositor,

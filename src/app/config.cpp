@@ -48,8 +48,6 @@ Config load_config() {
     try {
         toml::table tbl = toml::parse_file(path);
         cfg.autohide = tbl["autohide"].value_or(cfg.autohide);
-        cfg.wallpaper_path =
-            tbl["wallpaper"]["path"].value_or(cfg.wallpaper_path);
         cfg.wallpaper_dir = tbl["wallpaper"]["dir"].value_or(cfg.wallpaper_dir);
         if (const auto *columns = tbl["wallpaper"]["columns"].as_table()) {
             for (const auto &[name, val] : *columns) {
@@ -68,15 +66,60 @@ Config load_config() {
                         static_cast<int>(*n);
         }
         if (const auto *modes = tbl["wallpaper"]["fill_modes"].as_table()) {
-            for (const auto &[name, val] : *modes)
-                if (auto s = val.value<std::string>())
-                    cfg.wallpaper_fill_modes[std::string(name.str())] = *s;
+            for (const auto &[name, val] : *modes) {
+                if (const auto *arr = val.as_array()) {
+                    std::vector<std::string> column_modes;
+                    for (const auto &el : *arr)
+                        column_modes.push_back(el.value_or(std::string()));
+                    cfg.wallpaper_fill_modes[std::string(name.str())] =
+                        column_modes;
+                }
+            }
+        }
+        cfg.wallpaper_animated_enabled =
+            tbl["wallpaper"]["animated_enabled"].value_or(
+                cfg.wallpaper_animated_enabled);
+        cfg.wallpaper_animated_dir = tbl["wallpaper"]["animated_dir"].value_or(
+            cfg.wallpaper_animated_dir);
+        if (const auto *columns =
+                tbl["wallpaper"]["animated_columns"].as_table()) {
+            for (const auto &[name, val] : *columns) {
+                if (const auto *arr = val.as_array()) {
+                    std::vector<std::string> paths;
+                    for (const auto &el : *arr)
+                        paths.push_back(el.value_or(std::string()));
+                    cfg.wallpaper_animated_columns[std::string(name.str())] =
+                        paths;
+                }
+            }
+        }
+        if (const auto *counts =
+                tbl["wallpaper"]["animated_column_counts"].as_table()) {
+            for (const auto &[name, val] : *counts)
+                if (auto n = val.value<int64_t>())
+                    cfg.wallpaper_animated_column_counts[std::string(
+                        name.str())] = static_cast<int>(*n);
+        }
+        if (const auto *modes =
+                tbl["wallpaper"]["animated_fill_modes"].as_table()) {
+            for (const auto &[name, val] : *modes) {
+                if (const auto *arr = val.as_array()) {
+                    std::vector<std::string> column_modes;
+                    for (const auto &el : *arr)
+                        column_modes.push_back(el.value_or(std::string()));
+                    cfg.wallpaper_animated_fill_modes[std::string(name.str())] =
+                        column_modes;
+                }
+            }
         }
         cfg.default_osd_enabled =
             tbl["displays"]["default_osd"].value_or(cfg.default_osd_enabled);
         cfg.default_notifications_enabled =
             tbl["displays"]["default_notifications"].value_or(
                 cfg.default_notifications_enabled);
+        cfg.default_wallpaper_enabled =
+            tbl["displays"]["default_wallpaper"].value_or(
+                cfg.default_wallpaper_enabled);
         if (const auto *overrides =
                 tbl["displays"]["monitor_overrides"].as_table()) {
             for (const auto &[name, val] : *overrides) {
@@ -137,14 +180,42 @@ void save_config(const Config &cfg) {
         wallpaper_column_counts_tbl.insert_or_assign(
             name, static_cast<int64_t>(count));
     toml::table wallpaper_fill_modes_tbl;
-    for (const auto &[name, mode] : cfg.wallpaper_fill_modes)
-        wallpaper_fill_modes_tbl.insert_or_assign(name, mode);
+    for (const auto &[name, modes] : cfg.wallpaper_fill_modes) {
+        toml::array arr;
+        for (const std::string &m : modes)
+            arr.push_back(m);
+        wallpaper_fill_modes_tbl.insert_or_assign(name, arr);
+    }
+    toml::table wallpaper_animated_columns_tbl;
+    for (const auto &[name, paths] : cfg.wallpaper_animated_columns) {
+        toml::array arr;
+        for (const std::string &p : paths)
+            arr.push_back(p);
+        wallpaper_animated_columns_tbl.insert_or_assign(name, arr);
+    }
+    toml::table wallpaper_animated_column_counts_tbl;
+    for (const auto &[name, count] : cfg.wallpaper_animated_column_counts)
+        wallpaper_animated_column_counts_tbl.insert_or_assign(
+            name, static_cast<int64_t>(count));
+    toml::table wallpaper_animated_fill_modes_tbl;
+    for (const auto &[name, modes] : cfg.wallpaper_animated_fill_modes) {
+        toml::array arr;
+        for (const std::string &m : modes)
+            arr.push_back(m);
+        wallpaper_animated_fill_modes_tbl.insert_or_assign(name, arr);
+    }
     tbl.insert_or_assign(
-        "wallpaper", toml::table{{"path", cfg.wallpaper_path},
-                                 {"dir", cfg.wallpaper_dir},
-                                 {"columns", wallpaper_columns_tbl},
-                                 {"column_counts", wallpaper_column_counts_tbl},
-                                 {"fill_modes", wallpaper_fill_modes_tbl}});
+        "wallpaper",
+        toml::table{
+            {"dir", cfg.wallpaper_dir},
+            {"columns", wallpaper_columns_tbl},
+            {"column_counts", wallpaper_column_counts_tbl},
+            {"fill_modes", wallpaper_fill_modes_tbl},
+            {"animated_enabled", cfg.wallpaper_animated_enabled},
+            {"animated_dir", cfg.wallpaper_animated_dir},
+            {"animated_columns", wallpaper_animated_columns_tbl},
+            {"animated_column_counts", wallpaper_animated_column_counts_tbl},
+            {"animated_fill_modes", wallpaper_animated_fill_modes_tbl}});
     toml::table monitor_overrides_tbl;
     for (const auto &[name, ov] : cfg.monitor_overrides)
         monitor_overrides_tbl.insert_or_assign(
@@ -153,10 +224,12 @@ void save_config(const Config &cfg) {
                               {"notifications", ov.notifications},
                               {"autohide", ov.autohide}});
     tbl.insert_or_assign(
-        "displays", toml::table{{"default_osd", cfg.default_osd_enabled},
-                                {"default_notifications",
-                                 cfg.default_notifications_enabled},
-                                {"monitor_overrides", monitor_overrides_tbl}});
+        "displays",
+        toml::table{
+            {"default_osd", cfg.default_osd_enabled},
+            {"default_notifications", cfg.default_notifications_enabled},
+            {"default_wallpaper", cfg.default_wallpaper_enabled},
+            {"monitor_overrides", monitor_overrides_tbl}});
     tbl.insert_or_assign(
         "idle",
         toml::table{

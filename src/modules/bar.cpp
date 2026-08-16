@@ -210,18 +210,6 @@ void monitor_autohide_apply(MonitorOutput &mon, bool enabled) {
     bar_autohide_apply_geometry(mon, enabled, mon.autohide.collapsed);
 }
 
-void bar_autohide_set_enabled(WaylandState &app, bool enabled) {
-    if (enabled == app.cfg.autohide)
-        return;
-    app.cfg.autohide = enabled;
-    for (auto &mon : app.outputs) {
-        auto it = app.cfg.monitor_overrides.find(mon->output.name);
-        if (it != app.cfg.monitor_overrides.end() && it->second.enabled)
-            continue;
-        monitor_autohide_apply(*mon, enabled);
-    }
-}
-
 void rest_egl_current(WaylandState &app) {
     if (!app.outputs.empty())
         eglMakeCurrent(app.egl_display, app.outputs.front()->egl_surface,
@@ -267,7 +255,9 @@ std::vector<IpcHandler> bar_ipc_handlers(WaylandState &state) {
     return {
         {"bar",
          [&state] {
-             bar_detail::bar_autohide_set_enabled(state, !state.cfg.autohide);
+             Config updated = state.cfg;
+             updated.autohide = !updated.autohide;
+             bar_detail::save_and_apply_config_update(state, updated);
          },
          "toggle the bar's autohide"},
     };

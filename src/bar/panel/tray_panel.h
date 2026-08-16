@@ -75,7 +75,6 @@ struct TrayPanelState {
     float pending_bar_top_margin = 0.0f;
 };
 
-// Shared with tray_panel.cpp's paint function.
 const Texture *tray_panel_detail_item_icon_texture(TrayPanelState &state,
                                                    const TrayItem &item);
 

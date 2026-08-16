@@ -44,14 +44,9 @@ struct SettingsState {
     SettingsFieldId focused_field = SettingsFieldId::None;
     TextFieldState field_buffer;
 
-    WallpaperPickerState wallpaper_picker;
-    std::string wallpaper_selected_monitor;
-
-    int wallpaper_selected_column = 0;
-    float wallpaper_scroll_offset = 0.0f;
-
-    float wallpaper_grid_width = 0.0f;
-    float wallpaper_grid_height = 0.0f;
+    WallpaperSubtabState wallpaper_static;
+    WallpaperSubtabState wallpaper_animated;
+    bool wallpaper_animated_active = false;
 
     std::vector<std::string> monitor_names;
 
@@ -67,7 +62,8 @@ bool settings_create_surface(SettingsState &state, wl_compositor *compositor,
 bool settings_init_egl(
     SettingsState &state, const Config &cfg, Renderer &renderer,
     EGLDisplay display, EGLConfig config, EGLContext context,
-    std::function<std::vector<std::string>()> monitor_names_fn);
+    std::function<std::vector<std::string>()> monitor_names_fn,
+    std::function<std::string()> focused_monitor_fn);
 
 void settings_request_frame(SettingsState &state);
 
@@ -92,6 +88,14 @@ void settings_handle_key_event(SettingsState &state, const Config &cfg,
                                const KeyEvent &event);
 
 void settings_paint(SettingsState &state, const Config &cfg,
-                    const std::vector<std::string> &monitor_names);
+                    const std::vector<std::string> &monitor_names,
+                    const std::string &focused_monitor);
 
 void settings_handle_scroll(SettingsState &state, double dy);
+
+void draw_toggle_switch(SettingsState &state, Node *parent, float x, float y,
+                        bool active, const char *tag);
+
+void draw_toggle_row(SettingsState &state, Node *parent, int32_t scale, float x,
+                     float y, float w, const std::string &label, bool value,
+                     const char *tag, bool tiled);

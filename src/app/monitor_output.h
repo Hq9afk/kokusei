@@ -104,4 +104,4 @@ void save_and_apply_config_update(WaylandState &app, Config new_cfg);
 MonitorOutput *active_target_monitor(WaylandState &app);
 void settings_retarget(WaylandState &app, MonitorOutput &target);
 
-} // namespace bar_detail
+}

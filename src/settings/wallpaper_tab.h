@@ -27,14 +27,29 @@ struct WallpaperPickerState {
     std::function<void()> request_frame;
 };
 
+struct WallpaperSubtabState {
+    WallpaperPickerState picker;
+    std::string selected_region;
+    int selected_column = 0;
+    float scroll_offset = 0.0f;
+    float grid_width = 0.0f;
+    float grid_height = 0.0f;
+};
+
 bool wallpaper_picker_less(const std::string &a, const std::string &b);
 
-void wallpaper_picker_scan(WallpaperPickerState &state, std::string dir);
+bool wallpaper_picker_is_image(const std::string &path);
+
+bool wallpaper_picker_is_video(const std::string &path);
+
+void wallpaper_picker_scan(WallpaperPickerState &state, std::string dir,
+                           bool (*is_match)(const std::string &));
 
 void wallpaper_picker_request_thumbnail(WallpaperPickerState &state,
                                         const std::string &path,
                                         int target_size, EGLDisplay display,
-                                        EGLSurface surface, EGLContext context);
+                                        EGLSurface surface, EGLContext context,
+                                        bool video);
 
 float wallpaper_tab_paint(SettingsState &state, Node *root, int32_t scale,
                           float x, float y, const Config &cfg);

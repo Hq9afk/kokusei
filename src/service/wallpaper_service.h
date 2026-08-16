@@ -11,9 +11,23 @@ unsigned char *wallpaper_decode_scaled(const std::string &path, int target_w,
 int wallpaper_service_column_count(const Config &cfg,
                                    const std::string &monitor_name);
 
+std::string wallpaper_service_column_override(const Config &cfg,
+                                              const std::string &monitor_name,
+                                              int column_index);
+
 std::string wallpaper_service_column_path(const Config &cfg,
                                           const std::string &monitor_name,
                                           int column_index);
 
 std::string wallpaper_service_fill_mode(const Config &cfg,
-                                        const std::string &monitor_name);
+                                        const std::string &monitor_name,
+                                        int column_index);
+
+int wallpaper_service_animated_column_count(const Config &cfg,
+                                            const std::string &monitor_name);
+
+std::string wallpaper_service_animated_column_path(
+    const Config &cfg, const std::string &monitor_name, int column_index);
+
+std::string wallpaper_service_animated_fill_mode(
+    const Config &cfg, const std::string &monitor_name, int column_index);

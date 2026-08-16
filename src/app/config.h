@@ -11,6 +11,11 @@ inline std::string default_wallpaper_dir() {
     return std::string(home ? home : "") + "/Pictures";
 }
 
+inline std::string default_animated_wallpaper_dir() {
+    const char *home = getenv("HOME");
+    return std::string(home ? home : "") + "/Videos";
+}
+
 struct MonitorOverride {
     bool enabled = false;
     bool osd = true;
@@ -24,10 +29,19 @@ struct Config {
 
     std::map<std::string, std::vector<std::string>> wallpaper_columns;
     std::map<std::string, int> wallpaper_column_counts;
-    std::map<std::string, std::string> wallpaper_fill_modes;
+    std::map<std::string, std::vector<std::string>> wallpaper_fill_modes;
+
+    bool wallpaper_animated_enabled = false;
+    std::string wallpaper_animated_dir = default_animated_wallpaper_dir();
+    std::map<std::string, std::vector<std::string>> wallpaper_animated_columns;
+    std::map<std::string, int> wallpaper_animated_column_counts;
+    std::map<std::string, std::vector<std::string>>
+        wallpaper_animated_fill_modes;
+
     bool autohide = false;
     bool default_osd_enabled = true;
     bool default_notifications_enabled = true;
+    bool default_wallpaper_enabled = true;
     std::map<std::string, MonitorOverride> monitor_overrides;
     uint32_t idle_timeout_seconds = 300;
     std::string idle_command;

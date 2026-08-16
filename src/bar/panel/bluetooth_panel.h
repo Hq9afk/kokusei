@@ -44,8 +44,6 @@ struct BluetoothPanelState {
 
 namespace bluetooth_panel_detail {
 
-// Shared with bluetooth_panel.cpp's paint function.
-
 enum class RowKind {
     NoAdapter,
     Off,
@@ -69,7 +67,7 @@ float content_height(const std::vector<PanelRow> &rows);
 
 float panel_height(const std::vector<PanelRow> &rows);
 
-} // namespace bluetooth_panel_detail
+}
 
 bool bluetooth_panel_create_surface(BluetoothPanelState &state,
                                     wl_compositor *compositor,

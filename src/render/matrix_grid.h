@@ -5,11 +5,6 @@
 #include <cstdint>
 #include <vector>
 
-// Qt-free port of keqing-shell's MatrixGrid (matrixgrid.cpp): owns a
-// premultiplied ARGB32 pixel buffer, decays it every tick, draws each
-// column's falling glyph into it with Cairo, and uploads the result as a
-// texture. MatrixGrid owns the texture and replaces it every tick, same as
-// the QSGTexture version.
 class MatrixGrid {
   public:
     void rebuild(int width, int height);

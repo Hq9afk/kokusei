@@ -14,6 +14,9 @@ void settings_service_apply_field_text(Config &cfg, SettingsFieldId id,
         case SettingsFieldId::WallpaperDir:
             cfg.wallpaper_dir = text;
             break;
+        case SettingsFieldId::WallpaperAnimatedDir:
+            cfg.wallpaper_animated_dir = text;
+            break;
         case SettingsFieldId::IdleTimeout:
             cfg.idle_timeout_seconds =
                 static_cast<uint32_t>(std::max(0, std::stoi(text)));
