@@ -51,13 +51,14 @@ std::string battery_label(const UpowerState &u) {
 namespace bar_detail {
 
 Pill battery_pill(MonitorOutput &mon) {
+    BarPerMonitorState &bs = bar_state(mon);
     const UpowerState &u = mon.app->upower;
     const char *glyph = battery_icon_glyph(u);
-    if (glyph != mon.battery_icon_glyph) {
-        mon.battery_icon_texture = make_icon_texture(glyph);
-        mon.battery_icon_glyph = glyph;
+    if (glyph != bs.battery_icon_glyph) {
+        bs.battery_icon_texture = make_icon_texture(glyph);
+        bs.battery_icon_glyph = glyph;
     }
-    return Pill{PillId::Battery, &mon.battery_icon_texture, battery_label(u),
+    return Pill{PillId::Battery, &bs.battery_icon_texture, battery_label(u),
                 battery_border_color(u)};
 }
 

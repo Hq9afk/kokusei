@@ -60,7 +60,8 @@ void starward_request_frame(StarwardState &state);
 
 void starward_toggle(StarwardState &state, bool by_widget = false);
 
-std::vector<IpcHandler> starward_ipc_handlers(WaylandState &state);
+std::vector<IpcHandler> starward_ipc_handlers(StarwardState &starward,
+                                              WaylandState &state);
 
 void starward_execute(StarwardState &state, int index);
 

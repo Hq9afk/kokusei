@@ -1,15 +1,9 @@
 #include "app/ipc.h"
 
+#include "app/monitor_output.h"
 #include "app/wayland_state.h"
 #include "core/log.h"
-#include "modules/bar.h"
-#include "modules/controlcenter.h"
 #include "modules/idle.h"
-#include "modules/launcher.h"
-#include "modules/matrix.h"
-#include "modules/settings.h"
-#include "modules/starward.h"
-#include "modules/visualizer.h"
 
 #include <cerrno>
 #include <cstdio>
@@ -30,19 +24,6 @@ std::string ipc_socket_path() {
     return std::string(runtime_dir) + "/kokusei.sock";
 }
 
-void launcher_toggle_retargeted(WaylandState &state, bool global) {
-    LauncherState &launcher = state.launcher;
-    if (!launcher.open) {
-        MonitorOutput *target = bar_detail::active_target_monitor(state);
-        if (target && target->output.wl != launcher.bound_output)
-            launcher_retarget(launcher, state.compositor, state.layer_shell,
-                              state.display, state.renderer, state.egl_display,
-                              state.egl_config, state.egl_context,
-                              target->output.wl, target->output.name.c_str());
-    }
-    launcher_toggle(launcher, global);
-}
-
 std::vector<IpcHandler> ipc_handlers(WaylandState &state) {
     std::vector<IpcHandler> handlers;
     auto append = [&handlers](std::vector<IpcHandler> module_handlers) {
@@ -50,18 +31,11 @@ std::vector<IpcHandler> ipc_handlers(WaylandState &state) {
             handlers.push_back(std::move(h));
     };
     append(idle_ipc_handlers(state));
-    append(starward_ipc_handlers(state));
-    append(controlcenter_ipc_handlers(state));
-    append(matrix_ipc_handlers(state));
-    append(visualizer_ipc_handlers(state));
-    append(settings_ipc_handlers(state));
-    append(bar_ipc_handlers(state));
-    handlers.push_back({"launcher",
-                        [&state] { launcher_toggle_retargeted(state, false); },
-                        "toggle the launcher, searching from $HOME"});
-    handlers.push_back({"launcher global",
-                        [&state] { launcher_toggle_retargeted(state, true); },
-                        "toggle the launcher, searching from /"});
+    for (auto &m : state.overlays)
+        append(m->ipc_handlers(state));
+    if (!state.outputs.empty())
+        for (auto &m : state.outputs.front()->modules)
+            append(m->ipc_handlers(state));
     handlers.push_back({"kill", [&state] { state.running = false; },
                         "gracefully quit kokusei"});
     return handlers;

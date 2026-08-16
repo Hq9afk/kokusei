@@ -58,9 +58,10 @@ void matrix_handle_key_event(MatrixState &state, WaylandState &app,
         matrix_toggle(state, app);
 }
 
-std::vector<IpcHandler> matrix_ipc_handlers(WaylandState &state) {
+std::vector<IpcHandler> matrix_ipc_handlers(MatrixState &matrix,
+                                            WaylandState &state) {
     return {
-        {"matrix", [&state] { matrix_toggle(state.matrix, state); },
+        {"matrix", [&matrix, &state] { matrix_toggle(matrix, state); },
          "toggle the matrix rain overlay"},
     };
 }

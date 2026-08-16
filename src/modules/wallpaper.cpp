@@ -38,9 +38,11 @@ void wallpaper_layer_surface_configure(void *data,
                                        uint32_t height) {
     auto *wp = static_cast<WallpaperState *>(data);
     zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
+    bool changed = wp->width != static_cast<int32_t>(width) ||
+                   wp->height != static_cast<int32_t>(height);
     wp->width = static_cast<int32_t>(width);
     wp->height = static_cast<int32_t>(height);
-    if (wp->egl_window) {
+    if (changed && wp->egl_window) {
         int32_t scale = wp->output_scale.scale;
         wl_egl_window_resize(wp->egl_window, wp->width * scale,
                              wp->height * scale, 0, 0);
@@ -48,7 +50,7 @@ void wallpaper_layer_surface_configure(void *data,
             request_frame(wp->frame_clock);
     }
     wp->configured = true;
-    if (wp->on_resize)
+    if (changed && wp->on_resize)
         wp->on_resize();
 }
 
@@ -201,8 +203,11 @@ void wallpaper_decode_column_async(WallpaperState &wp, std::string path,
                  height);
         DeferredCall::call_later(
             [&wp, data, width, height, generation, column_index] {
-                if (generation !=
-                    wp.column_generations[static_cast<size_t>(column_index)]) {
+                if (static_cast<size_t>(column_index) >=
+                        wp.column_generations.size() ||
+                    generation !=
+                        wp.column_generations[static_cast<size_t>(
+                            column_index)]) {
                     if (data)
                         delete[] data;
                     return;
@@ -251,7 +256,8 @@ void wallpaper_animate_stop_all(WallpaperState &wp) {
 }
 
 void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
-                             int column_index, int width, int height) {
+                             int column_index, int width, int height,
+                             FillMode mode) {
     wallpaper_animate_stop(wp, column_index);
     if (static_cast<size_t>(column_index) >= wp.column_animations.size())
         wp.column_animations.resize(static_cast<size_t>(column_index) + 1);
@@ -268,20 +274,18 @@ void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
         return;
     }
     std::string resolved = async_process_detail_resolve_path("ffmpeg");
-    std::vector<std::string> argv = {resolved,
-                                     "-re",
-                                     "-stream_loop",
-                                     "-1",
-                                     "-i",
-                                     cached_path,
-                                     "-f",
-                                     "rawvideo",
-                                     "-pix_fmt",
-                                     "rgba",
-                                     "-vf",
-                                     "scale=" + std::to_string(width) + ":" +
-                                         std::to_string(height),
-                                     "-"};
+    std::string vf =
+        mode == FillMode::Fit
+            ? "scale=" + std::to_string(width) + ":" + std::to_string(height) +
+                  ":force_original_aspect_ratio=decrease,pad=" +
+                  std::to_string(width) + ":" + std::to_string(height) +
+                  ":(ow-iw)/2:(oh-ih)/2:color=black"
+            : "scale=" + std::to_string(width) + ":" + std::to_string(height) +
+                  ":force_original_aspect_ratio=increase,crop=" +
+                  std::to_string(width) + ":" + std::to_string(height);
+    std::vector<std::string> argv = {
+        resolved,   "-re",      "-stream_loop", "-1",  "-i", cached_path, "-f",
+        "rawvideo", "-pix_fmt", "rgba",         "-vf", vf,   "-"};
     std::vector<char *> cargv;
     cargv.reserve(argv.size() + 1);
     for (std::string &a : argv)
@@ -311,6 +315,7 @@ void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
     AnimatedColumnPlayback &pb =
         wp.column_animations[static_cast<size_t>(column_index)];
     pb.pid = pid;
+    pb.mode = mode;
     pb.reader = std::thread([&wp, read_fd, pid, generation, column_index, width,
                              height] {
         size_t frame_bytes = static_cast<size_t>(width) * height * 4;
@@ -333,8 +338,11 @@ void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
             memcpy(copy, frame.data(), frame_bytes);
             DeferredCall::call_later([&wp, copy, width, height, generation,
                                       column_index] {
-                if (generation !=
-                    wp.column_generations[static_cast<size_t>(column_index)]) {
+                if (static_cast<size_t>(column_index) >=
+                        wp.column_generations.size() ||
+                    generation !=
+                        wp.column_generations[static_cast<size_t>(
+                            column_index)]) {
                     delete[] copy;
                     return;
                 }
@@ -354,6 +362,9 @@ void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
 void wallpaper_animate_sync_from_config(WallpaperState &wp, const Config &cfg,
                                         const std::string &monitor_name) {
     int count = wallpaper_service_animated_column_count(cfg, monitor_name);
+    for (size_t i = static_cast<size_t>(count); i < wp.column_animations.size();
+         ++i)
+        wallpaper_animate_stop(wp, static_cast<int>(i));
     wp.column_textures.resize(static_cast<size_t>(count));
     wp.column_generations.resize(static_cast<size_t>(count));
     wp.column_animations.resize(static_cast<size_t>(count));
@@ -367,7 +378,9 @@ void wallpaper_animate_sync_from_config(WallpaperState &wp, const Config &cfg,
             continue;
         }
         if (wp.column_animations[static_cast<size_t>(i)].pid > 0 &&
-            wp.column_animations[static_cast<size_t>(i)].path == path)
+            wp.column_animations[static_cast<size_t>(i)].path == path &&
+            wp.column_animations[static_cast<size_t>(i)].mode ==
+                wallpaper_column_fill_mode(wp, static_cast<size_t>(i)))
             continue;
         wp.column_animations[static_cast<size_t>(i)].path = path;
         std::thread([&wp, path, i, target_w, target_h] {
@@ -382,7 +395,9 @@ void wallpaper_animate_sync_from_config(WallpaperState &wp, const Config &cfg,
                 if (static_cast<size_t>(i) >= wp.column_animations.size() ||
                     wp.column_animations[static_cast<size_t>(i)].path != path)
                     return;
-                wallpaper_animate_start(wp, cached, i, target_w, target_h);
+                wallpaper_animate_start(
+                    wp, cached, i, target_w, target_h,
+                    wallpaper_column_fill_mode(wp, static_cast<size_t>(i)));
             });
         }).detach();
     }

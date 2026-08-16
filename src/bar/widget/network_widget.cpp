@@ -41,23 +41,24 @@ std::string wifi_label(const NetworkState &n) {
 namespace bar_detail {
 
 Pill wifi_pill(MonitorOutput &mon) {
+    BarPerMonitorState &bs = bar_state(mon);
     const char *glyph = wifi_icon_glyph(mon.app->network);
-    if (glyph != mon.wifi_icon_glyph_cached) {
-        mon.wifi_icon_texture = make_icon_texture(glyph);
-        mon.wifi_icon_glyph_cached = glyph;
+    if (glyph != bs.wifi_icon_glyph_cached) {
+        bs.wifi_icon_texture = make_icon_texture(glyph);
+        bs.wifi_icon_glyph_cached = glyph;
     }
-    return Pill{PillId::Wifi, &mon.wifi_icon_texture,
-                wifi_label(mon.app->network), nullptr, [&mon] {
+    return Pill{PillId::Wifi, &bs.wifi_icon_texture,
+                wifi_label(mon.app->network), nullptr, [&mon, &bs] {
                     close_other_overlays(mon, PillId::Wifi);
-                    if (!mon.network_panel.base.open) {
-                        update_pill_expand(mon.capsule, mon.animations,
+                    if (!bs.network_panel.base.open) {
+                        update_pill_expand(bs.capsule, mon.animations,
                                            PillId::Wifi, true, true);
                         bar_paint(mon);
                     }
                     network_panel_toggle(
-                        mon.network_panel,
-                        pill_center_x(mon.capsule, PillId::Wifi));
-                    if (mon.network_panel.base.open)
+                        bs.network_panel,
+                        pill_center_x(bs.capsule, PillId::Wifi));
+                    if (bs.network_panel.base.open)
                         network_scan(mon.app->network);
                 }};
 }

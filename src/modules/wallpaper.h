@@ -25,6 +25,7 @@ struct AnimatedColumnPlayback {
     pid_t pid = -1;
     std::thread reader;
     std::string path;
+    FillMode mode = FillMode::Crop;
 };
 
 struct WallpaperState {
@@ -74,7 +75,8 @@ void wallpaper_sync_from_config(WallpaperState &wp, const Config &cfg,
                                 const std::string &monitor_name);
 
 void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
-                             int column_index, int width, int height);
+                             int column_index, int width, int height,
+                             FillMode mode);
 
 void wallpaper_animate_stop(WallpaperState &wp, int column_index);
 

@@ -36,3 +36,25 @@ layer_surface_create(wl_surface *&out_surface, wl_compositor *compositor,
 
     return layer_surface;
 }
+
+void destroy_layer_surface(EGLDisplay display, wl_surface *&surface,
+                           zwlr_layer_surface_v1 *&layer_surface,
+                           wl_egl_window *&egl_window,
+                           EGLSurface &egl_surface) {
+    if (egl_surface != EGL_NO_SURFACE) {
+        eglDestroySurface(display, egl_surface);
+        egl_surface = EGL_NO_SURFACE;
+    }
+    if (egl_window) {
+        wl_egl_window_destroy(egl_window);
+        egl_window = nullptr;
+    }
+    if (layer_surface) {
+        zwlr_layer_surface_v1_destroy(layer_surface);
+        layer_surface = nullptr;
+    }
+    if (surface) {
+        wl_surface_destroy(surface);
+        surface = nullptr;
+    }
+}

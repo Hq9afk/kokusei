@@ -74,9 +74,11 @@ void visualizer_handle_key_event(VisualizerState &state, WaylandState &app,
         visualizer_toggle(state, app);
 }
 
-std::vector<IpcHandler> visualizer_ipc_handlers(WaylandState &state) {
+std::vector<IpcHandler> visualizer_ipc_handlers(VisualizerState &visualizer,
+                                                WaylandState &state) {
     return {
-        {"visualizer", [&state] { visualizer_toggle(state.visualizer, state); },
+        {"visualizer",
+         [&visualizer, &state] { visualizer_toggle(visualizer, state); },
          "toggle the audio visualizer overlay"},
     };
 }

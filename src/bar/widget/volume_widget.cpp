@@ -32,22 +32,23 @@ std::string volume_label(const PipewireState &pw) {
 namespace bar_detail {
 
 Pill volume_pill(MonitorOutput &mon) {
+    BarPerMonitorState &bs = bar_state(mon);
     const char *glyph = volume_icon_glyph(mon.app->pipewire);
-    if (glyph != mon.volume_icon_glyph_cached) {
-        mon.volume_icon_texture = make_icon_texture(glyph);
-        mon.volume_icon_glyph_cached = glyph;
+    if (glyph != bs.volume_icon_glyph_cached) {
+        bs.volume_icon_texture = make_icon_texture(glyph);
+        bs.volume_icon_glyph_cached = glyph;
     }
-    return Pill{PillId::Volume, &mon.volume_icon_texture,
-                volume_label(mon.app->pipewire), nullptr, [&mon] {
+    return Pill{PillId::Volume, &bs.volume_icon_texture,
+                volume_label(mon.app->pipewire), nullptr, [&mon, &bs] {
                     close_other_overlays(mon, PillId::Volume);
-                    if (!mon.volume_panel.base.open) {
-                        update_pill_expand(mon.capsule, mon.animations,
+                    if (!bs.volume_panel.base.open) {
+                        update_pill_expand(bs.capsule, mon.animations,
                                            PillId::Volume, true, true);
                         bar_paint(mon);
                     }
                     volume_panel_toggle(
-                        mon.volume_panel,
-                        pill_center_x(mon.capsule, PillId::Volume));
+                        bs.volume_panel,
+                        pill_center_x(bs.capsule, PillId::Volume));
                 }};
 }
 
@@ -62,34 +63,36 @@ void volume_pill_handle_wheel(MonitorOutput &mon, double dy) {
 }
 
 void volume_pill_peek_tick(MonitorOutput &mon) {
+    BarPerMonitorState &bs = bar_state(mon);
     auto now = std::chrono::steady_clock::now();
-    if (!mon.volume_peek_ready) {
-        if (now - mon.volume_peek_started_at >= kVolumePeekReadyDelayMs)
-            mon.volume_peek_ready = true;
+    if (!bs.volume_peek_ready) {
+        if (now - bs.volume_peek_started_at >= kVolumePeekReadyDelayMs)
+            bs.volume_peek_ready = true;
         else
             return;
     }
 
     bool muted = false;
     float level = pipewire_sink_level(mon.app->pipewire, muted);
-    bool changed = mon.volume_peek_last_level < 0.0f ||
-                   std::abs(level - mon.volume_peek_last_level) > 0.001f ||
-                   muted != mon.volume_peek_last_muted;
-    mon.volume_peek_last_level = level;
-    mon.volume_peek_last_muted = muted;
+    bool changed = bs.volume_peek_last_level < 0.0f ||
+                   std::abs(level - bs.volume_peek_last_level) > 0.001f ||
+                   muted != bs.volume_peek_last_muted;
+    bs.volume_peek_last_level = level;
+    bs.volume_peek_last_muted = muted;
     if (!changed)
         return;
 
-    mon.volume_peek_active = true;
-    mon.volume_peek_deadline = now + kVolumePeekMs;
+    bs.volume_peek_active = true;
+    bs.volume_peek_deadline = now + kVolumePeekMs;
 }
 
 bool volume_pill_peek_expire(MonitorOutput &mon) {
-    if (!mon.volume_peek_active)
+    BarPerMonitorState &bs = bar_state(mon);
+    if (!bs.volume_peek_active)
         return false;
-    if (std::chrono::steady_clock::now() < mon.volume_peek_deadline)
+    if (std::chrono::steady_clock::now() < bs.volume_peek_deadline)
         return false;
-    mon.volume_peek_active = false;
+    bs.volume_peek_active = false;
     return true;
 }
 
