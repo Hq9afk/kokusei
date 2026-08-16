@@ -262,6 +262,7 @@ kokusei_app_main_only_sources = [
   'src/app/key_dispatch.cpp',
   'src/app/module_registry.cpp',
   'src/app/monitor_output.cpp',
+  'src/app/service_registry.cpp',
   'src/app/wayland_registry.cpp',
 ]
 

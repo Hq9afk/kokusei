@@ -21,20 +21,17 @@ class PerMonitorModule {
     virtual bool owns_surface(wl_surface *surface) const = 0;
 
     virtual void request_frame() {}
-    virtual void tick(WaylandState &app, MonitorOutput &mon) {}
-    virtual void timer_tick(WaylandState &app, MonitorOutput &mon) {}
+    virtual void tick(WaylandState &, MonitorOutput &) {}
+    virtual void timer_tick(WaylandState &, MonitorOutput &) {}
     virtual bool is_open() const { return false; }
-    virtual std::vector<IpcHandler> ipc_handlers(WaylandState &app) {
-        return {};
-    }
-    virtual void handle_click(WaylandState &app, MonitorOutput &mon,
-                              wl_surface *surface, int button, double x,
-                              double y) {}
-    virtual void handle_scroll(WaylandState &app, MonitorOutput &mon,
-                               wl_surface *surface, double dy) {}
-    virtual void handle_key_event(WaylandState &app, MonitorOutput &mon,
-                                  const KeyEvent &event) {}
-    virtual void handle_pointer_move(WaylandState &app, MonitorOutput &mon,
-                                     double x, double y) {}
+    virtual std::vector<IpcHandler> ipc_handlers(WaylandState &) { return {}; }
+    virtual void handle_click(WaylandState &, MonitorOutput &, wl_surface *,
+                              int, double, double) {}
+    virtual void handle_scroll(WaylandState &, MonitorOutput &, wl_surface *,
+                               double) {}
+    virtual void handle_key_event(WaylandState &, MonitorOutput &,
+                                  const KeyEvent &) {}
+    virtual void handle_pointer_move(WaylandState &, MonitorOutput &, double,
+                                     double) {}
     virtual void handle_pointer_release() {}
 };

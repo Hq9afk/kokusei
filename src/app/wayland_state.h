@@ -7,6 +7,7 @@
 
 #include "app/config.h"
 #include "app/module.h"
+#include "app/service.h"
 #include "modules/idle.h"
 #include "modules/notification.h"
 #include "modules/osd.h"
@@ -43,6 +44,7 @@ struct WaylandState {
     IdleState idle;
     NotificationService notification;
     std::vector<std::unique_ptr<Module>> overlays;
+    std::vector<std::unique_ptr<Service>> services;
     NetworkState network;
     BluetoothState bluetooth;
     TrayState tray;

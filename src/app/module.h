@@ -12,7 +12,7 @@
 struct WaylandState;
 
 class Module {
-public:
+  public:
     virtual ~Module() = default;
 
     virtual const char *name() const = 0;
@@ -25,23 +25,20 @@ public:
 
     virtual bool tick() { return false; }
     virtual int poll_timeout_ms() const { return -1; }
-    virtual bool timer_tick(WaylandState &app) { return false; }
-    virtual void handle_pointer_move(WaylandState &app,
-                                     wl_surface *focused_surface, double x,
-                                     double y) {}
+    virtual bool timer_tick(WaylandState &) { return false; }
+    virtual void handle_pointer_move(WaylandState &, wl_surface *, double,
+                                     double) {}
     virtual void handle_pointer_release() {}
     virtual bool opened_by_widget() const { return false; }
-    virtual void toggle_from_widget(WaylandState &app) {}
+    virtual void toggle_from_widget(WaylandState &) {}
 
-    virtual void handle_click(WaylandState &app, double x, double y) {}
-    virtual void handle_key_event(WaylandState &app, const KeyEvent &event) {}
-    virtual void handle_scroll(WaylandState &app, double dy) {}
-    virtual std::vector<IpcHandler> ipc_handlers(WaylandState &app) {
-        return {};
-    }
+    virtual void handle_click(WaylandState &, double, double) {}
+    virtual void handle_key_event(WaylandState &, const KeyEvent &) {}
+    virtual void handle_scroll(WaylandState &, double) {}
+    virtual std::vector<IpcHandler> ipc_handlers(WaylandState &) { return {}; }
 
     virtual std::vector<std::pair<int, std::function<void()>>>
-    extra_poll_sources(WaylandState &app) {
+    extra_poll_sources(WaylandState &) {
         return {};
     }
 };
