@@ -548,8 +548,8 @@ void BarPerMonitorModule::handle_click(WaylandState &app, MonitorOutput &mon,
         bar_detail::rest_egl_current(app);
     }
     if (surface == state.tray_panel.base.surface) {
-        tray_panel_handle_click(state.tray_panel, app.tray, state.tray_menu, x,
-                                y, button);
+        tray_panel_handle_click(state.tray_panel, app.tray, state.tray_menu,
+                                app, mon.output.wl, x, y, button);
         tray_dispatch(app);
     } else if (surface == state.tray_menu.base.surface) {
         tray_menu_handle_click(state.tray_menu, app.tray, x, y);

@@ -72,7 +72,8 @@ class LauncherModule final : public Module {
         auto toggle_retargeted = [this, &app](bool global) {
             if (!state_.open) {
                 MonitorOutput *target = bar_detail::active_target_monitor(app);
-                if (target && target->output.wl != state_.bound_output)
+                if (target && (target->output.wl != state_.bound_output ||
+                               !state_.layer_surface))
                     launcher_retarget(state_, app.compositor, app.layer_shell,
                                       app.display, app.renderer,
                                       app.egl_display, app.egl_config,
@@ -178,7 +179,8 @@ class StarwardModule final : public Module {
     void toggle_from_widget(WaylandState &app) override {
         if (!state_.base.open) {
             MonitorOutput *target = bar_detail::active_target_monitor(app);
-            if (target && target->output.wl != state_.bound_output)
+            if (target && (target->output.wl != state_.bound_output ||
+                           !state_.base.layer_surface))
                 starward_retarget(state_, app.compositor, app.layer_shell,
                                   app.display, app.renderer, app.egl_display,
                                   app.egl_config, app.egl_context,
@@ -266,7 +268,8 @@ class ControlCenterModule final : public Module {
     void toggle_from_widget(WaylandState &app) override {
         if (!state_.base.open) {
             MonitorOutput *target = bar_detail::active_target_monitor(app);
-            if (target && target->output.wl != state_.bound_output)
+            if (target && (target->output.wl != state_.bound_output ||
+                           !state_.base.layer_surface))
                 controlcenter_retarget(
                     state_, app.compositor, app.layer_shell, app.display,
                     app.renderer, app, app.egl_display, app.egl_config,

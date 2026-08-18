@@ -46,6 +46,8 @@ struct Config {
     uint32_t idle_timeout_seconds = 300;
     std::string idle_command;
     std::string idle_resume_command;
+
+    std::string visualizer_shape = "bars";
 };
 
 bool osd_effective_enabled(const Config &cfg, const std::string &monitor_name);

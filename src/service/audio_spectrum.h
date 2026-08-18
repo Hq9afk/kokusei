@@ -22,14 +22,32 @@ class AudioSpectrum {
 
     void processFrame();
 
-    const std::vector<float> &values() const { return values_; }
+    const std::vector<float> &values() const { return mono_.values; }
+    const std::vector<float> &valuesLeft() const { return left_.values; }
+    const std::vector<float> &valuesRight() const { return right_.values; }
     bool idle() const { return idle_; }
 
   private:
+    struct ChannelPipeline {
+        std::vector<float> ring_buf;
+        int ring_pos = 0;
+        bool ring_full = false;
+
+        std::vector<float> prev_bands;
+        std::vector<float> peak;
+        std::vector<float> fall;
+        std::vector<float> bands;
+        std::vector<float> values;
+        std::vector<std::complex<float>> fft_buf;
+
+        float global_max = 1e-3f;
+    };
+
     void buildStream();
     void destroyStream();
-    void feedSamples(const float *mono, int count);
+    void feedSamples(ChannelPipeline &ch, const float *samples, int count);
     void computeBandBins();
+    void processChannel(ChannelPipeline &ch);
 
     static void onProcess(void *data);
     static void onParamChanged(void *data, uint32_t id, const spa_pod *param);
@@ -52,22 +70,16 @@ class AudioSpectrum {
     int sample_rate_ = 48000;
 
     std::mutex ring_mutex_;
-    std::vector<float> ring_buf_;
-    int ring_pos_ = 0;
-    bool ring_full_ = false;
     bool samples_received_ = false;
 
     std::vector<float> window_;
     std::vector<int> bin_low_;
     std::vector<int> bin_high_;
-    std::vector<float> prev_bands_;
-    std::vector<float> peak_;
-    std::vector<float> fall_;
-    std::vector<float> bands_;
-    std::vector<float> values_;
-    std::vector<std::complex<float>> fft_buf_;
 
-    float global_max_ = 1e-3f;
+    ChannelPipeline mono_;
+    ChannelPipeline left_;
+    ChannelPipeline right_;
+
     bool idle_ = true;
     int idle_frames_ = 0;
 };

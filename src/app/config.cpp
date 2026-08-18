@@ -139,6 +139,8 @@ Config load_config() {
         cfg.idle_command = tbl["idle"]["command"].value_or(cfg.idle_command);
         cfg.idle_resume_command =
             tbl["idle"]["resume_command"].value_or(cfg.idle_resume_command);
+        cfg.visualizer_shape =
+            tbl["visualizer"]["shape"].value_or(cfg.visualizer_shape);
     } catch (const toml::parse_error &) {
     }
     return cfg;
@@ -237,6 +239,8 @@ void save_config(const Config &cfg) {
             {"command", cfg.idle_command},
             {"resume_command", cfg.idle_resume_command},
         });
+    tbl.insert_or_assign("visualizer",
+                         toml::table{{"shape", cfg.visualizer_shape}});
     std::ostringstream ss;
     ss << tbl;
     if (!write_file_atomic(path, ss.str()))

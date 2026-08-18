@@ -108,7 +108,8 @@ std::vector<IpcHandler> settings_ipc_handlers(SettingsState &settings,
              if (!settings.base.open && state.settings_enabled) {
                  MonitorOutput *target =
                      bar_detail::active_target_monitor(state);
-                 if (target && target->output.wl != state.settings_bound_output)
+                 if (target && (target->output.wl != state.settings_bound_output ||
+                                !settings.base.layer_surface))
                      bar_detail::settings_retarget(state, settings, *target);
              }
              settings_toggle(settings, state.cfg, [&state](Config c) {
@@ -159,7 +160,8 @@ void settings_handle_click(SettingsState &state, const Config &cfg,
             settings_request_frame(state);
             return;
         case PanelClickKind::ToggleFlip:
-            if (!wallpaper_tab_handle_click(state, cfg, on_commit, region))
+            if (!visualizer_tab_handle_click(state, cfg, on_commit, region) &&
+                !wallpaper_tab_handle_click(state, cfg, on_commit, region))
                 displays_tab_handle_click(state, cfg, on_commit, region);
             return;
         case PanelClickKind::FieldFocus:
@@ -245,6 +247,7 @@ void draw_nav_rail(SettingsState &state, Node *parent, int32_t scale, float x,
         {"Wallpaper", icon::wallpaper},
         {"Displays", icon::device_desktop},
         {"Idle", icon::moon_stars},
+        {"Visualizer", icon::music_note},
     };
     node_add_rrect(parent, x, y, w, h, metrics::radius_md, 0.0f,
                    rgba(palette::text_alpha04), kPanelNoBorder);
@@ -427,6 +430,9 @@ void settings_paint(SettingsState &state, const Config &cfg,
         }
         case SettingsTab::Idle:
             idle_tab_paint(state, root, scale, label_x, field_x, y, cfg);
+            break;
+        case SettingsTab::Visualizer:
+            visualizer_tab_paint(state, root, scale, label_x, y, cfg);
             break;
         }
     }

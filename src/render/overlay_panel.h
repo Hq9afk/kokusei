@@ -50,6 +50,23 @@ void overlay_panel_toggle(OverlayPanelBase &base);
 
 void overlay_panel_destroy_surface(OverlayPanelBase &base);
 
+// Lazily (re)creates base's surface if it isn't already there (either never
+// created, or destroyed by overlay_panel_toggle's close path), waiting for
+// the compositor's configure before running init_egl. No-op returning true
+// if the surface already exists.
+template <typename CreateSurface, typename InitEgl>
+inline bool overlay_panel_ensure(OverlayPanelBase &base, wl_display *display,
+                                 CreateSurface create_surface,
+                                 InitEgl init_egl) {
+    if (base.layer_surface)
+        return true;
+    if (!create_surface())
+        return false;
+    while (!base.configured)
+        wl_display_dispatch(display);
+    return init_egl();
+}
+
 template <typename CreateSurface, typename InitEgl>
 inline wl_output *
 overlay_panel_retarget(OverlayPanelBase &base, wl_display *display,

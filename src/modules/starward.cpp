@@ -3,6 +3,7 @@
 #include "app/monitor_output.h"
 #include "app/wayland_state.h"
 #include "core/async_process.h"
+#include "core/deferred_call.h"
 #include "core/log.h"
 #include "render/color_ops.h"
 #include "render/node.h"
@@ -176,6 +177,14 @@ void finish_close(StarwardState &state) {
         ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
     overlay_panel_update_input_region(state.base);
     wl_surface_commit(state.base.surface);
+    // Deferred, same reasoning as overlay_panel_toggle: both call paths
+    // here run from inside an animations.tick() chain, called from
+    // starward_paint right before it uses state.base.egl_surface. Guarded
+    // on base.open in case of a reopen before this drains.
+    DeferredCall::call_later([&state] {
+        if (!state.base.open)
+            overlay_panel_destroy_surface(state.base);
+    });
 }
 
 void start_close_sequence(StarwardState &state) {
@@ -347,7 +356,8 @@ std::vector<IpcHandler> starward_ipc_handlers(StarwardState &starward,
              if (!starward.base.open) {
                  MonitorOutput *target =
                      bar_detail::active_target_monitor(state);
-                 if (target && target->output.wl != starward.bound_output)
+                 if (target && (target->output.wl != starward.bound_output ||
+                                !starward.base.layer_surface))
                      starward_retarget(
                          starward, state.compositor, state.layer_shell,
                          state.display, state.renderer, state.egl_display,

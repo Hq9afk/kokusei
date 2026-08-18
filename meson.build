@@ -155,6 +155,7 @@ kokusei_render_main_only_sources = [
   'src/render/toplevel_window.cpp',
   'src/render/slider.cpp',
   'src/render/matrix_grid.cpp',
+  'src/render/ncs_visualizer.cpp',
 ]
 
 # service sources: each dbus service is a merged types+sdbus-c++ pair, and
@@ -272,6 +273,7 @@ kokusei_settings_main_only_sources = [
   'src/settings/wallpaper_tab.cpp',
   'src/settings/displays_tab.cpp',
   'src/settings/idle_tab.cpp',
+  'src/settings/visualizer_tab.cpp',
 ]
 
 kokusei_split_sources = [

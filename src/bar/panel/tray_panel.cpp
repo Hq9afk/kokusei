@@ -1,5 +1,7 @@
 #include "bar/panel/tray_panel.h"
 
+#include "app/monitor_output.h"
+#include "app/wayland_state.h"
 #include "render/icon.h"
 #include "render/icons.h"
 #include "render/image.h"
@@ -122,8 +124,10 @@ void tray_menu_close(TrayMenuState &state) {
     state.base.open = false;
     state.item_key.clear();
     state.menu_path.clear();
-    overlay_panel_update_input_region(state.base);
-    overlay_panel_request_frame(state.base);
+    // No fade animation on this popup, so no mid-tick() hazard: safe to
+    // destroy the surface synchronously here, unlike overlay_panel_toggle's
+    // deferred close (see overlay_panel.cpp).
+    overlay_panel_destroy_surface(state.base);
 }
 
 void tray_menu_open(TrayMenuState &state, TrayState &tray, const TrayItem &item,
@@ -503,7 +507,8 @@ void tray_panel_paint(TrayPanelState &state, TrayState &tray,
 }
 
 void tray_panel_handle_click(TrayPanelState &state, TrayState &tray,
-                             TrayMenuState &menu, double px, double py,
+                             TrayMenuState &menu, WaylandState &app,
+                             wl_output *output, double px, double py,
                              uint32_t button) {
     auto hit = [](const Rect &r, double x, double y) {
         return r.w > 0 && x >= r.x && x < r.x + r.w && y >= r.y &&
@@ -530,6 +535,19 @@ void tray_panel_handle_click(TrayPanelState &state, TrayState &tray,
             if (button == BTN_RIGHT) {
                 if (!item->has_menu)
                     return;
+                overlay_panel_ensure(
+                    menu.base, app.display,
+                    [&] {
+                        return tray_menu_create_surface(
+                            menu, app.compositor, app.layer_shell, output);
+                    },
+                    [&] {
+                        return tray_menu_init_egl(menu, app.renderer, tray,
+                                                  app.egl_display,
+                                                  app.egl_config,
+                                                  app.egl_context);
+                    });
+                bar_detail::rest_egl_current(app);
                 tray_menu_open(menu, tray, *item, region.rect,
                                state.base.width);
             } else {

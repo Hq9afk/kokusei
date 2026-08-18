@@ -16,6 +16,8 @@
 #include <vector>
 #include <wayland-client.h>
 
+struct WaylandState;
+
 constexpr float kTrayMenuRowHeight = 32.0f;
 
 struct TrayMenuState {
@@ -96,5 +98,6 @@ void tray_panel_paint(TrayPanelState &state, TrayState &tray,
                       float bar_top_margin);
 
 void tray_panel_handle_click(TrayPanelState &state, TrayState &tray,
-                             TrayMenuState &menu, double px, double py,
+                             TrayMenuState &menu, WaylandState &app,
+                             wl_output *output, double px, double py,
                              uint32_t button);

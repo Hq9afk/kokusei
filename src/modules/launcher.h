@@ -87,6 +87,8 @@ bool launcher_init_egl(LauncherState &state, Renderer &renderer,
                        EGLDisplay display, EGLConfig config,
                        EGLContext context);
 
+void launcher_destroy_surface(LauncherState &state);
+
 void launcher_retarget(LauncherState &state, wl_compositor *compositor,
                        zwlr_layer_shell_v1 *layer_shell, wl_display *display,
                        Renderer &renderer, EGLDisplay egl_display,

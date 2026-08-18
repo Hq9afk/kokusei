@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Build and run the project
+# Build, deploy, and run the shell.
 
 set -e
 cd "$(dirname "$0")"

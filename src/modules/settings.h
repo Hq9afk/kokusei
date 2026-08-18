@@ -10,6 +10,7 @@
 #include "render/text_field.h"
 #include "render/texture_cache.h"
 #include "service/keyboard.h"
+#include "settings/visualizer_tab.h"
 #include "settings/wallpaper_tab.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
@@ -21,8 +22,8 @@
 #include <string>
 #include <vector>
 
-enum class SettingsTab { Wallpaper, Displays, Idle };
-constexpr int kSettingsTabCount = 3;
+enum class SettingsTab { Wallpaper, Displays, Idle, Visualizer };
+constexpr int kSettingsTabCount = 4;
 
 inline constexpr const char *kSettingsDisplaysDefaultTag = "__default__";
 

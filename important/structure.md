@@ -1,8 +1,11 @@
-# kokusei structure:
+# `kokusei` structure
 
 ## Rule
-- One-line, no break
-- Format: `path/to/file`: Purpose (≤ 20 words)
+
+- One-line, no break.
+- Format: `path/to/file`: Purpose (≤ 20 words).
+- Reflect current structure and function of each file in the code base.
+- No mentions of past fixes.
 
 ## Files
 - `src/kokusei.cpp`: Orchestration, Wayland/EGL bootstrap, poll loop, CLI entry point, daemonize/debug/IPC-client dispatch.
@@ -31,16 +34,17 @@
 - `src/modules/notification.h`+`.cpp`: D-Bus notification service (process-wide), per-monitor `NotificationView` render state, and card paint (stacking, urgency color, fade/slide animation).
 - `src/modules/idle.h`+`.cpp`: Idle-notify timeout and manual idle-inhibit, single seat-level instance.
 - `src/config/settings_config.h`: Settings panel tab/field layout constants, plus the `SettingsFieldId` enum.
-- `src/modules/settings.h`+`.cpp`: Settings panel core (tabs, chrome, field focus/commit), hosts Wallpaper/Displays/Idle tabs, also owns the shared `draw_toggle_row`/`draw_toggle_switch` toggle-row widgets used by more than one tab.
-- `src/settings/wallpaper_tab.h`+`.cpp`, `displays_tab.h`+`.cpp`, `idle_tab.h`+`.cpp`: Per-tab settings UI and commit logic. `wallpaper_tab.*` also holds the wallpaper picker's directory scan and thumbnail decode/generation, off worker threads.
+- `src/modules/settings.h`+`.cpp`: Settings panel core (tabs, chrome, field focus/commit), hosts Wallpaper/Displays/Idle/Visualizer tabs, also owns the shared `draw_toggle_row`/`draw_toggle_switch` toggle-row widgets used by more than one tab.
+- `src/settings/wallpaper_tab.h`+`.cpp`, `displays_tab.h`+`.cpp`, `idle_tab.h`+`.cpp`, `visualizer_tab.h`+`.cpp`: Per-tab settings UI and commit logic. `wallpaper_tab.*` also holds the wallpaper picker's directory scan and thumbnail decode/generation, off worker threads.
 - `src/render/overlay_panel.h`+`.cpp`: Shared full-screen on-demand overlay surface + position-lock-on-toggle recipe (`zwlr_layer_shell_v1`-backed).
 - `src/render/toplevel_window.h`+`.cpp`: Shared `xdg_toplevel` real-window surface lifecycle (create/EGL-init/request-frame/destroy), used by modules that want a compositor-managed window instead of a layer-shell overlay.
 - `src/config/matrix_config.h`: Matrix-rain window size, glyph/cell/timing constants, ported from keqing-shell's `MatrixConfig.qml`.
 - `src/render/matrix_grid.h`+`.cpp`: Matrix-rain glyph column simulation and Cairo-rasterized texture, state-free of any surface/window concerns.
 - `src/modules/matrix.h`+`.cpp`: Matrix-rain overlay, a real `xdg_toplevel` window (`ToplevelWindowBase`) created on open and destroyed after its close fade, not a persistent layer-shell surface. Rebuilds the grid on live resize instead of stretching.
-- `src/config/visualizer_config.h`: Audio visualizer window size, bar layout, and PipeWire spectrum constants, ported from keqing-shell's `VisualizerConfig.qml`.
-- `src/service/audio_spectrum.h`+`.cpp`: Direct-PipeWire FFT spectrum capture (own `pw_stream`, own `process` callback) feeding the visualizer's bar values.
-- `src/modules/visualizer.h`+`.cpp`: Audio visualizer overlay, a real `xdg_toplevel` window (`ToplevelWindowBase`) created on open and destroyed after its close fade, not a persistent layer-shell surface.
+- `src/config/visualizer_config.h`: Audio visualizer window size, bar layout, PipeWire spectrum constants, plus the `ncs` shape's ported `ncs.glsl` constants, from keqing-shell's `VisualizerConfig.qml` and `ncs-spectrum-glava`.
+- `src/service/audio_spectrum.h`+`.cpp`: Direct-PipeWire FFT spectrum capture (own `pw_stream`, own `process` callback), parallel mono/left/right `ChannelPipeline`s feeding the visualizer's bar and NCS shapes.
+- `src/modules/visualizer.h`+`.cpp`: Audio visualizer overlay, a real `xdg_toplevel` window (`ToplevelWindowBase`) created on open and destroyed after its close fade; owns one dedicated render thread and share-context `EGLContext` covering both `bars` and `ncs` shapes for the whole time the window is open, per `Config::visualizer_shape`. The main poll-loop thread only hands off a per-frame struct (shape, spectrum, opacity, time, dimensions) and never touches GL for this window.
+- `src/render/ncs_visualizer.h`+`.cpp`: GLES2 point-sprite particle/glow multi-pass shape for the visualizer, ported from `ncs-spectrum-glava`; a set of draw passes invoked by `visualizer.cpp`'s render thread, outside the Node/Scene graph, owning no thread or EGL context of its own.
 - `src/config/osd_config.h`: OSD surface size/margin/duration/animation-owner constants.
 - `src/modules/osd.h`+`.cpp`: Volume/brightness popup, per-monitor, auto-hides, reactive to system state changes.
 - `src/config/starward_config.h`: Ring-menu geometry, timing, and the 8-button action table.

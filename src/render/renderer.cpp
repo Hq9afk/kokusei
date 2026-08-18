@@ -71,7 +71,9 @@ void Renderer::begin_frame(int logical_width, int logical_height,
     scale_ = scale > 0 ? scale : 1;
     glViewport(0, 0, logical_width * scale_, logical_height * scale_);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE,
+                        GL_ONE_MINUS_SRC_ALPHA);
+    opacity_ = 1.0f;
 }
 
 void Renderer::set_clip(float x, float y, float w, float h) {

@@ -91,7 +91,9 @@ controlcenter_ipc_handlers(ControlCenterState &controlcenter,
              if (!controlcenter.base.open) {
                  MonitorOutput *target =
                      bar_detail::active_target_monitor(state);
-                 if (target && target->output.wl != controlcenter.bound_output)
+                 if (target &&
+                     (target->output.wl != controlcenter.bound_output ||
+                      !controlcenter.base.layer_surface))
                      controlcenter_retarget(
                          controlcenter, state.compositor, state.layer_shell,
                          state.display, state.renderer, state,

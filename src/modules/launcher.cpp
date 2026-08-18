@@ -1,5 +1,6 @@
 #include "modules/launcher.h"
 
+#include "core/deferred_call.h"
 #include "core/log.h"
 #include "launcher/apps_provider.h"
 #include "launcher/desktop_entry.h"
@@ -252,17 +253,9 @@ void launcher_request_frame(LauncherState &state) {
     request_frame(state.frame_clock);
 }
 
-void launcher_retarget(LauncherState &state, wl_compositor *compositor,
-                       zwlr_layer_shell_v1 *layer_shell, wl_display *display,
-                       Renderer &renderer, EGLDisplay egl_display,
-                       EGLConfig egl_config, EGLContext egl_context,
-                       wl_output *target_output, const char *target_name) {
-    wl_output *previous_output = state.bound_output;
-    klog("panel: launcher retargeting from output=%p to '%s'",
-         static_cast<void *>(previous_output), target_name);
-
+void launcher_destroy_surface(LauncherState &state) {
     if (state.egl_surface != EGL_NO_SURFACE) {
-        eglDestroySurface(egl_display, state.egl_surface);
+        eglDestroySurface(state.egl_display, state.egl_surface);
         state.egl_surface = EGL_NO_SURFACE;
     }
     if (state.egl_window) {
@@ -278,6 +271,18 @@ void launcher_retarget(LauncherState &state, wl_compositor *compositor,
         state.surface = nullptr;
     }
     state.configured = false;
+}
+
+void launcher_retarget(LauncherState &state, wl_compositor *compositor,
+                       zwlr_layer_shell_v1 *layer_shell, wl_display *display,
+                       Renderer &renderer, EGLDisplay egl_display,
+                       EGLConfig egl_config, EGLContext egl_context,
+                       wl_output *target_output, const char *target_name) {
+    wl_output *previous_output = state.bound_output;
+    klog("panel: launcher retargeting from output=%p to '%s'",
+         static_cast<void *>(previous_output), target_name);
+
+    launcher_destroy_surface(state);
     state.open = false;
     state.opacity = 0.0f;
 
@@ -433,6 +438,15 @@ void launcher_toggle(LauncherState &state, bool global) {
                     ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
                 launcher_update_input_region(state);
                 wl_surface_commit(state.surface);
+                // Deferred, same reasoning as overlay_panel_toggle: this
+                // runs from inside animations.tick(), called from
+                // launcher_paint right before it uses state.egl_surface.
+                // Guarded on state.open in case of a reopen before this
+                // drains.
+                DeferredCall::call_later([&state] {
+                    if (!state.open)
+                        launcher_destroy_surface(state);
+                });
             },
             kOverlayFadeOwner);
         launcher_request_frame(state);

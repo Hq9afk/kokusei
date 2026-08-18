@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Builds and deploy system-wide
+# Build and deploy the shell.
 
 set -e
 cd "$(dirname "$0")/.."

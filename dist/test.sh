@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Build and run the unit test suite only
+# Build and run the unit test suite locally.
 
 set -e
 cd "$(dirname "$0")/.."

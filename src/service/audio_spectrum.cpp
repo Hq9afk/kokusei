@@ -58,8 +58,15 @@ AudioSpectrum::~AudioSpectrum() {
 }
 
 bool AudioSpectrum::init() {
-    ring_buf_.assign(kSpectrumFftSize, 0.0f);
-    fft_buf_.resize(kSpectrumFftSize);
+    for (ChannelPipeline *ch : {&mono_, &left_, &right_}) {
+        ch->ring_buf.assign(kSpectrumFftSize, 0.0f);
+        ch->fft_buf.resize(kSpectrumFftSize);
+        ch->prev_bands.assign(kBars, 0.0f);
+        ch->peak.assign(kBars, 0.0f);
+        ch->fall.assign(kBars, 0.0f);
+        ch->bands.assign(kBars, 0.0f);
+        ch->values.assign(kBars, 0.0f);
+    }
     window_.resize(kSpectrumFftSize);
     for (int i = 0; i < kSpectrumFftSize; ++i) {
         window_[static_cast<size_t>(i)] =
@@ -67,11 +74,6 @@ bool AudioSpectrum::init() {
                                     static_cast<float>(i) /
                                     static_cast<float>(kSpectrumFftSize - 1)));
     }
-    prev_bands_.assign(kBars, 0.0f);
-    peak_.assign(kBars, 0.0f);
-    fall_.assign(kBars, 0.0f);
-    bands_.assign(kBars, 0.0f);
-    values_.assign(kBars, 0.0f);
     computeBandBins();
 
     pw_init(nullptr, nullptr);
@@ -136,14 +138,18 @@ void AudioSpectrum::setTargetNode(uint32_t node_id,
     destroyStream();
     {
         std::lock_guard<std::mutex> lock(ring_mutex_);
-        ring_pos_ = 0;
-        ring_full_ = false;
+        for (ChannelPipeline *ch : {&mono_, &left_, &right_}) {
+            ch->ring_pos = 0;
+            ch->ring_full = false;
+        }
         samples_received_ = false;
     }
-    std::fill(prev_bands_.begin(), prev_bands_.end(), 0.0f);
-    std::fill(peak_.begin(), peak_.end(), 0.0f);
-    std::fill(fall_.begin(), fall_.end(), 0.0f);
-    global_max_ = 1e-3f;
+    for (ChannelPipeline *ch : {&mono_, &left_, &right_}) {
+        std::fill(ch->prev_bands.begin(), ch->prev_bands.end(), 0.0f);
+        std::fill(ch->peak.begin(), ch->peak.end(), 0.0f);
+        std::fill(ch->fall.begin(), ch->fall.end(), 0.0f);
+        ch->global_max = 1e-3f;
+    }
     idle_frames_ = 0;
     if (!target_node_name_.empty())
         buildStream();
@@ -200,15 +206,14 @@ void AudioSpectrum::destroyStream() {
     pw_thread_loop_unlock(loop_);
 }
 
-void AudioSpectrum::feedSamples(const float *mono, int count) {
-    std::lock_guard<std::mutex> lock(ring_mutex_);
+void AudioSpectrum::feedSamples(ChannelPipeline &ch, const float *samples,
+                                int count) {
     for (int i = 0; i < count; ++i) {
-        ring_buf_[static_cast<size_t>(ring_pos_)] = mono[i];
-        ring_pos_ = (ring_pos_ + 1) % kSpectrumFftSize;
-        if (ring_pos_ == 0)
-            ring_full_ = true;
+        ch.ring_buf[static_cast<size_t>(ch.ring_pos)] = samples[i];
+        ch.ring_pos = (ch.ring_pos + 1) % kSpectrumFftSize;
+        if (ch.ring_pos == 0)
+            ch.ring_full = true;
     }
-    samples_received_ = true;
 }
 
 void AudioSpectrum::onProcess(void *data) {
@@ -232,9 +237,15 @@ void AudioSpectrum::onProcess(void *data) {
                 static_cast<int>(d->chunk->size / sizeof(float)) / channels;
             if (frames > 0) {
                 static thread_local std::vector<float> mono;
+                static thread_local std::vector<float> left;
+                static thread_local std::vector<float> right;
                 mono.resize(static_cast<size_t>(frames));
+                left.resize(static_cast<size_t>(frames));
+                right.resize(static_cast<size_t>(frames));
                 if (channels == 1) {
                     std::copy(samples, samples + frames, mono.begin());
+                    std::copy(samples, samples + frames, left.begin());
+                    std::copy(samples, samples + frames, right.begin());
                 } else {
                     float inv = 1.0f / static_cast<float>(channels);
                     for (int i = 0; i < frames; ++i) {
@@ -242,9 +253,16 @@ void AudioSpectrum::onProcess(void *data) {
                         for (int c = 0; c < channels; ++c)
                             sum += samples[i * channels + c];
                         mono[static_cast<size_t>(i)] = sum * inv;
+                        left[static_cast<size_t>(i)] = samples[i * channels];
+                        right[static_cast<size_t>(i)] =
+                            samples[i * channels + 1];
                     }
                 }
-                self->feedSamples(mono.data(), frames);
+                std::lock_guard<std::mutex> lock(self->ring_mutex_);
+                self->feedSamples(self->mono_, mono.data(), frames);
+                self->feedSamples(self->left_, left.data(), frames);
+                self->feedSamples(self->right_, right.data(), frames);
+                self->samples_received_ = true;
             }
         }
     }
@@ -288,33 +306,23 @@ void AudioSpectrum::onStreamDestroy(void *data) {
     self->format_ready_ = false;
 }
 
-void AudioSpectrum::processFrame() {
-    {
-        std::lock_guard<std::mutex> lock(ring_mutex_);
-        if (!ring_full_ || (idle_ && !samples_received_))
-            return;
-        if (!samples_received_) {
-            for (float &s : ring_buf_)
-                s *= 0.85f;
-        }
-        samples_received_ = false;
-        for (int i = 0; i < kSpectrumFftSize; ++i) {
-            int idx = (ring_pos_ + i) % kSpectrumFftSize;
-            fft_buf_[static_cast<size_t>(i)] = {
-                ring_buf_[static_cast<size_t>(idx)] *
-                    window_[static_cast<size_t>(i)],
-                0.0f};
-        }
+void AudioSpectrum::processChannel(ChannelPipeline &ch) {
+    for (int i = 0; i < kSpectrumFftSize; ++i) {
+        int idx = (ch.ring_pos + i) % kSpectrumFftSize;
+        ch.fft_buf[static_cast<size_t>(i)] = {
+            ch.ring_buf[static_cast<size_t>(idx)] *
+                window_[static_cast<size_t>(i)],
+            0.0f};
     }
 
-    fft(fft_buf_.data(), kSpectrumFftSize);
+    fft(ch.fft_buf.data(), kSpectrumFftSize);
 
     float current_frame_max = 1e-5f;
     for (int i = 0; i < kBars; ++i) {
         float max_mag_sq = 0.0f;
         for (int bin = bin_low_[static_cast<size_t>(i)];
              bin <= bin_high_[static_cast<size_t>(i)]; ++bin) {
-            float mag_sq = std::norm(fft_buf_[static_cast<size_t>(bin)]);
+            float mag_sq = std::norm(ch.fft_buf[static_cast<size_t>(bin)]);
             if (mag_sq > max_mag_sq)
                 max_mag_sq = mag_sq;
         }
@@ -324,28 +332,28 @@ void AudioSpectrum::processFrame() {
         mag *= (2.5f + freq_scale * 4.0f);
         if (freq_scale <= 0.15f)
             mag *= 1.3f;
-        bands_[static_cast<size_t>(i)] = mag;
+        ch.bands[static_cast<size_t>(i)] = mag;
         if (mag > current_frame_max)
             current_frame_max = mag;
     }
 
-    global_max_ = std::max(global_max_ * 0.995f, current_frame_max);
+    ch.global_max = std::max(ch.global_max * 0.995f, current_frame_max);
     float noise_gate = kSpectrumNoiseReduction * 0.01f;
     for (int i = 0; i < kBars; ++i)
-        bands_[static_cast<size_t>(i)] = std::clamp(
-            (bands_[static_cast<size_t>(i)] / global_max_) - noise_gate, 0.0f,
-            1.0f);
+        ch.bands[static_cast<size_t>(i)] = std::clamp(
+            (ch.bands[static_cast<size_t>(i)] / ch.global_max) - noise_gate,
+            0.0f, 1.0f);
 
     if constexpr (kSpectrumSmoothing) {
         constexpr float kDropOff = 0.66f;
         for (int i = 1; i < kBars; ++i)
-            bands_[static_cast<size_t>(i)] =
-                std::max(bands_[static_cast<size_t>(i)],
-                         bands_[static_cast<size_t>(i - 1)] * kDropOff);
+            ch.bands[static_cast<size_t>(i)] =
+                std::max(ch.bands[static_cast<size_t>(i)],
+                         ch.bands[static_cast<size_t>(i - 1)] * kDropOff);
         for (int i = kBars - 2; i >= 0; --i)
-            bands_[static_cast<size_t>(i)] =
-                std::max(bands_[static_cast<size_t>(i)],
-                         bands_[static_cast<size_t>(i + 1)] * kDropOff);
+            ch.bands[static_cast<size_t>(i)] =
+                std::max(ch.bands[static_cast<size_t>(i)],
+                         ch.bands[static_cast<size_t>(i + 1)] * kDropOff);
     }
 
     double gravity_mod =
@@ -354,34 +362,60 @@ void AudioSpectrum::processFrame() {
     if (gravity_mod < 1.0)
         gravity_mod = 1.0;
 
-    bool silence = true;
     for (int i = 0; i < kBars; ++i) {
         size_t idx = static_cast<size_t>(i);
-        if (bands_[idx] < prev_bands_[idx]) {
-            bands_[idx] = std::max(
-                static_cast<float>(static_cast<double>(peak_[idx]) *
-                                   (1.0 - static_cast<double>(fall_[idx]) *
-                                              static_cast<double>(fall_[idx]) *
+        if (ch.bands[idx] < ch.prev_bands[idx]) {
+            ch.bands[idx] = std::max(
+                static_cast<float>(static_cast<double>(ch.peak[idx]) *
+                                   (1.0 - static_cast<double>(ch.fall[idx]) *
+                                              static_cast<double>(ch.fall[idx]) *
                                               gravity_mod)),
                 0.0f);
-            fall_[idx] += 0.028f;
+            ch.fall[idx] += 0.028f;
         } else {
-            peak_[idx] = bands_[idx];
-            fall_[idx] = 0.0f;
-            bands_[idx] =
-                prev_bands_[idx] + (bands_[idx] - prev_bands_[idx]) * 0.6f;
+            ch.peak[idx] = ch.bands[idx];
+            ch.fall[idx] = 0.0f;
+            ch.bands[idx] =
+                ch.prev_bands[idx] + (ch.bands[idx] - ch.prev_bands[idx]) * 0.6f;
         }
-        prev_bands_[idx] = bands_[idx];
-        if (bands_[idx] > 0.01f)
-            silence = false;
+        ch.prev_bands[idx] = ch.bands[idx];
     }
+
+    for (int i = 0; i < kBars; ++i)
+        ch.values[static_cast<size_t>(i)] = ch.bands[static_cast<size_t>(i)];
+}
+
+void AudioSpectrum::processFrame() {
+    {
+        std::lock_guard<std::mutex> lock(ring_mutex_);
+        if (!mono_.ring_full || (idle_ && !samples_received_))
+            return;
+        if (!samples_received_) {
+            for (ChannelPipeline *ch : {&mono_, &left_, &right_})
+                for (float &s : ch->ring_buf)
+                    s *= 0.85f;
+        }
+        samples_received_ = false;
+
+        processChannel(mono_);
+        processChannel(left_);
+        processChannel(right_);
+    }
+
+    bool silence = true;
+    for (float v : mono_.bands)
+        if (v > 0.01f) {
+            silence = false;
+            break;
+        }
 
     if (silence) {
         ++idle_frames_;
         if (idle_frames_ >= kSpectrumIdleThreshold) {
             if (!idle_) {
                 idle_ = true;
-                std::fill(values_.begin(), values_.end(), 0.0f);
+                for (ChannelPipeline *ch : {&mono_, &left_, &right_})
+                    std::fill(ch->values.begin(), ch->values.end(), 0.0f);
             }
             return;
         }
@@ -389,7 +423,4 @@ void AudioSpectrum::processFrame() {
         idle_frames_ = 0;
         idle_ = false;
     }
-
-    for (int i = 0; i < kBars; ++i)
-        values_[static_cast<size_t>(i)] = bands_[static_cast<size_t>(i)];
 }

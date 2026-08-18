@@ -54,6 +54,20 @@ Pill wifi_pill(MonitorOutput &mon) {
                         update_pill_expand(bs.capsule, mon.animations,
                                            PillId::Wifi, true, true);
                         bar_paint(mon);
+                        overlay_panel_ensure(
+                            bs.network_panel.base, mon.app->display,
+                            [&] {
+                                return network_panel_create_surface(
+                                    bs.network_panel, mon.app->compositor,
+                                    mon.app->layer_shell, mon.output.wl);
+                            },
+                            [&] {
+                                return network_panel_init_egl(
+                                    bs.network_panel, mon.app->renderer,
+                                    mon.app->network, mon.app->egl_display,
+                                    mon.app->egl_config, mon.app->egl_context);
+                            });
+                        bar_detail::rest_egl_current(*mon.app);
                     }
                     network_panel_toggle(
                         bs.network_panel,

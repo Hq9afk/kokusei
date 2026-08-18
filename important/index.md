@@ -1,3 +1,10 @@
+# `kokusei` indexing
+
+## Rule
+
+- Only state the file name.
+- Reflect current structure of the code base.
+
 ## src/app
 
 - config.h / config.cpp
@@ -20,7 +27,7 @@
 - osd_config.h
 - notification_config.h
 - starward_config.h
-- controlcenter_config.h (geometry constants mirror keqing-shell's `ControlCenterConfig.qml`, one group per card)
+- controlcenter_config.h
 - wallpaper_config.h
 - settings_config.h
 - matrix_config.h
@@ -49,6 +56,7 @@
 - animation.h / animation.cpp
 - slider.h / slider.cpp
 - matrix_grid.h / matrix_grid.cpp
+- ncs_visualizer.h / ncs_visualizer.cpp
 
 ## src/service
 
@@ -111,6 +119,7 @@
 - wallpaper_tab.h / wallpaper_tab.cpp
 - displays_tab.h / displays_tab.cpp
 - idle_tab.h / idle_tab.cpp
+- visualizer_tab.h / visualizer_tab.cpp
 
 ## src/bar
 
