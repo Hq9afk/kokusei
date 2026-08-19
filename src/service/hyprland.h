@@ -1,9 +1,9 @@
 #pragma once
 
-#include "service/workspace.h"
-
 #include <string>
 #include <unordered_map>
+
+#include "service/workspace.h"
 
 struct HyprlandState {
     std::string request_socket_path;

@@ -1,6 +1,6 @@
-#include "service/wallpaper_hw_decode.h"
-
 #include "core/log.h"
+
+#include "service/wallpaper_hw_decode.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -222,11 +222,6 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
     auto frame_interval = std::chrono::duration<double>(1.0 / std::max(1, fps));
     auto next_frame_due = clock::now();
 
-    // Drains every frame currently available from the decoder (one send_packet
-    // can yield zero, one, or several receive_frame results, and a hardware
-    // decoder in particular can hold a frame back internally until the *next*
-    // send_packet or an explicit flush asks for it). Returns false if a stop
-    // was requested mid-drain, meaning the caller must return immediately.
     auto drain_available_frames = [&]() -> bool {
         for (;;) {
             int recv_ret = avcodec_receive_frame(codec.ctx, decoded.frame);
@@ -271,8 +266,6 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
     while (!stop_flag->load()) {
         int read_ret = av_read_frame(fmt.ctx, packet.packet);
         if (read_ret < 0) {
-            // Flush: ask the decoder to emit any frame(s) it was still
-            // holding internally before dropping its state and looping back.
             avcodec_send_packet(codec.ctx, nullptr);
             if (!drain_available_frames())
                 return;

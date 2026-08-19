@@ -1,13 +1,15 @@
-#include "visualizer/sphere_visualizer.h"
-
-#include "config/visualizer_config.h"
-#include "render/gl.h"
-#include "shaders/sphere_particle.h"
-#include "shaders/sphere_post.h"
-
 #include <algorithm>
 #include <cstdint>
 #include <vector>
+
+#include "config/visualizer_config.h"
+
+#include "render/gl.h"
+
+#include "shaders/sphere_particle.h"
+#include "shaders/sphere_post.h"
+
+#include "visualizer/sphere_visualizer.h"
 
 namespace {
 
@@ -146,8 +148,6 @@ struct SphereFrameInput {
     const std::vector<float> &spectrum_r;
 };
 
-// Runs against whatever EGL surface/context the caller (the visualizer's
-// dedicated render thread) already made current.
 void render_frame(SphereVisualizerState &state, const SphereFrameInput &f) {
     if (f.width <= 0 || f.height <= 0 || !ensure_ready(state))
         return;
@@ -160,7 +160,6 @@ void render_frame(SphereVisualizerState &state, const SphereFrameInput &f) {
     upload_audio_texture(state.audio_tex_l, f.spectrum_l);
     upload_audio_texture(state.audio_tex_r, f.spectrum_r);
 
-    // --- Particle pass: additive splats into the accumulation FBO. ---
     glBindFramebuffer(GL_FRAMEBUFFER, state.accum_fbo);
     glViewport(0, 0, px_width, px_height);
     glClearColor(0, 0, 0, 0);
@@ -219,9 +218,6 @@ void render_frame(SphereVisualizerState &state, const SphereFrameInput &f) {
     glDrawArrays(GL_POINTS, 0, state.particle_count);
     glDisableVertexAttribArray(grid_loc);
 
-    // --- Glow pass: blur+feedback of last frame, plus this frame's splats,
-    // written into the other ping-pong texture, at reduced resolution since
-    // the 96-tap blur is the dominant per-frame cost. ---
     int write_idx = 1 - state.ping_read;
     glBindFramebuffer(GL_FRAMEBUFFER, state.ping_fbo[write_idx]);
     glViewport(0, 0, state.glow_width, state.glow_height);
@@ -259,10 +255,6 @@ void render_frame(SphereVisualizerState &state, const SphereFrameInput &f) {
 
     state.ping_read = write_idx;
 
-    // --- Composite: clear the real target to the visualizer's window
-    // background, scaled by this frame's fade opacity so it fades in at the
-    // same rate as the bar shape's background, then draw the resulting
-    // glow texture on top. ---
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, px_width, px_height);
     glDisable(GL_BLEND);

@@ -1,8 +1,7 @@
-#include "render/slider.h"
+#include <algorithm>
 
 #include "render/palette.h"
-
-#include <algorithm>
+#include "render/slider.h"
 
 void draw_slider_track(Node *clip, std::vector<PanelClickRegion> &regions,
                        Rect rect_local, Rect rect_absolute, float track_height,

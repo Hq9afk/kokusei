@@ -1,25 +1,28 @@
 #pragma once
 
-#include "config/notification_config.h"
-#include "render/animation.h"
-#include "render/palette.h"
-#include "render/renderer.h"
-#include "render/scene.h"
-#include "render/texture.h"
-#include "service/frame_clock.h"
-#include "service/output_scale.h"
-#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <EGL/egl.h>
-#include <sdbus-c++/sdbus-c++.h>
-#include <wayland-client.h>
-#include <wayland-egl.h>
-
 #include <chrono>
 #include <cstdint>
 #include <deque>
 #include <functional>
 #include <memory>
+#include <sdbus-c++/sdbus-c++.h>
 #include <string>
+#include <wayland-client.h>
+#include <wayland-egl.h>
+
+#include "config/notification_config.h"
+
+#include "render/animation.h"
+#include "render/palette.h"
+#include "render/renderer.h"
+#include "render/scene.h"
+#include "render/texture.h"
+
+#include "service/frame_clock.h"
+#include "service/output_scale.h"
+
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 struct NotificationEntry {
     uint32_t id = 0;

@@ -1,11 +1,11 @@
-#include "service/keyboard.h"
-
-#include "core/log.h"
-
 #include <algorithm>
 #include <sys/mman.h>
 #include <sys/timerfd.h>
 #include <unistd.h>
+
+#include "core/log.h"
+
+#include "service/keyboard.h"
 
 std::optional<KeyEvent> translate_key(xkb_state *state, uint32_t keycode) {
     xkb_keycode_t xkb_code = keycode + 8;

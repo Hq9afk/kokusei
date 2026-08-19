@@ -1,12 +1,12 @@
 #pragma once
 
-#include <wayland-client.h>
-
 #include <functional>
 #include <utility>
 #include <vector>
+#include <wayland-client.h>
 
 #include "app/ipc.h"
+
 #include "service/keyboard.h"
 
 struct WaylandState;

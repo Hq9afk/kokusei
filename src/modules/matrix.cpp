@@ -1,10 +1,11 @@
-#include "modules/matrix.h"
+#include <GLES2/gl2.h>
 
 #include "app/wayland_state.h"
+
+#include "modules/matrix.h"
+
 #include "render/node.h"
 #include "render/overlay_panel.h"
-
-#include <GLES2/gl2.h>
 
 void matrix_request_frame(MatrixState &state) {
     toplevel_window_request_frame(state.base);

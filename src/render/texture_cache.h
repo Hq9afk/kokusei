@@ -1,11 +1,12 @@
 #pragma once
 
-#include "render/text.h"
-#include "render/texture.h"
 #include <functional>
 #include <list>
 #include <string>
 #include <unordered_map>
+
+#include "render/text.h"
+#include "render/texture.h"
 
 class TextureCache {
   public:

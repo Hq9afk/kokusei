@@ -1,9 +1,10 @@
 #pragma once
 
-#include "render/texture.h"
 #include <GLES2/gl2.h>
 #include <cstdint>
 #include <vector>
+
+#include "render/texture.h"
 
 class Renderer {
   public:

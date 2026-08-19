@@ -1,13 +1,16 @@
-#include "app/monitor_output.h"
+#include <algorithm>
 
 #include "app/module_registry.h"
+#include "app/monitor_output.h"
+
 #include "core/log.h"
+
 #include "modules/bar.h"
 #include "modules/settings.h"
-#include "render/overlay_panel.h"
-#include "service/settings_service.h"
 
-#include <algorithm>
+#include "render/overlay_panel.h"
+
+#include "service/settings_service.h"
 
 void monitor_output_destroy(MonitorOutput &mon) {
     for (auto &m : mon.modules)

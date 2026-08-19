@@ -1,13 +1,12 @@
-#include "render/matrix_grid.h"
-
-#include "config/matrix_config.h"
-#include "render/text.h"
-
-#include <cairo/cairo.h>
-
 #include <algorithm>
+#include <cairo/cairo.h>
 #include <cmath>
 #include <random>
+
+#include "config/matrix_config.h"
+
+#include "render/matrix_grid.h"
+#include "render/text.h"
 
 namespace {
 

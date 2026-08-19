@@ -1,17 +1,18 @@
 #pragma once
 
-#include "config/bar_config.h"
-#include "render/animation.h"
-#include "render/node.h"
-#include "render/palette.h"
-#include "render/rect.h"
-#include "render/texture.h"
-
 #include <array>
 #include <chrono>
 #include <functional>
 #include <string>
 #include <vector>
+
+#include "config/bar_config.h"
+
+#include "render/animation.h"
+#include "render/node.h"
+#include "render/palette.h"
+#include "render/rect.h"
+#include "render/texture.h"
 
 struct PointerState;
 struct wl_surface;

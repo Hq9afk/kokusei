@@ -1,19 +1,22 @@
-#include "modules/settings.h"
+#include <GLES2/gl2.h>
+#include <algorithm>
+#include <chrono>
 
 #include "app/monitor_output.h"
+#include "app/user_info.h"
 #include "app/wayland_state.h"
-#include "settings/displays_tab.h"
-#include "settings/idle_tab.h"
 
 #include "core/log.h"
+
+#include "modules/settings.h"
+
 #include "render/renderer.h"
+
 #include "service/settings_service.h"
 #include "service/wallpaper_service.h"
 
-#include <GLES2/gl2.h>
-
-#include <algorithm>
-#include <chrono>
+#include "settings/displays_tab.h"
+#include "settings/idle_tab.h"
 
 std::string settings_detail_format_field(const Config &cfg,
                                          SettingsFieldId id) {
@@ -264,6 +267,49 @@ struct SettingsTabDef {
     const char *icon;
 };
 
+float draw_profile_block(SettingsState &state, Node *parent, int32_t scale,
+                         float x, float y, float w) {
+    float avatar_x = x;
+    float avatar_y = y + kSettingsProfileTopPadding;
+    node_add_rrect(parent, avatar_x, avatar_y, kSettingsProfileAvatarSize,
+                   kSettingsProfileAvatarSize, kSettingsProfileAvatarSize / 2.0f,
+                   0.0f, rgba(palette::text_alpha04), kPanelNoBorder);
+    const Texture *avatar_icon = cached_icon(state.tcache, icon::user, scale);
+    if (avatar_icon)
+        node_add_texture(parent,
+                         avatar_x + (kSettingsProfileAvatarSize -
+                                     avatar_icon->width) /
+                                        2.0f,
+                         avatar_y + (kSettingsProfileAvatarSize -
+                                     avatar_icon->height) /
+                                        2.0f,
+                         *avatar_icon, rgba(palette::text));
+
+    float text_x = avatar_x + kSettingsProfileAvatarSize +
+                   kSettingsProfileAvatarLabelGap;
+    const Texture *name_tex =
+        cached_text(state.tcache, user_info::username(), scale);
+    const Texture *uptime_tex =
+        cached_text(state.tcache, user_info::uptime_string(), scale);
+    float info_h = (name_tex ? name_tex->height : 0) + kSettingsProfileLineGap +
+                   (uptime_tex ? uptime_tex->height : 0);
+    float text_y = avatar_y + (kSettingsProfileAvatarSize - info_h) / 2.0f;
+    if (name_tex) {
+        node_add_texture(parent, text_x, text_y, *name_tex,
+                         rgba(palette::text));
+        text_y += name_tex->height + kSettingsProfileLineGap;
+    }
+    if (uptime_tex)
+        node_add_texture(parent, text_x, text_y, *uptime_tex,
+                         rgba(palette::text_dim));
+
+    float block_h = kSettingsProfileTopPadding + kSettingsProfileAvatarSize +
+                    kSettingsProfileBottomPadding;
+    node_add_rect(parent, x, y + block_h, w, 1.0f,
+                 rgba(palette::text_alpha11));
+    return block_h + kSettingsProfileDividerGap;
+}
+
 void draw_nav_rail(SettingsState &state, Node *parent, int32_t scale, float x,
                    float y, float w, float h) {
     static const SettingsTabDef tabs[kSettingsTabCount] = {
@@ -430,8 +476,11 @@ void settings_paint(SettingsState &state, const Config &cfg,
         content_y += 1.0f + kPanelContentGap;
 
         float rail_x = panel_x + kPanelPadding;
-        float rail_h = panel_y + panel_h - kPanelPadding - content_y;
-        draw_nav_rail(state, root, scale, rail_x, content_y, kSettingsRailWidth,
+        float profile_h = draw_profile_block(state, root, scale, rail_x,
+                                             content_y, kSettingsRailWidth);
+        float rail_y = content_y + profile_h;
+        float rail_h = panel_y + panel_h - kPanelPadding - rail_y;
+        draw_nav_rail(state, root, scale, rail_x, rail_y, kSettingsRailWidth,
                       rail_h);
 
         float divider_x = rail_x + kSettingsRailWidth + kSettingsRailDividerGap;

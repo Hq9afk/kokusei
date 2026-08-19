@@ -1,9 +1,8 @@
 #pragma once
 
 #include <linux/input-event-codes.h>
-#include <wayland-client.h>
-
 #include <vector>
+#include <wayland-client.h>
 
 struct PointerClick {
     wl_surface *surface;

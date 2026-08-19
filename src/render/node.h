@@ -1,8 +1,9 @@
 #pragma once
 
-#include "render/texture.h"
 #include <memory>
 #include <vector>
+
+#include "render/texture.h"
 
 class Renderer;
 

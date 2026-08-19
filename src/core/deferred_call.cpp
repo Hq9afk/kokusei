@@ -1,7 +1,7 @@
-#include "core/deferred_call.h"
-
 #include <fcntl.h>
 #include <unistd.h>
+
+#include "core/deferred_call.h"
 
 void DeferredCall::init() {
     int fds[2];

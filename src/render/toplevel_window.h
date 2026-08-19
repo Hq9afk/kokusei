@@ -1,14 +1,16 @@
 #pragma once
 
-#include "render/animation.h"
-#include "service/frame_clock.h"
-#include "service/output_scale.h"
-#include "xdg-shell-client-protocol.h"
-
 #include <EGL/egl.h>
 #include <functional>
 #include <wayland-client.h>
 #include <wayland-egl.h>
+
+#include "render/animation.h"
+
+#include "service/frame_clock.h"
+#include "service/output_scale.h"
+
+#include "xdg-shell-client-protocol.h"
 
 struct ToplevelWindowBase {
     wl_compositor *compositor = nullptr;

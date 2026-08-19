@@ -1,6 +1,6 @@
-#include "core/poll_source.h"
-
 #include <sdbus-c++/sdbus-c++.h>
+
+#include "core/poll_source.h"
 
 FnPollSource sdbus_poll_source(sdbus::IConnection &bus,
                                FnPollSource::DispatchFn on_ready) {

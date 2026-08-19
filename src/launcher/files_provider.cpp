@@ -1,11 +1,10 @@
-#include "launcher/files_provider.h"
-
-#include "launcher/apps_provider.h"
-
 #include <algorithm>
 #include <array>
 #include <cstdio>
 #include <sstream>
+
+#include "launcher/apps_provider.h"
+#include "launcher/files_provider.h"
 
 std::string basename_of(const std::string &path) {
     std::string p = path;

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "config/launcher_config.h"
-
 #include <string>
 #include <vector>
+
+#include "config/launcher_config.h"
 
 ModeQuery detect_mode_and_query(const std::string &raw);
 

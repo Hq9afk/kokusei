@@ -1,8 +1,8 @@
-#include "service/settings_service.h"
+#include <algorithm>
 
 #include "core/log.h"
 
-#include <algorithm>
+#include "service/settings_service.h"
 
 void settings_service_apply_field_text(Config &cfg, SettingsFieldId id,
                                        const std::string &text) {

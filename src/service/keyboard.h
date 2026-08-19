@@ -1,14 +1,13 @@
 #pragma once
 
-#include "service/pointer.h"
-
-#include <wayland-client.h>
-#include <xkbcommon/xkbcommon.h>
-
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
+#include <wayland-client.h>
+#include <xkbcommon/xkbcommon.h>
+
+#include "service/pointer.h"
 
 enum class KeyKind {
     Text,

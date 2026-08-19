@@ -1,15 +1,17 @@
-#include "bar/widget/volume_widget.h"
-#include "bar/panel/volume_panel.h"
-#include "modules/bar.h"
-
-#include "render/icon.h"
-#include "render/icons.h"
-#include "service/pipewire.h"
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <string>
+
+#include "bar/panel/volume_panel.h"
+#include "bar/widget/volume_widget.h"
+
+#include "modules/bar.h"
+
+#include "render/icon.h"
+#include "render/icons.h"
+
+#include "service/pipewire.h"
 
 namespace {
 

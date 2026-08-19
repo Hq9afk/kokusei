@@ -1,15 +1,16 @@
-#include "service/wallpaper_animate_service.h"
-
-#include "config/wallpaper_config.h"
-#include "core/async_process.h"
-#include "core/log.h"
-
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <sys/stat.h>
 #include <thread>
+
+#include "config/wallpaper_config.h"
+
+#include "core/async_process.h"
+#include "core/log.h"
+
+#include "service/wallpaper_animate_service.h"
 
 namespace {
 

@@ -1,6 +1,6 @@
-#include "render/overlay_panel.h"
-
 #include "core/deferred_call.h"
+
+#include "render/overlay_panel.h"
 
 namespace {
 
@@ -143,12 +143,6 @@ void overlay_panel_toggle(OverlayPanelBase &base) {
             wl_surface_commit(base.surface);
             klog("panel: %s released exclusive keyboard interactivity",
                  base.name_space ? base.name_space : "?");
-            // Deferred, not destroyed here directly: this callback runs
-            // from inside AnimationManager::tick(), called from this
-            // surface's own paint function, which touches base.egl_surface
-            // right after tick() returns. Destroying now would pull the
-            // surface out from under that same paint call. Guarded on
-            // base.open in case the panel is reopened before this drains.
             DeferredCall::call_later([&base] {
                 if (!base.open)
                     overlay_panel_destroy_surface(base);

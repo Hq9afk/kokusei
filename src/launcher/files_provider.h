@@ -1,9 +1,9 @@
 #pragma once
 
-#include "config/launcher_config.h"
-
 #include <string>
 #include <vector>
+
+#include "config/launcher_config.h"
 
 std::string basename_of(const std::string &path);
 

@@ -1,11 +1,10 @@
-#include "launcher/search.h"
-
-#include "launcher/apps_provider.h"
-#include "launcher/visit_store.h"
-
 #include <algorithm>
 #include <array>
 #include <cctype>
+
+#include "launcher/apps_provider.h"
+#include "launcher/search.h"
+#include "launcher/visit_store.h"
 
 namespace {
 

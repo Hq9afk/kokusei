@@ -1,18 +1,17 @@
-#include "service/hyprland.h"
-
-#include "core/log.h"
-
-#include <nlohmann/json.hpp>
-
 #include <algorithm>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
+#include <nlohmann/json.hpp>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+#include "core/log.h"
+
+#include "service/hyprland.h"
 
 namespace {
 

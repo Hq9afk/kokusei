@@ -1,12 +1,13 @@
-#include "app/wayland_registry.h"
-
-#include "app/monitor_output.h"
-#include "app/wayland_state.h"
-#include "core/log.h"
-#include "modules/bar.h"
-
 #include <algorithm>
 #include <cstring>
+
+#include "app/monitor_output.h"
+#include "app/wayland_registry.h"
+#include "app/wayland_state.h"
+
+#include "core/log.h"
+
+#include "modules/bar.h"
 
 namespace {
 

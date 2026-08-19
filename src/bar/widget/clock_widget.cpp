@@ -1,8 +1,8 @@
+#include <ctime>
+
 #include "bar/widget/clock_widget.h"
 
 #include "render/text.h"
-
-#include <ctime>
 
 namespace bar_detail {
 

@@ -1,26 +1,30 @@
 #pragma once
 
+#include <EGL/egl.h>
+#include <functional>
+#include <string>
+#include <vector>
+#include <wayland-client.h>
+#include <wayland-egl.h>
+
 #include "app/config.h"
 #include "app/ipc.h"
+
 #include "config/settings_config.h"
+
 #include "render/overlay_panel.h"
 #include "render/panel_chrome.h"
 #include "render/rect.h"
 #include "render/scene.h"
 #include "render/text_field.h"
 #include "render/texture_cache.h"
+
 #include "service/keyboard.h"
+
 #include "settings/visualizer_tab.h"
 #include "settings/wallpaper_tab.h"
+
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
-
-#include <EGL/egl.h>
-#include <wayland-client.h>
-#include <wayland-egl.h>
-
-#include <functional>
-#include <string>
-#include <vector>
 
 enum class SettingsTab { Wallpaper, Displays, Idle, Visualizer };
 constexpr int kSettingsTabCount = 4;

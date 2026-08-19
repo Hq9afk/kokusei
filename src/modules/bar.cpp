@@ -1,6 +1,9 @@
-#include "modules/bar.h"
+#include <GLES2/gl2.h>
+#include <algorithm>
+#include <cstring>
 
 #include "app/wayland_registry.h"
+
 #include "bar/widget/battery_widget.h"
 #include "bar/widget/bluetooth_widget.h"
 #include "bar/widget/clock_widget.h"
@@ -8,16 +11,17 @@
 #include "bar/widget/network_widget.h"
 #include "bar/widget/starward_widget.h"
 #include "bar/widget/volume_widget.h"
+
 #include "core/log.h"
+
+#include "modules/bar.h"
+
 #include "render/icon.h"
 #include "render/icons.h"
 #include "render/palette.h"
+
 #include "service/active_output.h"
 #include "service/layer_surface.h"
-
-#include <GLES2/gl2.h>
-#include <algorithm>
-#include <cstring>
 
 BarPerMonitorState &bar_state(MonitorOutput &mon) {
     return mon.module<BarPerMonitorModule>()->state;

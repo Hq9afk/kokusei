@@ -1,9 +1,10 @@
 #pragma once
 
-#include "render/rect.h"
-#include "service/pipewire.h"
-
 #include <string>
+
+#include "render/rect.h"
+
+#include "service/pipewire.h"
 
 struct DraggedSlider {
     std::string tag;

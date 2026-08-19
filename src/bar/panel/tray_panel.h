@@ -1,20 +1,22 @@
 #pragma once
 
-#include "render/overlay_panel.h"
-#include "render/panel_chrome.h"
-#include "render/rect.h"
-#include "render/renderer.h"
-#include "render/scene.h"
-#include "render/texture_cache.h"
-#include "service/tray_service.h"
-#include "wlr-layer-shell-unstable-v1-client-protocol.h"
-
 #include <EGL/egl.h>
 #include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include <wayland-client.h>
+
+#include "render/overlay_panel.h"
+#include "render/panel_chrome.h"
+#include "render/rect.h"
+#include "render/renderer.h"
+#include "render/scene.h"
+#include "render/texture_cache.h"
+
+#include "service/tray_service.h"
+
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 struct WaylandState;
 

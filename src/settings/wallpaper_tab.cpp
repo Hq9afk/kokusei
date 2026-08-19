@@ -1,14 +1,17 @@
-#include "settings/wallpaper_tab.h"
-
-#include "core/deferred_call.h"
-#include "modules/settings.h"
-#include "render/panel_scroll.h"
-#include "service/wallpaper_animate_service.h"
-#include "service/wallpaper_service.h"
-
 #include <algorithm>
 #include <filesystem>
 #include <thread>
+
+#include "core/deferred_call.h"
+
+#include "modules/settings.h"
+
+#include "render/panel_scroll.h"
+
+#include "service/wallpaper_animate_service.h"
+#include "service/wallpaper_service.h"
+
+#include "settings/wallpaper_tab.h"
 
 using panel_chrome_detail::cached_icon;
 using panel_chrome_detail::cached_text;

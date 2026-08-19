@@ -1,9 +1,9 @@
 #pragma once
 
-#include "service/workspace.h"
-
 #include <string>
 #include <unordered_map>
+
+#include "service/workspace.h"
 
 struct ShojiwmState {
     int fd = -1;

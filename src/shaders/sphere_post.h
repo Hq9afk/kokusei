@@ -1,11 +1,5 @@
 #pragma once
 
-// The visualizer's `sphere` shape, shared post-processing passes: a
-// fullscreen-quad vertex shader, a directional multi-tap blur + temporal
-// feedback glow pass, and a final composite. Generic post-processing, not
-// tied to any particular particle reference, so unchanged by the ncs4au
-// port (see sphere_particle.h) beyond the rename.
-
 constexpr const char *kSphereFullscreenVs = R"(
 attribute vec2 a_pos;
 varying vec2 v_uv;
@@ -15,11 +9,6 @@ void main() {
 }
 )";
 
-// Blurs the previous frame's glow buffer, blends in this frame's fresh
-// particle splats (accum_tex.a is this pixel's summed additive overlap,
-// divided by u_particle_strength to approximate an overlap count), and a
-// pow/geometric-opacity curve suppresses low-overlap pixels near zero so
-// only densely-packed regions (e.g. the sphere's silhouette) light up.
 constexpr const char *kSphereGlowFs = R"(
 precision mediump float;
 varying vec2 v_uv;

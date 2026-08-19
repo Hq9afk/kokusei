@@ -1,7 +1,7 @@
 
-#include "service/wallpaper_service.h"
-
 #include <cassert>
+
+#include "service/wallpaper_service.h"
 
 void test_wallpaper_resolve() {
     Config cfg;

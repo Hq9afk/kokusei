@@ -1,21 +1,23 @@
-#include "modules/wallpaper.h"
+#include <GLES2/gl2.h>
+#include <algorithm>
+#include <thread>
+#include <vector>
 
 #include "config/wallpaper_config.h"
+
 #include "core/deferred_call.h"
 #include "core/log.h"
+
+#include "modules/wallpaper.h"
+
 #include "render/node.h"
 #include "render/palette.h"
 #include "render/renderer.h"
+
 #include "service/layer_surface.h"
 #include "service/wallpaper_animate_service.h"
 #include "service/wallpaper_hw_decode.h"
 #include "service/wallpaper_service.h"
-
-#include <GLES2/gl2.h>
-
-#include <algorithm>
-#include <thread>
-#include <vector>
 
 namespace {
 

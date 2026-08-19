@@ -1,10 +1,11 @@
 #include <filesystem>
 
 #include "app/module_registry.h"
-
 #include "app/monitor_output.h"
 #include "app/wayland_state.h"
+
 #include "config/bar_config.h"
+
 #include "modules/bar.h"
 #include "modules/controlcenter.h"
 #include "modules/launcher.h"
@@ -15,7 +16,9 @@
 #include "modules/starward.h"
 #include "modules/visualizer.h"
 #include "modules/wallpaper.h"
+
 #include "render/image.h"
+
 #include "service/layer_surface.h"
 #include "service/wallpaper_service.h"
 

@@ -1,6 +1,6 @@
-#include "service/mpris_service.h"
-
 #include <cassert>
+
+#include "service/mpris_service.h"
 
 void test_mpris() {
     assert(mpris_detail_parse_playback_status("Playing") ==

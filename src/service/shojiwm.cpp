@@ -1,16 +1,15 @@
-#include "service/shojiwm.h"
-
-#include "core/log.h"
-
-#include <nlohmann/json.hpp>
-
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
+#include <nlohmann/json.hpp>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+#include "core/log.h"
+
+#include "service/shojiwm.h"
 
 namespace {
 

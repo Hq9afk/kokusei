@@ -1,11 +1,13 @@
+#include <string>
+
 #include "bar/widget/network_widget.h"
+
 #include "modules/bar.h"
 
 #include "render/icon.h"
 #include "render/icons.h"
-#include "service/network_service.h"
 
-#include <string>
+#include "service/network_service.h"
 
 namespace {
 

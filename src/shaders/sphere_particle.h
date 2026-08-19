@@ -1,24 +1,5 @@
 #pragma once
 
-// The visualizer's `sphere` shape, particle pass. Ported from
-// `~/references/ncs4au/src/NCS4AU.obj` (an AviUtl custom-object Lua script):
-// a flat resolution x resolution grid of points, displaced by single-octave
-// 3D Perlin noise (one sample per axis), then projected onto a sphere by
-// normalizing the vector from the sphere's center and scaling by radius,
-// folding the back hemisphere onto the front (z = abs(z)) so every point
-// stays camera-facing. Both the noise amplitude and the sphere radius get a
-// small additive term from the audio spectrum's bass band.
-//
-// The noise itself reuses this codebase's existing 4D `cnoise` (Stefan
-// Gustavson's classic Perlin noise) called with w=0, rather than porting
-// ncs4au's own hand-rolled permutation-table noise - same family of smooth
-// noise, no need for a second implementation.
-//
-// Unlike the reference (which never animates its noise's Z evolution unless
-// an AviUtl user keyframes it by hand), this port drives all three flow axes
-// from u_time, since this is a continuously-running live overlay rather than
-// a frame-by-frame edited video clip.
-
 constexpr const char *kSphereParticleVs = R"(
 attribute vec2 a_grid;
 
@@ -204,8 +185,6 @@ void main() {
 }
 )";
 
-// Soft round point sprite, drawn additively so overlapping/densely-packed
-// particles (e.g. near the sphere's silhouette) brighten.
 constexpr const char *kSphereParticleFs = R"(
 precision mediump float;
 uniform vec3 u_color;

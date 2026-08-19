@@ -1,7 +1,10 @@
-#include "modules/launcher.h"
+#include <GLES2/gl2.h>
+#include <algorithm>
+#include <cstdlib>
 
 #include "core/deferred_call.h"
 #include "core/log.h"
+
 #include "launcher/apps_provider.h"
 #include "launcher/desktop_entry.h"
 #include "launcher/files_provider.h"
@@ -9,19 +12,18 @@
 #include "launcher/search.h"
 #include "launcher/submenu.h"
 #include "launcher/visit_store.h"
+
+#include "modules/launcher.h"
+
 #include "render/icon.h"
 #include "render/icons.h"
 #include "render/image.h"
 #include "render/node.h"
 #include "render/palette.h"
 #include "render/text_field.h"
+
 #include "service/icon_theme.h"
 #include "service/layer_surface.h"
-
-#include <GLES2/gl2.h>
-
-#include <algorithm>
-#include <cstdlib>
 
 namespace {
 
@@ -438,11 +440,6 @@ void launcher_toggle(LauncherState &state, bool global) {
                     ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
                 launcher_update_input_region(state);
                 wl_surface_commit(state.surface);
-                // Deferred, same reasoning as overlay_panel_toggle: this
-                // runs from inside animations.tick(), called from
-                // launcher_paint right before it uses state.egl_surface.
-                // Guarded on state.open in case of a reopen before this
-                // drains.
                 DeferredCall::call_later([&state] {
                     if (!state.open)
                         launcher_destroy_surface(state);

@@ -1,7 +1,7 @@
 
-#include "service/network_service.h"
-
 #include <cassert>
+
+#include "service/network_service.h"
 
 void test_network_parse() {
     {

@@ -1,12 +1,13 @@
 #pragma once
 
-#include "app/ipc.h"
-#include "ext-idle-notify-v1-client-protocol.h"
-#include "idle-inhibit-unstable-v1-client-protocol.h"
-
 #include <cstdint>
 #include <string>
 #include <vector>
+
+#include "app/ipc.h"
+
+#include "ext-idle-notify-v1-client-protocol.h"
+#include "idle-inhibit-unstable-v1-client-protocol.h"
 
 struct WaylandState;
 

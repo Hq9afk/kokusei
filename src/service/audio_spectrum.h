@@ -1,16 +1,15 @@
 #pragma once
 
-#include "config/visualizer_config.h"
-
-#include <pipewire/pipewire.h>
-#include <spa/param/audio/raw.h>
-#include <spa/utils/hook.h>
-
 #include <complex>
 #include <cstdint>
 #include <mutex>
+#include <pipewire/pipewire.h>
+#include <spa/param/audio/raw.h>
+#include <spa/utils/hook.h>
 #include <string>
 #include <vector>
+
+#include "config/visualizer_config.h"
 
 class AudioSpectrum {
   public:

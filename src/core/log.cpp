@@ -1,5 +1,3 @@
-#include "core/log.h"
-
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -7,6 +5,8 @@
 #include <string>
 #include <sys/stat.h>
 #include <sys/time.h>
+
+#include "core/log.h"
 
 namespace {
 

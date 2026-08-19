@@ -1,8 +1,8 @@
 #pragma once
 
-#include "service/keyboard.h"
-
 #include <vector>
+
+#include "service/keyboard.h"
 
 struct WaylandState;
 

@@ -1,9 +1,9 @@
 
-#include "core/async_process.h"
-
 #include <cassert>
 #include <dirent.h>
 #include <unistd.h>
+
+#include "core/async_process.h"
 
 static int count_open_fds() {
     DIR *d = opendir("/proc/self/fd");

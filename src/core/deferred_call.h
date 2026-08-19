@@ -1,10 +1,10 @@
 #pragma once
 
-#include "core/poll_source.h"
-
 #include <functional>
 #include <mutex>
 #include <vector>
+
+#include "core/poll_source.h"
 
 class DeferredCall {
   public:

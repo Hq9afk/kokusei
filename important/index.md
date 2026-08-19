@@ -12,13 +12,14 @@
 - ipc.h / ipc.cpp
 - key_dispatch.h / key_dispatch.cpp
 - monitor_output.h / monitor_output.cpp
-- module.h (`Module` interface, per-surface overlay boundary)
-- per_monitor_module.h (`PerMonitorModule` interface, per-surface per-monitor boundary)
-- module_registry.h / module_registry.cpp (`build_app_modules`/`build_per_monitor_modules` composition root)
+- module.h
+- per_monitor_module.h
+- module_registry.h / module_registry.cpp
 - wayland_registry.h / wayland_registry.cpp
-- wayland_state.h (`WaylandState`, composition root struct)
-- service.h (`Service` interface, process-wide poll/tick boundary)
-- service_registry.h / service_registry.cpp (`build_services` composition root)
+- wayland_state.h
+- service.h
+- service_registry.h / service_registry.cpp
+- user_info.h / user_info.cpp
 
 ## src/config
 
@@ -94,11 +95,11 @@
 ## src/modules
 
 - bar.h / bar.cpp
-- launcher.h / launcher.cpp (surface/EGL/tick/toggle/key/click/paint core; provider logic in src/launcher)
+- launcher.h / launcher.cpp
 - osd.h / osd.cpp
 - notification.h / notification.cpp
 - starward.h / starward.cpp
-- controlcenter.h / controlcenter.cpp (fixed-order card layout inlined, no per-card files)
+- controlcenter.h / controlcenter.cpp
 - wallpaper.h / wallpaper.cpp
 - idle.h / idle.cpp
 - settings.h / settings.cpp

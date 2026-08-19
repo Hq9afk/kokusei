@@ -1,9 +1,9 @@
 #pragma once
 
-#include "render/palette.h"
-
 #include <cstdint>
 #include <string>
+
+#include "render/palette.h"
 
 constexpr float kMatrixFontPx = 20.0f;
 constexpr float kMatrixCellWidth = 12.0f;

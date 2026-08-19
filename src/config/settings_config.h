@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 enum class SettingsFieldId {
     None,
     WallpaperPath,
@@ -16,6 +18,13 @@ constexpr float kSettingsRailItemGap = 4.0f;
 constexpr float kSettingsRailIconLabelGap = 10.0f;
 constexpr float kSettingsRailPadding = 10.0f;
 constexpr float kSettingsRailDividerGap = 16.0f;
+
+constexpr float kSettingsProfileAvatarSize = 40.0f;
+constexpr float kSettingsProfileTopPadding = 4.0f;
+constexpr float kSettingsProfileAvatarLabelGap = 10.0f;
+constexpr float kSettingsProfileLineGap = 2.0f;
+constexpr float kSettingsProfileBottomPadding = 12.0f;
+constexpr float kSettingsProfileDividerGap = 12.0f;
 constexpr float kSettingsRowHeight = 40.0f;
 constexpr float kSettingsRowGap = 10.0f;
 constexpr float kSettingsLabelWidth = 170.0f;

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "render/texture.h"
-
 #include <cairo/cairo.h>
 #include <cstdint>
 #include <pango/pangocairo.h>
 #include <string>
 #include <vector>
+
+#include "render/texture.h"
 
 inline constexpr const char *KOKUSEI_FONT = "ComicShannsMono Nerd Font 13";
 

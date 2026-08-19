@@ -1,8 +1,8 @@
 #pragma once
 
-#include "config/launcher_config.h"
-
 #include <string>
+
+#include "config/launcher_config.h"
 
 std::string visit_store_app_key(const std::string &desktop_id);
 

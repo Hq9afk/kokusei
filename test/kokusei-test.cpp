@@ -1,7 +1,7 @@
-#include "kokusei-test.hpp"
-
 #include <cstdio>
 #include <iterator>
+
+#include "kokusei-test.hpp"
 
 int main() {
     struct Case {

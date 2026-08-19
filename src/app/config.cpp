@@ -1,15 +1,14 @@
-#include "app/config.h"
-
-#include "core/log.h"
-
-#include <toml++/toml.hpp>
-
 #include <cstdio>
 #include <fstream>
 #include <sstream>
 #include <sys/inotify.h>
 #include <sys/stat.h>
+#include <toml++/toml.hpp>
 #include <unistd.h>
+
+#include "app/config.h"
+
+#include "core/log.h"
 
 bool osd_effective_enabled(const Config &cfg, const std::string &monitor_name) {
     auto it = cfg.monitor_overrides.find(monitor_name);

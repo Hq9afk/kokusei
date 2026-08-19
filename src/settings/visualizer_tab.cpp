@@ -1,6 +1,6 @@
-#include "settings/visualizer_tab.h"
-
 #include "modules/settings.h"
+
+#include "settings/visualizer_tab.h"
 
 namespace {
 

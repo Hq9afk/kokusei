@@ -1,6 +1,6 @@
-#include "render/image.h"
-
 #include <cassert>
+
+#include "render/image.h"
 
 static bool has_nonzero_byte(const unsigned char *data, size_t count) {
     for (size_t i = 0; i < count; ++i)

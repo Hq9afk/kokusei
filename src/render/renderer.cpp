@@ -1,10 +1,10 @@
-#include "render/renderer.h"
-
-#include "render/gl.h"
-#include "shaders/renderer_shaders.h"
-
 #include <algorithm>
 #include <cmath>
+
+#include "render/gl.h"
+#include "render/renderer.h"
+
+#include "shaders/renderer_shaders.h"
 
 bool Renderer::init() {
     rect_program_ = gl_compile_program(kRendererQuadVs, kRendererRectFs);

@@ -1,24 +1,26 @@
-#include "modules/starward.h"
+#include <GLES2/gl2.h>
+#include <algorithm>
+#include <cairo/cairo-ft.h>
+#include <cairo/cairo.h>
+#include <cmath>
+#include <deque>
+#include <ft2build.h>
 
 #include "app/monitor_output.h"
 #include "app/wayland_state.h"
+
 #include "core/async_process.h"
 #include "core/deferred_call.h"
 #include "core/log.h"
+
+#include "modules/starward.h"
+
 #include "render/color_ops.h"
 #include "render/node.h"
+
 #include "service/layer_surface.h"
 
-#include <GLES2/gl2.h>
-
-#include <cairo/cairo-ft.h>
-#include <cairo/cairo.h>
-#include <ft2build.h>
 #include FT_FREETYPE_H
-
-#include <algorithm>
-#include <cmath>
-#include <deque>
 
 Rect starward_detail_button_rect(int index, float center_x, float center_y,
                                  float radius_fraction) {
@@ -177,10 +179,6 @@ void finish_close(StarwardState &state) {
         ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
     overlay_panel_update_input_region(state.base);
     wl_surface_commit(state.base.surface);
-    // Deferred, same reasoning as overlay_panel_toggle: both call paths
-    // here run from inside an animations.tick() chain, called from
-    // starward_paint right before it uses state.base.egl_surface. Guarded
-    // on base.open in case of a reopen before this drains.
     DeferredCall::call_later([&state] {
         if (!state.base.open)
             overlay_panel_destroy_surface(state.base);

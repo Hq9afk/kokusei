@@ -1,8 +1,7 @@
 #pragma once
 
-#include <sdbus-c++/sdbus-c++.h>
-
 #include <memory>
+#include <sdbus-c++/sdbus-c++.h>
 
 struct UpowerState {
     std::unique_ptr<sdbus::IConnection> bus;

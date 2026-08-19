@@ -1,22 +1,23 @@
-#include "modules/osd.h"
-
-#include "core/log.h"
-#include "render/color_ops.h"
-#include "render/icon.h"
-#include "render/icons.h"
-#include "render/node.h"
-#include "render/palette.h"
-#include "render/text.h"
-#include "service/layer_surface.h"
-
 #include <GLES2/gl2.h>
-
 #include <algorithm>
 #include <cmath>
 #include <dirent.h>
 #include <fstream>
 #include <sys/inotify.h>
 #include <unistd.h>
+
+#include "core/log.h"
+
+#include "modules/osd.h"
+
+#include "render/color_ops.h"
+#include "render/icon.h"
+#include "render/icons.h"
+#include "render/node.h"
+#include "render/palette.h"
+#include "render/text.h"
+
+#include "service/layer_surface.h"
 
 namespace {
 

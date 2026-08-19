@@ -1,6 +1,6 @@
-#include "service/system_telemetry.h"
-
 #include <cassert>
+
+#include "service/system_telemetry.h"
 
 void test_system_stats() {
     {

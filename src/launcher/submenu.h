@@ -1,8 +1,8 @@
 #pragma once
 
-#include "config/launcher_config.h"
-
 #include <string>
+
+#include "config/launcher_config.h"
 
 void submenu_close(SubmenuState &s);
 

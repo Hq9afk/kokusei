@@ -1,7 +1,7 @@
-#include "launcher/apps_provider.h"
-
 #include <algorithm>
 #include <cctype>
+
+#include "launcher/apps_provider.h"
 
 std::string to_lower(const std::string &s) {
     std::string out = s;

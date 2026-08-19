@@ -1,20 +1,24 @@
 #pragma once
 
+#include <EGL/egl.h>
+#include <optional>
+#include <vector>
+#include <wayland-client.h>
+
 #include "app/ipc.h"
+
 #include "config/controlcenter_config.h"
+
 #include "render/overlay_panel.h"
 #include "render/panel_chrome.h"
 #include "render/renderer.h"
 #include "render/scene.h"
 #include "render/texture_cache.h"
+
 #include "service/keyboard.h"
 #include "service/volume_slider.h"
-#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
-#include <EGL/egl.h>
-#include <optional>
-#include <vector>
-#include <wayland-client.h>
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 struct WaylandState;
 

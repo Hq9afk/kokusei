@@ -1,7 +1,7 @@
 #include "app/key_dispatch.h"
-
 #include "app/monitor_output.h"
 #include "app/wayland_state.h"
+
 #include "modules/bar.h"
 
 void dispatch_key_events(WaylandState &state,

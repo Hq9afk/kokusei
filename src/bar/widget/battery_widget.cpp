@@ -1,3 +1,5 @@
+#include <string>
+
 #include "bar/widget/battery_widget.h"
 
 #include "modules/bar.h"
@@ -5,8 +7,6 @@
 #include "render/icon.h"
 #include "render/icons.h"
 #include "render/palette.h"
-
-#include <string>
 
 namespace {
 

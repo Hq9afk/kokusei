@@ -1,10 +1,10 @@
 #pragma once
 
-#include "core/async_process.h"
-
 #include <cstdint>
 #include <optional>
 #include <string>
+
+#include "core/async_process.h"
 
 bool cpu_temp_detail_is_cpu_hwmon_name(const std::string &name);
 

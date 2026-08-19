@@ -1,29 +1,27 @@
-#include "modules/controlcenter.h"
+#include <GLES2/gl2.h>
+#include <algorithm>
+#include <cairo/cairo.h>
+#include <cmath>
+#include <string>
 
 #include "app/monitor_output.h"
+#include "app/user_info.h"
 #include "app/wayland_state.h"
+
+#include "modules/controlcenter.h"
+
 #include "render/icon.h"
 #include "render/icons.h"
 #include "render/node.h"
 #include "render/palette.h"
 #include "render/slider.h"
 #include "render/text.h"
+
 #include "service/layer_surface.h"
 #include "service/mpris_service.h"
 #include "service/pipewire.h"
 #include "service/system_telemetry.h"
 #include "service/upower_service.h"
-
-#include <GLES2/gl2.h>
-#include <cairo/cairo.h>
-#include <pwd.h>
-#include <sys/sysinfo.h>
-#include <unistd.h>
-
-#include <algorithm>
-#include <cmath>
-#include <cstdio>
-#include <string>
 
 bool controlcenter_create_surface(ControlCenterState &state,
                                   wl_compositor *compositor,
@@ -199,34 +197,12 @@ CardChrome card_chrome_draw(Node *root, TextureCache &tcache, int32_t scale,
     return {content_x, content_y, box_h};
 }
 
-std::string profile_username() {
-    struct passwd *pw = getpwuid(getuid());
-    if (!pw)
-        return "unknown";
-    if (pw->pw_gecos && pw->pw_gecos[0] != '\0') {
-        std::string gecos = pw->pw_gecos;
-        std::string name = gecos.substr(0, gecos.find(','));
-        if (!name.empty())
-            return name;
-    }
-    return pw->pw_name ? pw->pw_name : "unknown";
-}
-
-std::string profile_uptime() {
-    struct sysinfo info;
-    if (sysinfo(&info) != 0)
-        return "";
-    long hours = info.uptime / 3600;
-    long minutes = (info.uptime % 3600) / 60;
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "%ldh %ldm", hours, minutes);
-    return buf;
-}
-
 float draw_profile_card(Node *root, TextureCache &tcache, int32_t scale,
                         float x, float y, float w) {
-    const Texture *name_tex = cached_text(tcache, profile_username(), scale);
-    const Texture *uptime_tex = cached_text(tcache, profile_uptime(), scale);
+    const Texture *name_tex =
+        cached_text(tcache, user_info::username(), scale);
+    const Texture *uptime_tex =
+        cached_text(tcache, user_info::uptime_string(), scale);
     float info_h = (name_tex ? name_tex->height : 0) + kProfileInfoSpacing +
                    (uptime_tex ? uptime_tex->height : 0);
     float h = kProfileVerticalPadding + kProfileAvatarSize + kProfileAvatarGap +

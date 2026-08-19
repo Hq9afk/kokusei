@@ -1,17 +1,18 @@
-#include "modules/notification.h"
-
-#include "core/log.h"
-#include "render/color_ops.h"
-#include "render/node.h"
-#include "render/text.h"
-#include "service/layer_surface.h"
-
 #include <GLES2/gl2.h>
-
 #include <algorithm>
 #include <map>
 #include <tuple>
 #include <vector>
+
+#include "core/log.h"
+
+#include "modules/notification.h"
+
+#include "render/color_ops.h"
+#include "render/node.h"
+#include "render/text.h"
+
+#include "service/layer_surface.h"
 
 float notification_detail_texture_height(const Texture &tex) {
     return tex.id ? static_cast<float>(tex.height) /

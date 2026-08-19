@@ -1,11 +1,11 @@
-#include "launcher/desktop_entry.h"
-
-#include "core/async_process.h"
-
 #include <dirent.h>
 #include <fstream>
 #include <sstream>
 #include <unordered_set>
+
+#include "core/async_process.h"
+
+#include "launcher/desktop_entry.h"
 
 namespace desktop_entry_detail {
 

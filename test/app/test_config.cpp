@@ -1,6 +1,4 @@
 
-#include "app/config.h"
-
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -8,6 +6,8 @@
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include "app/config.h"
 
 void test_config() {
     char tmp_template[] = "/tmp/kokusei_test_config_XXXXXX";

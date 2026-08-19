@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "render/icon.h"
 #include "render/icons.h"
 #include "render/node.h"
@@ -9,9 +12,6 @@
 #include "render/text.h"
 #include "render/texture.h"
 #include "render/texture_cache.h"
-
-#include <string>
-#include <vector>
 
 constexpr float kPanelWidth = 320.0f;
 constexpr float kPanelPadding = 20.0f;

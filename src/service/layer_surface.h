@@ -1,10 +1,11 @@
 #pragma once
 
-#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <EGL/egl.h>
 #include <cstdint>
 #include <wayland-client.h>
 #include <wayland-egl.h>
+
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 struct LayerSurfaceConfig {
     uint32_t layer;

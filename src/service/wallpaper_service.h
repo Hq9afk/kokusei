@@ -1,8 +1,8 @@
 #pragma once
 
-#include "app/config.h"
-
 #include <string>
+
+#include "app/config.h"
 
 unsigned char *wallpaper_decode_scaled(const std::string &path, int target_w,
                                        int target_h, int &out_width,

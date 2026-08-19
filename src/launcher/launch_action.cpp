@@ -1,12 +1,12 @@
-#include "launcher/launch_action.h"
-
-#include "core/async_process.h"
-#include "launcher/desktop_entry.h"
-#include "launcher/visit_store.h"
-
 #include <cctype>
 #include <cstdlib>
 #include <regex>
+
+#include "core/async_process.h"
+
+#include "launcher/desktop_entry.h"
+#include "launcher/launch_action.h"
+#include "launcher/visit_store.h"
 
 namespace launch_action_detail {
 

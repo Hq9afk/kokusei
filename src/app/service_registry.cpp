@@ -1,12 +1,17 @@
-#include "app/service_registry.h"
+#include <chrono>
+#include <unistd.h>
 
 #include "app/module_registry.h"
 #include "app/monitor_output.h"
+#include "app/service_registry.h"
 #include "app/wayland_state.h"
+
 #include "core/log.h"
+
 #include "modules/idle.h"
 #include "modules/notification.h"
 #include "modules/osd.h"
+
 #include "service/bluetooth_service.h"
 #include "service/hyprland.h"
 #include "service/mpris_service.h"
@@ -15,9 +20,6 @@
 #include "service/shojiwm.h"
 #include "service/tray_service.h"
 #include "service/upower_service.h"
-
-#include <chrono>
-#include <unistd.h>
 
 namespace {
 

@@ -1,10 +1,11 @@
-#include "modules/idle.h"
+#include <cstdlib>
 
 #include "app/monitor_output.h"
 #include "app/wayland_state.h"
+
 #include "core/log.h"
 
-#include <cstdlib>
+#include "modules/idle.h"
 
 namespace {
 

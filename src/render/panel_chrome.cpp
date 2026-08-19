@@ -1,6 +1,6 @@
-#include "render/panel_chrome.h"
-
 #include "config/settings_config.h"
+
+#include "render/panel_chrome.h"
 
 namespace panel_chrome_detail {
 

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "config/launcher_config.h"
-
 #include <string>
 #include <vector>
+
+#include "config/launcher_config.h"
 
 std::string to_lower(const std::string &s);
 

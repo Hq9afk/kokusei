@@ -1,25 +1,27 @@
 #pragma once
 
-#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <EGL/egl.h>
-#include <wayland-client.h>
-#include <wayland-egl.h>
-
-#include "app/per_monitor_module.h"
-#include "app/wayland_state.h"
-#include "render/animation.h"
-#include "render/renderer.h"
-#include "render/scene.h"
-#include "service/active_output.h"
-#include "service/frame_clock.h"
-#include "service/output_scale.h"
-#include "service/workspace.h"
-
 #include <chrono>
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
+#include <wayland-client.h>
+#include <wayland-egl.h>
+
+#include "app/per_monitor_module.h"
+#include "app/wayland_state.h"
+
+#include "render/animation.h"
+#include "render/renderer.h"
+#include "render/scene.h"
+
+#include "service/active_output.h"
+#include "service/frame_clock.h"
+#include "service/output_scale.h"
+#include "service/workspace.h"
+
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 struct AutoHideState {
     bool hidden = false;

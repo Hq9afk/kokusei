@@ -1,9 +1,9 @@
 
-#include "render/color_ops.h"
-#include "render/palette.h"
-
 #include <cassert>
 #include <cmath>
+
+#include "render/color_ops.h"
+#include "render/palette.h"
 
 void test_palette() {
     Color a{0.0f, 0.2f, 0.4f, 1.0f};

@@ -1,8 +1,8 @@
-#include "service/mpris_service.h"
+#include <optional>
 
 #include "core/log.h"
 
-#include <optional>
+#include "service/mpris_service.h"
 
 MprisPlaybackStatus mpris_detail_parse_playback_status(const std::string &s) {
     if (s == "Playing")

@@ -1,6 +1,6 @@
-#include "service/system_telemetry.h"
-
 #include <cassert>
+
+#include "service/system_telemetry.h"
 
 void test_cpu_temp() {
     assert(cpu_temp_detail_is_cpu_hwmon_name("coretemp"));

@@ -1,17 +1,20 @@
 #pragma once
 
+#include <array>
+#include <vector>
+
 #include "app/ipc.h"
+
 #include "config/starward_config.h"
+
 #include "render/overlay_panel.h"
 #include "render/rect.h"
 #include "render/renderer.h"
 #include "render/scene.h"
 #include "render/text.h"
 #include "render/texture.h"
-#include "service/keyboard.h"
 
-#include <array>
-#include <vector>
+#include "service/keyboard.h"
 
 struct WaylandState;
 

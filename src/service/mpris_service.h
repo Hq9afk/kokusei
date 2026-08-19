@@ -1,9 +1,8 @@
 #pragma once
 
-#include <sdbus-c++/sdbus-c++.h>
-
 #include <cstdint>
 #include <memory>
+#include <sdbus-c++/sdbus-c++.h>
 #include <string>
 #include <vector>
 

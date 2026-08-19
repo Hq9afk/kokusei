@@ -1,18 +1,20 @@
-#include "bar/panel/tray_panel.h"
+#include <GLES2/gl2.h>
+#include <algorithm>
+#include <linux/input-event-codes.h>
 
 #include "app/monitor_output.h"
 #include "app/wayland_state.h"
+
+#include "bar/panel/tray_panel.h"
+
 #include "render/icon.h"
 #include "render/icons.h"
 #include "render/image.h"
 #include "render/node.h"
 #include "render/palette.h"
 #include "render/text.h"
-#include "service/layer_surface.h"
 
-#include <GLES2/gl2.h>
-#include <algorithm>
-#include <linux/input-event-codes.h>
+#include "service/layer_surface.h"
 
 bool tray_menu_create_surface(TrayMenuState &state, wl_compositor *compositor,
                               zwlr_layer_shell_v1 *layer_shell,
@@ -124,9 +126,6 @@ void tray_menu_close(TrayMenuState &state) {
     state.base.open = false;
     state.item_key.clear();
     state.menu_path.clear();
-    // No fade animation on this popup, so no mid-tick() hazard: safe to
-    // destroy the surface synchronously here, unlike overlay_panel_toggle's
-    // deferred close (see overlay_panel.cpp).
     overlay_panel_destroy_surface(state.base);
 }
 

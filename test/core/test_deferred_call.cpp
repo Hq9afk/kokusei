@@ -1,9 +1,9 @@
 
-#include "core/deferred_call.h"
-
 #include <cassert>
 #include <poll.h>
 #include <thread>
+
+#include "core/deferred_call.h"
 
 void test_deferred_call() {
     DeferredCall::init();

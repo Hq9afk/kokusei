@@ -1,11 +1,11 @@
 
-#include "service/bluetooth_service.h"
-
 #include <cassert>
 #include <cstdio>
 #include <fstream>
 #include <string>
 #include <unistd.h>
+
+#include "service/bluetooth_service.h"
 
 void test_rfkill() {
     using namespace rfkill_detail;

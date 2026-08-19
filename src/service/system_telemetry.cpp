@@ -1,10 +1,10 @@
-#include "service/system_telemetry.h"
-
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <unistd.h>
+
+#include "service/system_telemetry.h"
 
 bool cpu_temp_detail_is_cpu_hwmon_name(const std::string &name) {
     return name == "coretemp" || name == "k10temp" || name == "zenpower";

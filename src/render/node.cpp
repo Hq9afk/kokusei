@@ -1,5 +1,4 @@
 #include "render/node.h"
-
 #include "render/renderer.h"
 
 Node *Node::claim_child() {

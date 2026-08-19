@@ -5,6 +5,7 @@
 
 #include "app/module.h"
 #include "app/per_monitor_module.h"
+
 #include "modules/notification.h"
 #include "modules/osd.h"
 #include "modules/wallpaper.h"
@@ -27,9 +28,6 @@ class OsdPerMonitorModule final : public PerMonitorModule {
     OsdState state_;
 };
 
-// Named (not anonymous-namespace-local) so app/monitor_output.cpp can reach
-// them via MonitorOutput::module<T>() for the config-update reactions that
-// need a specific module instance rather than generic dispatch.
 class WallpaperPerMonitorModule final : public PerMonitorModule {
   public:
     bool create_surface(WaylandState &app, MonitorOutput &mon,

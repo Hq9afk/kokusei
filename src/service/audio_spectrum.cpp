@@ -1,18 +1,18 @@
-#include "service/audio_spectrum.h"
-
-#include "config/visualizer_config.h"
-#include "core/log.h"
-
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <numbers>
 #include <spa/param/audio/format-utils.h>
 #include <spa/param/audio/format.h>
 #include <spa/param/audio/raw-utils.h>
 #include <spa/param/format-utils.h>
 #include <spa/pod/builder.h>
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <numbers>
+#include "config/visualizer_config.h"
+
+#include "core/log.h"
+
+#include "service/audio_spectrum.h"
 
 namespace {
 

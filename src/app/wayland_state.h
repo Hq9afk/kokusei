@@ -1,17 +1,21 @@
 #pragma once
 
-#include "wlr-layer-shell-unstable-v1-client-protocol.h"
-#include "xdg-shell-client-protocol.h"
 #include <EGL/egl.h>
+#include <cstring>
+#include <memory>
+#include <vector>
 #include <wayland-client.h>
 
 #include "app/config.h"
 #include "app/module.h"
 #include "app/service.h"
+
 #include "modules/idle.h"
 #include "modules/notification.h"
 #include "modules/osd.h"
+
 #include "render/renderer.h"
+
 #include "service/bluetooth_service.h"
 #include "service/hyprland.h"
 #include "service/keyboard.h"
@@ -24,9 +28,8 @@
 #include "service/tray_service.h"
 #include "service/upower_service.h"
 
-#include <cstring>
-#include <memory>
-#include <vector>
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
+#include "xdg-shell-client-protocol.h"
 
 struct MonitorOutput;
 

@@ -1,11 +1,10 @@
-#include "core/async_process.h"
-
-#include "core/log.h"
-
 #include <sys/eventfd.h>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
+
+#include "core/async_process.h"
+#include "core/log.h"
 
 std::string async_process_detail_resolve_path(const std::string &name) {
     if (name.find('/') != std::string::npos)

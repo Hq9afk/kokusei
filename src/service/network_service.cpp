@@ -1,10 +1,10 @@
-#include "service/network_service.h"
-
-#include "core/log.h"
-
 #include <algorithm>
 #include <cctype>
 #include <sstream>
+
+#include "core/log.h"
+
+#include "service/network_service.h"
 
 namespace network_detail {
 

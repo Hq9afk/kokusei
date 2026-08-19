@@ -1,7 +1,5 @@
-#include "service/pipewire.h"
-
-#include "core/log.h"
-
+#include <cmath>
+#include <cstring>
 #include <pipewire/extensions/metadata.h>
 #include <pipewire/keys.h>
 #include <spa/node/keys.h>
@@ -13,10 +11,11 @@
 #include <spa/pod/parser.h>
 #include <spa/pod/vararg.h>
 #include <spa/utils/keys.h>
-
-#include <cmath>
-#include <cstring>
 #include <string_view>
+
+#include "core/log.h"
+
+#include "service/pipewire.h"
 
 namespace {
 

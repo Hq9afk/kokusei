@@ -1,18 +1,21 @@
 #pragma once
 
+#include <EGL/egl.h>
+#include <chrono>
+#include <wayland-client.h>
+#include <wayland-egl.h>
+
 #include "config/osd_config.h"
+
 #include "render/animation.h"
 #include "render/renderer.h"
 #include "render/scene.h"
 #include "render/texture.h"
+
 #include "service/frame_clock.h"
 #include "service/output_scale.h"
-#include "wlr-layer-shell-unstable-v1-client-protocol.h"
-#include <EGL/egl.h>
-#include <wayland-client.h>
-#include <wayland-egl.h>
 
-#include <chrono>
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 enum class OsdKind { Volume, Mic, Brightness };
 

@@ -1,7 +1,7 @@
 
-#include "service/bluetooth_service.h"
-
 #include <cassert>
+
+#include "service/bluetooth_service.h"
 
 void test_bluetooth() {
     using namespace bluetooth_detail;

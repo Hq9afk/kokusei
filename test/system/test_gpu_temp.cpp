@@ -1,6 +1,6 @@
-#include "service/system_telemetry.h"
-
 #include <cassert>
+
+#include "service/system_telemetry.h"
 
 void test_gpu_temp() {
     assert(gpu_temp_detail_is_gpu_hwmon_name("amdgpu"));

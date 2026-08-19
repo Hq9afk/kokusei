@@ -1,20 +1,23 @@
 #pragma once
 
-#include "app/config.h"
-#include "render/scene.h"
-#include "render/texture.h"
-#include "service/frame_clock.h"
-#include "service/output_scale.h"
-#include "service/wallpaper_hw_decode.h"
-#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <EGL/egl.h>
-#include <wayland-client.h>
-#include <wayland-egl.h>
-
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
+#include <wayland-client.h>
+#include <wayland-egl.h>
+
+#include "app/config.h"
+
+#include "render/scene.h"
+#include "render/texture.h"
+
+#include "service/frame_clock.h"
+#include "service/output_scale.h"
+#include "service/wallpaper_hw_decode.h"
+
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 class Renderer;
 

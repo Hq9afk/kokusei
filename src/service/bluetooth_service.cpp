@@ -1,7 +1,3 @@
-#include "service/bluetooth_service.h"
-
-#include "core/log.h"
-
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -10,6 +6,10 @@
 #include <linux/rfkill.h>
 #include <map>
 #include <unistd.h>
+
+#include "core/log.h"
+
+#include "service/bluetooth_service.h"
 
 namespace rfkill_detail {
 

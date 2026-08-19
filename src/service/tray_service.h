@@ -1,10 +1,9 @@
 #pragma once
 
-#include <sdbus-c++/sdbus-c++.h>
-
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <sdbus-c++/sdbus-c++.h>
 #include <string>
 #include <unordered_map>
 #include <vector>

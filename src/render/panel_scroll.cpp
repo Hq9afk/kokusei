@@ -1,6 +1,6 @@
-#include "render/panel_scroll.h"
-
 #include <algorithm>
+
+#include "render/panel_scroll.h"
 
 PanelScrollRegion panel_scroll_region(float panel_x, float panel_y,
                                       float panel_w, float panel_h) noexcept {

@@ -1,6 +1,6 @@
-#include "settings/displays_tab.h"
-
 #include <algorithm>
+
+#include "settings/displays_tab.h"
 
 using panel_chrome_detail::cached_text;
 

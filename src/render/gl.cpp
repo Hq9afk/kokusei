@@ -1,6 +1,6 @@
-#include "render/gl.h"
-
 #include "core/log.h"
+
+#include "render/gl.h"
 
 GLuint gl_compile_program(const char *vs_src, const char *fs_src) {
     auto compile = [](GLenum type, const char *src) -> GLuint {

@@ -1,5 +1,8 @@
-#include "bar/widget/control_center_widget.h"
+#include "app/user_info.h"
+
 #include "bar/panel/tray_panel.h"
+#include "bar/widget/control_center_widget.h"
+
 #include "modules/bar.h"
 
 #include "render/icon.h"
@@ -43,7 +46,7 @@ Pill cpu_pill(MonitorOutput &mon) {
 Pill control_center_pill(MonitorOutput &mon) {
     BarPerMonitorState &bs = bar_state(mon);
     return Pill{PillId::ControlCenter, &bs.control_center_texture,
-                "Control Center", nullptr, [&mon, &bs] {
+                user_info::username(), nullptr, [&mon, &bs] {
                     close_other_overlays(mon, PillId::ControlCenter);
                     update_pill_expand(bs.capsule, mon.animations,
                                        PillId::ControlCenter, true, true);

@@ -1,7 +1,10 @@
 #pragma once
 
-#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <EGL/egl.h>
+#include <chrono>
+#include <memory>
+#include <string>
+#include <vector>
 #include <wayland-client.h>
 #include <wayland-egl.h>
 
@@ -9,19 +12,18 @@
 #include "app/monitor_output.h"
 #include "app/per_monitor_module.h"
 #include "app/wayland_state.h"
+
 #include "bar/panel/bluetooth_panel.h"
 #include "bar/panel/network_panel.h"
 #include "bar/panel/tray_panel.h"
 #include "bar/panel/volume_panel.h"
 #include "bar/widget/widget_capsule.h"
 #include "bar/widget/workspace_widget.h"
+
 #include "render/renderer.h"
 #include "render/texture.h"
 
-#include <chrono>
-#include <memory>
-#include <string>
-#include <vector>
+#include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 struct BarPerMonitorState {
     WidgetCapsuleState capsule;

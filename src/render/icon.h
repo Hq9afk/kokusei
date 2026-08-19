@@ -1,9 +1,9 @@
 #pragma once
 
-#include "render/text.h"
-
 #include <cstdint>
 #include <string>
+
+#include "render/text.h"
 
 inline constexpr int KOKUSEI_ICON_PX = 18;
 

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "config/launcher_config.h"
-
 #include <string>
+
+#include "config/launcher_config.h"
 
 namespace launch_action_detail {
 

@@ -1,3 +1,6 @@
+#include <GLES2/gl2.h>
+#include <algorithm>
+
 #include "bar/panel/bluetooth_panel.h"
 
 #include "render/icon.h"
@@ -7,12 +10,10 @@
 #include "render/panel_scroll.h"
 #include "render/renderer.h"
 #include "render/text.h"
+
 #include "service/bluetooth_service.h"
 #include "service/keyboard.h"
 #include "service/layer_surface.h"
-
-#include <GLES2/gl2.h>
-#include <algorithm>
 
 namespace bluetooth_panel_detail {
 

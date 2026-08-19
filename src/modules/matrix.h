@@ -1,15 +1,18 @@
 #pragma once
 
+#include <chrono>
+#include <vector>
+
 #include "app/ipc.h"
+
 #include "config/matrix_config.h"
+
 #include "render/matrix_grid.h"
 #include "render/renderer.h"
 #include "render/scene.h"
 #include "render/toplevel_window.h"
-#include "service/keyboard.h"
 
-#include <chrono>
-#include <vector>
+#include "service/keyboard.h"
 
 struct WaylandState;
 

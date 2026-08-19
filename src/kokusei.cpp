@@ -1,15 +1,3 @@
-#include "app/config.h"
-#include "app/ipc.h"
-#include "app/key_dispatch.h"
-#include "app/module_registry.h"
-#include "app/monitor_output.h"
-#include "app/service_registry.h"
-#include "app/single_instance_lock.h"
-#include "app/wayland_registry.h"
-#include "core/deferred_call.h"
-#include "core/log.h"
-#include "core/poll_source.h"
-
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
@@ -18,6 +6,19 @@
 #include <sys/timerfd.h>
 #include <unistd.h>
 #include <vector>
+
+#include "app/config.h"
+#include "app/ipc.h"
+#include "app/key_dispatch.h"
+#include "app/module_registry.h"
+#include "app/monitor_output.h"
+#include "app/service_registry.h"
+#include "app/single_instance_lock.h"
+#include "app/wayland_registry.h"
+
+#include "core/deferred_call.h"
+#include "core/log.h"
+#include "core/poll_source.h"
 
 inline void daemonize() {
     pid_t pid = fork();

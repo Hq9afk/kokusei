@@ -1,8 +1,8 @@
 
-#include "render/animation.h"
-
 #include <cassert>
 #include <cmath>
+
+#include "render/animation.h"
 
 static void test_easing() {
     for (Easing e :

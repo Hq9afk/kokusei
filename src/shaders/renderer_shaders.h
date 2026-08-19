@@ -1,8 +1,5 @@
 #pragma once
 
-// The shared Renderer's four GLES2 programs (src/render/renderer.cpp),
-// extracted verbatim from their previous inline R"(...)" literals.
-
 constexpr const char *kRendererQuadVs = R"(
     attribute vec2 a_pos;
     uniform vec2 u_viewport;

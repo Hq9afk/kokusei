@@ -1,17 +1,13 @@
-#include "visualizer/bar_visualizer.h"
+#include <algorithm>
+#include <cmath>
 
 #include "render/color_ops.h"
 #include "render/node.h"
 
-#include <algorithm>
-#include <cmath>
+#include "visualizer/bar_visualizer.h"
 
 namespace {
 
-// Storage duration must outlive the Scene::draw() call that reads this
-// pointer through Node::fill (Renderer::draw_rounded_rect dereferences it
-// well after the node is built); a per-call local here would dangle by the
-// time the scene is actually drawn.
 static constexpr Color kBarColor =
     with_alpha(palette::accent, kVisualizerBarOpacity);
 

@@ -1,12 +1,11 @@
-#include "render/image.h"
+#include <cstdio>
+#include <jpeglib.h>
+#include <png.h>
+#include <vector>
 
 #include "core/log.h"
 
-#include <cstdio>
-#include <vector>
-
-#include <jpeglib.h>
-#include <png.h>
+#include "render/image.h"
 
 namespace {
 

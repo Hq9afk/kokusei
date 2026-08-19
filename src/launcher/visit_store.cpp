@@ -1,10 +1,10 @@
-#include "launcher/visit_store.h"
-
-#include "core/log.h"
-
 #include <cstdlib>
 #include <fstream>
 #include <sys/stat.h>
+
+#include "core/log.h"
+
+#include "launcher/visit_store.h"
 
 std::string visit_store_app_key(const std::string &desktop_id) {
     return "app:" + desktop_id;

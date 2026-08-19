@@ -1,11 +1,11 @@
-#include "service/tray_service.h"
-
-#include "core/log.h"
-#include "service/icon_theme.h"
-
 #include <filesystem>
 #include <map>
 #include <optional>
+
+#include "core/log.h"
+
+#include "service/icon_theme.h"
+#include "service/tray_service.h"
 
 namespace {
 

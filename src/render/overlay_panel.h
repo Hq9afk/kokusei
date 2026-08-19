@@ -1,14 +1,16 @@
 #pragma once
 
-#include "core/log.h"
-#include "render/animation.h"
-#include "service/frame_clock.h"
-#include "service/layer_surface.h"
-#include "service/output_scale.h"
-
 #include <EGL/egl.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
+
+#include "core/log.h"
+
+#include "render/animation.h"
+
+#include "service/frame_clock.h"
+#include "service/layer_surface.h"
+#include "service/output_scale.h"
 
 constexpr float kOverlayFadeMs = 220.0f;
 constexpr uint64_t kOverlayFadeOwner = 1;
@@ -50,10 +52,6 @@ void overlay_panel_toggle(OverlayPanelBase &base);
 
 void overlay_panel_destroy_surface(OverlayPanelBase &base);
 
-// Lazily (re)creates base's surface if it isn't already there (either never
-// created, or destroyed by overlay_panel_toggle's close path), waiting for
-// the compositor's configure before running init_egl. No-op returning true
-// if the surface already exists.
 template <typename CreateSurface, typename InitEgl>
 inline bool overlay_panel_ensure(OverlayPanelBase &base, wl_display *display,
                                  CreateSurface create_surface,

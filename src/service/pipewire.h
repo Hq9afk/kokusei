@@ -1,9 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <pipewire/pipewire.h>
 #include <spa/utils/hook.h>
-
-#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>

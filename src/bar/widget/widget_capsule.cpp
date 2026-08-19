@@ -1,14 +1,15 @@
-#include "bar/widget/widget_capsule.h"
+#include <algorithm>
+
 #include "bar/panel/bluetooth_panel.h"
 #include "bar/panel/network_panel.h"
 #include "bar/panel/tray_panel.h"
 #include "bar/panel/volume_panel.h"
+#include "bar/widget/widget_capsule.h"
 
 #include "render/icon.h"
 #include "render/text.h"
-#include "service/pointer.h"
 
-#include <algorithm>
+#include "service/pointer.h"
 
 Texture make_label_texture(const char *label) {
     RasterizedText r = rasterize_text(label);

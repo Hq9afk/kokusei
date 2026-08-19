@@ -1,12 +1,13 @@
+#include <string>
+
 #include "bar/widget/bluetooth_widget.h"
 
 #include "modules/bar.h"
 
 #include "render/icon.h"
 #include "render/icons.h"
-#include "service/bluetooth_service.h"
 
-#include <string>
+#include "service/bluetooth_service.h"
 
 namespace {
 

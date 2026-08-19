@@ -1,12 +1,12 @@
-#include "render/icon.h"
-
 #include <cairo/cairo-ft.h>
+#include <cmath>
 #include <ft2build.h>
-#include FT_FREETYPE_H
 
 #include "core/log.h"
 
-#include <cmath>
+#include "render/icon.h"
+
+#include FT_FREETYPE_H
 
 namespace {
 

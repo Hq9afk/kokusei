@@ -1,7 +1,18 @@
 #pragma once
 
+#include <EGL/egl.h>
+#include <chrono>
+#include <deque>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <wayland-client.h>
+#include <wayland-egl.h>
+
 #include "config/launcher_config.h"
+
 #include "core/async_process.h"
+
 #include "render/animation.h"
 #include "render/overlay_panel.h"
 #include "render/rect.h"
@@ -10,20 +21,12 @@
 #include "render/text.h"
 #include "render/texture.h"
 #include "render/texture_cache.h"
+
 #include "service/frame_clock.h"
 #include "service/keyboard.h"
 #include "service/output_scale.h"
+
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
-
-#include <EGL/egl.h>
-#include <wayland-client.h>
-#include <wayland-egl.h>
-
-#include <chrono>
-#include <deque>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 struct LauncherState {
     wl_surface *surface = nullptr;

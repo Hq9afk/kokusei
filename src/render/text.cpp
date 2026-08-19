@@ -1,6 +1,6 @@
-#include "render/text.h"
-
 #include <algorithm>
+
+#include "render/text.h"
 
 RasterizedText surface_to_rgba(cairo_surface_t *surface, int width,
                                int height) {

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "service/keyboard.h"
 #include <string>
+
+#include "service/keyboard.h"
 
 void text_field_backspace(std::string &text);
 

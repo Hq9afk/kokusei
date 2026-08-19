@@ -1,6 +1,6 @@
-#include "service/active_output.h"
-
 #include <cassert>
+
+#include "service/active_output.h"
 
 void test_active_output() {
     auto *wl_a = reinterpret_cast<wl_output *>(1);

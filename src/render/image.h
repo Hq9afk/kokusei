@@ -1,8 +1,8 @@
 #pragma once
 
-#include "render/texture.h"
-
 #include <string>
+
+#include "render/texture.h"
 
 unsigned char *load_image_decode(const std::string &path, int &width,
                                  int &height);

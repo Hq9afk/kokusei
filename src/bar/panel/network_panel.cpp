@@ -1,3 +1,6 @@
+#include <GLES2/gl2.h>
+#include <algorithm>
+
 #include "bar/panel/network_panel.h"
 
 #include "render/icon.h"
@@ -6,10 +9,8 @@
 #include "render/palette.h"
 #include "render/panel_scroll.h"
 #include "render/text.h"
-#include "service/layer_surface.h"
 
-#include <GLES2/gl2.h>
-#include <algorithm>
+#include "service/layer_surface.h"
 
 namespace network_panel_detail {
 

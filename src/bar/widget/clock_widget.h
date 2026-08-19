@@ -1,10 +1,10 @@
 #pragma once
 
+#include <cstdint>
+
 #include "bar/widget/widget_capsule.h"
 
 #include "render/texture.h"
-
-#include <cstdint>
 
 namespace bar_detail {
 

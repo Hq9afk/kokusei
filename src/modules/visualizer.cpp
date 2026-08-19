@@ -1,18 +1,17 @@
+#include "app/wayland_state.h"
+
+#include "config/visualizer_config.h"
+
+#include "core/log.h"
+
 #include "modules/visualizer.h"
 
-#include "app/wayland_state.h"
-#include "config/visualizer_config.h"
-#include "core/log.h"
 #include "render/overlay_panel.h"
+
 #include "visualizer/bar_visualizer.h"
 
 namespace {
 
-// Runs entirely on state.render_thread: state.render_context is current on
-// state.base.egl_surface for the whole lifetime of this call. Owns
-// state.base.egl_surface exclusively while running; the main thread must
-// not also make it current on the shared main context (see
-// visualizer_render_thread_submit / visualizer_render_thread_destroy).
 void render_thread_main(VisualizerState *state) {
     if (!eglMakeCurrent(state->base.egl_display, state->base.egl_surface,
                         state->base.egl_surface, state->render_context)) {
@@ -53,10 +52,6 @@ void render_thread_main(VisualizerState *state) {
                    EGL_NO_CONTEXT);
 }
 
-// Fast, lock-only handoff: copies this frame's inputs and returns
-// immediately. No GL is touched on the calling (main poll loop) thread.
-// First call lazily creates a share-context EGLContext (sharing GL object
-// namespace with the main context) and starts the dedicated render thread.
 void visualizer_render_thread_submit(VisualizerState &state,
                                      EGLConfig egl_config, bool sphere_shape,
                                      float time_seconds, float elapsed_ms) {
@@ -91,11 +86,6 @@ void visualizer_render_thread_submit(VisualizerState &state,
     ts.cv.notify_one();
 }
 
-// Stops render_thread (signals shutdown, joins), then destroys the
-// share-context EGLContext; render_thread_main already destroyed both
-// shapes' GL objects itself just before exiting. Must be called from the
-// poll-loop thread with the visualizer window still holding its surface
-// (i.e. before toplevel_window_destroy_surface).
 void visualizer_render_thread_destroy(VisualizerState &state) {
     if (state.thread_state) {
         {
@@ -207,9 +197,6 @@ void visualizer_paint(VisualizerState &state, const Config &cfg,
         std::chrono::duration<float, std::milli>(now - state.last_frame)
             .count();
 
-    // Both shapes render on state.render_thread now (see
-    // visualizer_render_thread_submit); this call only hands off this
-    // frame's inputs and returns, it never touches GL itself.
     visualizer_render_thread_submit(state, egl_config, sphere_shape,
                                     time_seconds, elapsed_ms);
 

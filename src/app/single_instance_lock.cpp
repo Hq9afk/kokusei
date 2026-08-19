@@ -1,13 +1,13 @@
-#include "app/single_instance_lock.h"
-
-#include "core/log.h"
-
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
 #include <string>
 #include <sys/file.h>
 #include <unistd.h>
+
+#include "app/single_instance_lock.h"
+
+#include "core/log.h"
 
 namespace {
 

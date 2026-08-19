@@ -1,6 +1,6 @@
-#include "service/keyboard.h"
-
 #include <cassert>
+
+#include "service/keyboard.h"
 
 void test_keyboard() {
     xkb_context *ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);

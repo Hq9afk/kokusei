@@ -1,15 +1,14 @@
 #pragma once
 
-#include "render/texture.h"
-
 #include <EGL/egl.h>
-
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
+
+#include "render/texture.h"
 
 struct Config;
 struct Node;

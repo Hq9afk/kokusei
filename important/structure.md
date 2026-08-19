@@ -9,53 +9,53 @@
 
 ## Files
 - `src/kokusei.cpp`: Orchestration, Wayland/EGL bootstrap, poll loop, CLI entry point, daemonize/debug/IPC-client dispatch.
-- `src/app/wayland_state.h`: `WaylandState`, shared Wayland globals every surface hangs off; forward-declares `MonitorOutput`.
-- `src/app/monitor_output.h`+`.cpp`: `MonitorOutput` (per-output state every surface hangs off), monitor create/activate/destroy lifecycle, config-apply orchestration, settings retarget - the composition root's per-monitor half, includes every module's header.
-- `src/app/module.h`: `Module` interface, the per-surface overlay boundary (launcher/starward/controlcenter/settings/matrix/visualizer); default no-op virtuals, unnamed params.
-- `src/app/per_monitor_module.h`: `PerMonitorModule` interface, the per-surface per-monitor boundary (bar/wallpaper/osd/notification-view); default no-op virtuals, unnamed params.
-- `src/app/module_registry.h`+`.cpp`: `build_app_modules`/`build_per_monitor_modules` composition root, one `Module`/`PerMonitorModule` subclass per overlay/per-monitor surface, including `OsdPerMonitorModule`, `WallpaperPerMonitorModule`, `NotificationViewPerMonitorModule`.
-- `src/app/wayland_registry.h`+`.cpp`: Wayland global registry bind/listener wiring, populates `WaylandState`'s compositor/layer-shell/xdg-wm-base/output globals.
-- `src/app/wayland_state.h`: `WaylandState`, shared Wayland globals plus every process-wide service's owned state (network/bluetooth/upower/tray/mpris/pipewire/idle/notification/compositor-backend); forward-declares `MonitorOutput`.
-- `src/app/service.h`: `Service` interface, the process-wide (not per-surface) boundary for cross-cutting services: `init`/`timer_tick`/`poll_sources`, default no-ops.
-- `src/app/service_registry.h`+`.cpp`: `build_services` composition root, one `Service` subclass per cross-cutting service (network, bluetooth, pipewire/brightness OSD triggers, notification D-Bus pump, idle, tray, mpris, upower, compositor-workspace backend); this and `module_registry.cpp` are the only files that reach across module/service boundaries, `kokusei.cpp` never does.
+- `src/app/wayland_state.h`: `WaylandState`, shared Wayland globals and every process-wide service's owned state; forward-declares `MonitorOutput`.
+- `src/app/monitor_output.h`+`.cpp`: `MonitorOutput` per-output state, monitor create/activate/destroy lifecycle, config-apply orchestration, settings retarget.
+- `src/app/module.h`: `Module` interface, the per-surface overlay boundary; default no-op virtuals, unnamed params.
+- `src/app/per_monitor_module.h`: `PerMonitorModule` interface, the per-surface per-monitor boundary; default no-op virtuals, unnamed params.
+- `src/app/module_registry.h`+`.cpp`: `build_app_modules`/`build_per_monitor_modules` composition root, one subclass per overlay/per-monitor surface.
+- `src/app/wayland_registry.h`+`.cpp`: Wayland global registry bind/listener wiring, populates `WaylandState`'s globals.
+- `src/app/service.h`: `Service` interface, the process-wide boundary for cross-cutting services: `init`/`timer_tick`/`poll_sources`.
+- `src/app/service_registry.h`+`.cpp`: `build_services` composition root, one `Service` subclass per cross-cutting service.
 - `src/app/config.h`+`.cpp`: TOML config loader/saver with atomic write and inotify hot-reload.
-- `src/app/ipc.h`+`.cpp`: Kokusei's own control socket, client/server request handling; verb table concatenates each module's own `*_ipc_handlers()`.
-- `src/app/key_dispatch.h`+`.cpp`: Generic keyboard-focus dispatch table (launcher/settings/starward/controlcenter, then per-monitor network/bluetooth/volume panels) so `kokusei.cpp` never names a module's key-handling function directly.
-- `src/app/single_instance_lock.h`+`.cpp`: `flock()`-based single-instance lock, replaces old socket-liveness probe.
+- `src/app/user_info.h`+`.cpp`: `getpwuid`-based username and `sysinfo`-based uptime string, shared across modules.
+- `src/app/ipc.h`+`.cpp`: Kokusei's own control socket, client/server request handling; verb table from each module.
+- `src/app/key_dispatch.h`+`.cpp`: Generic keyboard-focus dispatch table so `kokusei.cpp` never names a module's key handler.
+- `src/app/single_instance_lock.h`+`.cpp`: `flock()`-based single-instance lock.
 - `src/config/bar_config.h`: Bar geometry, spacing, and pill-order constants.
-- `src/modules/bar.h`+`.cpp`: Bar rendering only (paint, autohide geometry, pill-click dispatch, bar surface's own EGL); takes `MonitorOutput&` as a parameter, doesn't own it. `bar_detail` also holds the shared `WaylandState`-wide helpers (`rest_egl_current`, `*_panel_dispatch`) so `kokusei.cpp`'s per-iteration lambdas can delegate instead of inlining module-specific logic.
-- `src/bar/widget/widget_capsule.h`+`.cpp`: Shared pill bookkeeping, hover-expand/click dispatch, and generic scene-node draw helpers for every pill.
-- `src/bar/widget/workspace_widget.h`+`.cpp`, `clock_widget.h`+`.cpp`: State-free workspace-row and clock-pill drawing extracted from `bar_paint`.
-- `src/bar/widget/battery_widget.*`, `network_widget.*`, `bluetooth_widget.*`, `volume_widget.*`, `starward_widget.*`, `control_center_widget.*`: One pair per bar pill, each needing full `WaylandState`.
+- `src/modules/bar.h`+`.cpp`: Bar rendering, autohide geometry, pill-click dispatch, bar surface's own EGL; shared `WaylandState`-wide helpers.
+- `src/bar/widget/widget_capsule.h`+`.cpp`: Shared pill bookkeeping, hover-expand/click dispatch, and generic scene-node draw helpers.
+- `src/bar/widget/workspace_widget.h`+`.cpp`, `clock_widget.h`+`.cpp`: State-free workspace-row and clock-pill drawing.
+- `src/bar/widget/battery_widget.*`, `network_widget.*`, `bluetooth_widget.*`, `volume_widget.*`, `starward_widget.*`, `control_center_widget.*`: One pair per bar pill.
 - `src/bar/panel/`: One `<name>_panel.h/.cpp` pair per on-demand panel (network, bluetooth, volume, tray+menu).
 - `src/config/wallpaper_config.h`: Wallpaper layer-shell namespace constant.
-- `src/modules/wallpaper.h`+`.cpp`: Per-monitor background surface, multi-column texture upload, per-column fill mode (crop/fit/stretch/tile, tile clipped and repeated from each column's own local origin); static decode lives in `service/wallpaper_service`, animated decode/playback lives in `service/wallpaper_hw_decode`.
-- `src/service/wallpaper_hw_decode.h`+`.cpp`: In-process `libavcodec`/`libavfilter` decode loop for animated wallpaper playback, one background thread per column; tries hardware decode (`CUDA`, then `VAAPI`) before falling back to software, loops the source via seek+flush on EOF, hands filtered `rgba` frames to a caller-supplied callback.
+- `src/modules/wallpaper.h`+`.cpp`: Per-monitor background surface, multi-column texture upload, per-column fill mode (crop/fit/stretch/tile).
+- `src/service/wallpaper_hw_decode.h`+`.cpp`: In-process `libavcodec`/`libavfilter` decode loop for animated wallpaper, one thread per column.
 - `src/config/notification_config.h`: Notification card padding/size/timing constants.
-- `src/modules/notification.h`+`.cpp`: D-Bus notification service (process-wide), per-monitor `NotificationView` render state, and card paint (stacking, urgency color, fade/slide animation).
+- `src/modules/notification.h`+`.cpp`: D-Bus notification service, per-monitor `NotificationView` render state, and card paint.
 - `src/modules/idle.h`+`.cpp`: Idle-notify timeout and manual idle-inhibit, single seat-level instance.
 - `src/config/settings_config.h`: Settings panel tab/field layout constants, plus the `SettingsFieldId` enum.
-- `src/modules/settings.h`+`.cpp`: Settings panel core (tabs, chrome, field focus/commit), hosts Wallpaper/Displays/Idle/Visualizer tabs, also owns the shared `draw_toggle_row`/`draw_toggle_switch` toggle-row widgets used by more than one tab.
-- `src/settings/wallpaper_tab.h`+`.cpp`, `displays_tab.h`+`.cpp`, `idle_tab.h`+`.cpp`, `visualizer_tab.h`+`.cpp`: Per-tab settings UI and commit logic. `wallpaper_tab.*` also holds the wallpaper picker's directory scan and thumbnail decode/generation, off worker threads.
-- `src/render/overlay_panel.h`+`.cpp`: Shared full-screen on-demand overlay surface + position-lock-on-toggle recipe (`zwlr_layer_shell_v1`-backed).
-- `src/render/toplevel_window.h`+`.cpp`: Shared `xdg_toplevel` real-window surface lifecycle (create/EGL-init/request-frame/destroy), used by modules that want a compositor-managed window instead of a layer-shell overlay.
-- `src/config/matrix_config.h`: Matrix-rain window size, glyph/cell/timing constants, ported from keqing-shell's `MatrixConfig.qml`.
-- `src/render/matrix_grid.h`+`.cpp`: Matrix-rain glyph column simulation and Cairo-rasterized texture, state-free of any surface/window concerns.
-- `src/modules/matrix.h`+`.cpp`: Matrix-rain overlay, a real `xdg_toplevel` window (`ToplevelWindowBase`) created on open and destroyed after its close fade, not a persistent layer-shell surface. Rebuilds the grid on live resize instead of stretching.
-- `src/config/visualizer_config.h`: Audio visualizer window size, bar layout, PipeWire spectrum constants, plus the `sphere` shape's constants, ported from keqing-shell's `VisualizerConfig.qml` and `~/references/ncs4au/src/NCS4AU.obj`.
-- `src/service/audio_spectrum.h`+`.cpp`: Direct-PipeWire FFT spectrum capture (own `pw_stream`, own `process` callback), parallel mono/left/right `ChannelPipeline`s feeding the visualizer's bar and sphere shapes.
-- `src/modules/visualizer.h`+`.cpp`: Audio visualizer overlay, a real `xdg_toplevel` window (`ToplevelWindowBase`) created on open and destroyed after its close fade; owns one dedicated render thread and share-context `EGLContext` covering both `bar` and `sphere` shapes for the whole time the window is open, per `Config::visualizer_shape`. `VisualizerState` holds only orchestration (window/surface, audio capture, render-thread plumbing, timing) plus one `BarVisualizerState`/`SphereVisualizerState` field per shape; the main poll-loop thread only hands off a per-frame struct (shape, spectrum, opacity, time, dimensions) and never touches GL for this window.
-- `src/visualizer/sphere_visualizer.h`+`.cpp`: GLES2 point-sprite particle/glow multi-pass shape for the visualizer; its particle math is ported from `~/references/ncs4au/src/NCS4AU.obj` (grid of points, 3D Perlin noise displacement, sphere projection with back-hemisphere fold-back), its shaders living in `src/shaders/sphere_particle.h`+`sphere_post.h`. A set of draw passes invoked by `visualizer.cpp`'s render thread, outside the Node/Scene graph, owning no thread or EGL context of its own. Owns its full render state in `SphereVisualizerState` (programs/VBOs/FBOs) with its own `render`/`destroy_gl` pair.
-- `src/visualizer/bar_visualizer.h`+`.cpp`: The visualizer's other shape, drawn as ordinary rects through the Node/Scene graph. Mirrors `sphere_visualizer`'s shape: owns its own `Renderer`+`Scene`+smoothing buffer in `BarVisualizerState`, with its own `render`/`destroy_gl` pair, rather than sharing state with `VisualizerState`.
-- `src/shaders/renderer_shaders.h`: The shared `Renderer`'s four GLES2 shaders (quad vertex, rect/tex/rrect fragment), extracted out of `src/render/renderer.cpp`'s inline literals.
-- `src/shaders/sphere_particle.h`: The `sphere` shape's particle vertex+fragment shaders, the `ncs4au`-ported noise/projection math described above.
-- `src/shaders/sphere_post.h`: The `sphere` shape's shared post-processing shaders (fullscreen vertex, glow blur+feedback, composite), generic and reference-independent.
+- `src/modules/settings.h`+`.cpp`: Settings panel core, hosts per-tab modules, owns shared toggle-row widgets and `draw_profile_block`.
+- `src/settings/wallpaper_tab.h`+`.cpp`, `displays_tab.h`+`.cpp`, `idle_tab.h`+`.cpp`, `visualizer_tab.h`+`.cpp`: Per-tab settings UI and commit logic.
+- `src/render/overlay_panel.h`+`.cpp`: Shared full-screen on-demand overlay surface plus position-lock-on-toggle recipe.
+- `src/render/toplevel_window.h`+`.cpp`: Shared `xdg_toplevel` real-window surface lifecycle for compositor-managed windows.
+- `src/config/matrix_config.h`: Matrix-rain window size, glyph/cell/timing constants.
+- `src/render/matrix_grid.h`+`.cpp`: Matrix-rain glyph column simulation and Cairo-rasterized texture, state-free of surface concerns.
+- `src/modules/matrix.h`+`.cpp`: Matrix-rain overlay, a real `xdg_toplevel` window, rebuilds the grid on live resize.
+- `src/config/visualizer_config.h`: Audio visualizer window size, bar layout, PipeWire spectrum, and `sphere` shape constants.
+- `src/service/audio_spectrum.h`+`.cpp`: Direct-PipeWire FFT spectrum capture, parallel mono/left/right `ChannelPipeline`s.
+- `src/modules/visualizer.h`+`.cpp`: Audio visualizer overlay window; dedicated render thread and share-context `EGLContext` for both shapes.
+- `src/visualizer/sphere_visualizer.h`+`.cpp`: GLES2 point-sprite particle/glow multi-pass shape, owns its own `SphereVisualizerState`.
+- `src/visualizer/bar_visualizer.h`+`.cpp`: The visualizer's other shape, drawn as ordinary rects through the Node/Scene graph.
+- `src/shaders/renderer_shaders.h`: The shared `Renderer`'s four GLES2 shaders (quad vertex, rect/tex/rrect fragment).
+- `src/shaders/sphere_particle.h`: The `sphere` shape's particle vertex+fragment shaders.
+- `src/shaders/sphere_post.h`: The `sphere` shape's shared post-processing shaders (fullscreen vertex, glow blur+feedback, composite).
 - `src/config/osd_config.h`: OSD surface size/margin/duration/animation-owner constants.
 - `src/modules/osd.h`+`.cpp`: Volume/brightness popup, per-monitor, auto-hides, reactive to system state changes.
 - `src/config/starward_config.h`: Ring-menu geometry, timing, and the 8-button action table.
-- `src/modules/starward.h`+`.cpp`: Starward (logout ring) state, YujiMai rasterizer, animation choreography, input dispatch, and paint (full-screen radial 8-button ring overlay).
-- `src/config/controlcenter_config.h`: Control-center card-stack geometry constants, ported 1:1 from keqing-shell QML.
-- `src/modules/controlcenter.h`+`.cpp`: Control-center singleton state, fixed top-right overlay, IPC/widget-triggered open wiring, EGL frame orchestration, fixed-order card layout (cards inlined, no per-card files), gated-card skipping.
+- `src/modules/starward.h`+`.cpp`: Starward (logout ring) state, rasterizer, animation choreography, input dispatch, and paint.
+- `src/config/controlcenter_config.h`: Control-center card-stack geometry constants.
+- `src/modules/controlcenter.h`+`.cpp`: Control-center singleton state, fixed top-right overlay, IPC/widget-triggered open wiring, card layout.
 - `src/config/launcher_config.h`: Every launcher data type and constant, no function bodies.
 - `src/modules/launcher.h`+`.cpp`: `LauncherState`, surface/EGL/tick/toggle/key/click/paint core only.
 - `src/launcher/apps_provider.h`+`.cpp`: App name scoring and search over `DesktopEntry` lists.
@@ -68,24 +68,24 @@
 - `src/service/hyprland.h`+`.cpp`: Hyprland IPC client, per-monitor workspace state via request+event sockets.
 - `src/service/shojiwm.h`+`.cpp`: ShojiWM IPC client, per-monitor workspace state, single persistent JSON-RPC socket.
 - `src/service/workspace.h`: Shared `Workspace`/`MonitorWorkspaces` types produced by both compositor backends.
-- `src/service/active_output.h`+`.cpp`: Pure-data `Output` struct (registry name, `wl_output*`, name, scale) plus output-selection logic.
+- `src/service/active_output.h`+`.cpp`: Pure-data `Output` struct plus output-selection logic.
 - `src/service/output_scale.h`+`.cpp`: Per-output fractional-scale listener tracking.
 - `src/service/frame_clock.h`+`.cpp`: `wp_presentation`/frame-callback pacing shared across surfaces.
 - `src/service/pipewire.h`+`.cpp`: Direct libpipewire client for OSD volume/mic triggers and volume-panel writes.
-- `src/service/volume_slider.h`+`.cpp`: `DraggedSlider`, tag-to-node-id resolution, and drag-to-volume application shared by the volume panel and control center.
-- `src/service/system_telemetry.h`+`.cpp`: CPU/GPU temperature via hwmon/thermal-zone sysfs or `nvidia-smi`, plus CPU-usage/RAM percent from `/proc`.
+- `src/service/volume_slider.h`+`.cpp`: `DraggedSlider`, tag-to-node-id resolution, drag-to-volume application.
+- `src/service/system_telemetry.h`+`.cpp`: CPU/GPU temperature via hwmon/thermal-zone/`nvidia-smi`, plus CPU-usage/RAM percent.
 - `src/service/upower_service.h`+`.cpp`: UPower D-Bus client for the bar's battery pill.
 - `src/service/network_service.h`+`.cpp`: NetworkManager client (nmcli subprocesses + D-Bus) and pure output parsers.
-- `src/service/bluetooth_service.h`+`.cpp`: BlueZ D-Bus client, device-classification logic, and rfkill soft-block reader/clearer for the bluetooth panel.
-- `src/service/pointer.h`+`.cpp`: `wl_pointer` handling - hover, click queue with button and click-time coordinates.
+- `src/service/bluetooth_service.h`+`.cpp`: BlueZ D-Bus client, device-classification logic, rfkill soft-block reader/clearer.
+- `src/service/pointer.h`+`.cpp`: `wl_pointer` handling, hover, click queue with button and click-time coordinates.
 - `src/service/keyboard.h`+`.cpp`: `wl_keyboard`+xkbcommon input scoped to launcher/starward needs, with key-repeat support.
 - `src/service/layer_surface.h`+`.cpp`: Shared layer-shell surface creation helper, dedupes anchor/margin/listener setup.
-- `src/service/tray_service.h`+`.cpp`: StatusNotifierWatcher/host implementation and DBusMenu tree fetch for the system tray.
-- `src/service/icon_theme.h`+`.cpp`: App icon path resolution against the hicolor theme, shared by the launcher and the tray.
+- `src/service/tray_service.h`+`.cpp`: StatusNotifierWatcher/host implementation and DBusMenu tree fetch.
+- `src/service/icon_theme.h`+`.cpp`: App icon path resolution against the hicolor theme, shared by launcher and tray.
 - `src/service/mpris_service.h`+`.cpp`: Minimal MPRIS client, player selection policy, transport control methods.
-- `src/service/wallpaper_service.h`+`.cpp`: Per-monitor, per-column wallpaper path/fill-mode resolution over `Config` (raw override vs. default-fallback accessors), plus `wallpaper_decode_scaled`, shared by the wallpaper module and settings tab.
+- `src/service/wallpaper_service.h`+`.cpp`: Per-monitor, per-column wallpaper path/fill-mode resolution, plus `wallpaper_decode_scaled`.
 - `src/service/settings_service.h`+`.cpp`: Settings field-text parsing into `Config` and the config-save wrapper.
-- `src/core/async_process.h`+`.cpp`: Worker-thread subprocess runner so slow commands don't block the poll loop, plus `spawn_detached` for fire-and-forget commands.
+- `src/core/async_process.h`+`.cpp`: Worker-thread subprocess runner, plus `spawn_detached` for fire-and-forget commands.
 - `src/core/log.h`+`.cpp`: `klog()` dual stderr + logfile logging with timestamps.
 - `src/core/poll_source.h`+`.cpp`: `PollSource` interface and `FnPollSource` helper for the main poll loop.
 - `src/core/deferred_call.h`+`.cpp`: Cross-thread callback hand-off so worker threads can post to the main thread.
@@ -93,8 +93,8 @@
 - `src/render/node.h`+`.cpp`/`scene.h`: `Node`/`Scene` retained-allocation scene graph with per-frame node pooling.
 - `src/render/renderer.h`+`.cpp`: GL draw calls, clip-stack management, shared `Renderer` across every surface.
 - `src/render/rect.h`: Shared `Rect{x,y,w,h}` struct for hit-testing.
-- `src/render/panel_chrome.h`+`.cpp`: Shared box/header/confirm/dropdown chrome and click-kind enum for all on-demand panels.
-- `src/render/slider.h`+`.cpp`: `draw_slider_track`, shared track+fill+click-region drawing for any slider, used by the volume panel and control center.
+- `src/render/panel_chrome.h`+`.cpp`: Shared box/header/confirm/dropdown chrome and click-kind enum for on-demand panels.
+- `src/render/slider.h`+`.cpp`: `draw_slider_track`, shared track+fill+click-region drawing for any slider.
 - `src/render/panel_scroll.h`+`.cpp`: Shared scroll-offset/clamp/wheel-input helper for scrollable panel lists.
 - `src/render/text.h`+`.cpp`: Cairo+Pango text rasterization, fixed body/small font sizes, string elision.
 - `src/render/text_field.h`+`.cpp`: Shared single-line editable text buffer core (key handling, UTF-8-safe backspace).
@@ -106,8 +106,8 @@
 - `src/render/texture_cache.h`+`.cpp`: Path-keyed decoded-texture cache built on `texture.h`.
 - `src/render/image.h`+`.cpp`: JPEG/PNG decode and upload to GL texture, no SVG/GIF.
 - `src/render/gl.h`+`.cpp`: Shader compile/link helpers with error logging.
-- `src/render/animation.h`+`.cpp`: `AnimationManager` - wall-clock tween/easing engine, owner-tag auto-cancel.
-- `test/`: One test file per pure-logic header, grouped by module (`app/`, `core/`, `dbus/`, `launcher/`, `render/`, `system/`, `wayland/`), all run through one `kokusei-test` binary via meson.
+- `src/render/animation.h`+`.cpp`: `AnimationManager`, wall-clock tween/easing engine, owner-tag auto-cancel.
+- `test/`: One test file per pure-logic header, grouped by module, all run through one `kokusei-test` binary via meson.
 - `meson.build`: Build config, dependency list, test registration.
 - `dist/{run,install,test}`: Convenience scripts to build+test, build+install, or kill+install+launch kokusei.
 - `convention.md`: Formatting and commenting rules.

@@ -1,8 +1,8 @@
-#include "service/icon_theme.h"
-
 #include <cstdlib>
 #include <filesystem>
 #include <vector>
+
+#include "service/icon_theme.h"
 
 std::string icon_direct_path(const std::string &icon_field) {
     if (!icon_field.starts_with('/'))

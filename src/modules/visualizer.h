@@ -1,15 +1,6 @@
 #pragma once
 
-#include "app/config.h"
-#include "app/ipc.h"
-#include "render/toplevel_window.h"
-#include "service/audio_spectrum.h"
-#include "service/keyboard.h"
-#include "visualizer/bar_visualizer.h"
-#include "visualizer/sphere_visualizer.h"
-
 #include <EGL/egl.h>
-
 #include <chrono>
 #include <condition_variable>
 #include <memory>
@@ -17,11 +8,19 @@
 #include <thread>
 #include <vector>
 
+#include "app/config.h"
+#include "app/ipc.h"
+
+#include "render/toplevel_window.h"
+
+#include "service/audio_spectrum.h"
+#include "service/keyboard.h"
+
+#include "visualizer/bar_visualizer.h"
+#include "visualizer/sphere_visualizer.h"
+
 struct WaylandState;
 
-// One frame's worth of draw inputs, handed off from the poll-loop thread to
-// the visualizer's dedicated render thread. Copied, not referenced: the
-// poll loop's spectrum vectors are only valid for the duration of its call.
 struct VisualizerFrame {
     bool sphere_shape = false;
     int width = 0;
@@ -43,12 +42,6 @@ struct VisualizerRenderThreadState {
     bool shutdown = false;
 };
 
-// VisualizerState owns one dedicated render thread covering both shapes
-// (bar and sphere alike), matching noctalia's model of a single thread doing
-// all GL/scene work for a visual, rather than kokusei's previous
-// sphere-only-threaded special case. state.bar and state.sphere are touched
-// exclusively by render_thread once it is running; the poll-loop thread only
-// ever writes into thread_state's pending frame under its mutex.
 struct VisualizerState {
     ToplevelWindowBase base;
     AudioSpectrum spectrum;

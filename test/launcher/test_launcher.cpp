@@ -1,14 +1,4 @@
 
-#include "core/async_process.h"
-#include "launcher/apps_provider.h"
-#include "launcher/desktop_entry.h"
-#include "launcher/files_provider.h"
-#include "launcher/launch_action.h"
-#include "launcher/search.h"
-#include "launcher/submenu.h"
-#include "launcher/visit_store.h"
-#include "service/icon_theme.h"
-
 #include <cassert>
 #include <cerrno>
 #include <cmath>
@@ -17,6 +7,18 @@
 #include <sstream>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#include "core/async_process.h"
+
+#include "launcher/apps_provider.h"
+#include "launcher/desktop_entry.h"
+#include "launcher/files_provider.h"
+#include "launcher/launch_action.h"
+#include "launcher/search.h"
+#include "launcher/submenu.h"
+#include "launcher/visit_store.h"
+
+#include "service/icon_theme.h"
 
 void test_spawn_helpers() {
     std::string marker = "/tmp/kokusei_test_spawn_" + std::to_string(getpid());

@@ -1,11 +1,11 @@
 #pragma once
 
-#include "config/launcher_config.h"
-
 #include <istream>
 #include <optional>
 #include <string>
 #include <vector>
+
+#include "config/launcher_config.h"
 
 namespace desktop_entry_detail {
 

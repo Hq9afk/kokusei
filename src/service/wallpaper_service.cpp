@@ -1,13 +1,14 @@
-#include "service/wallpaper_service.h"
-
-#include "core/log.h"
-#include "render/image.h"
-
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <sys/stat.h>
+
+#include "core/log.h"
+
+#include "render/image.h"
+
+#include "service/wallpaper_service.h"
 
 namespace {
 

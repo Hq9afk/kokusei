@@ -1,12 +1,13 @@
 #pragma once
 
+#include <unordered_map>
+#include <vector>
+
 #include "bar/widget/widget_capsule.h"
 
 #include "render/animation.h"
-#include "service/workspace.h"
 
-#include <unordered_map>
-#include <vector>
+#include "service/workspace.h"
 
 struct WorkspaceWidgetState {
     std::unordered_map<int, float> width_t;

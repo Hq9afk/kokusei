@@ -1,10 +1,3 @@
-#include "app/ipc.h"
-
-#include "app/monitor_output.h"
-#include "app/wayland_state.h"
-#include "core/log.h"
-#include "modules/idle.h"
-
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -14,6 +7,14 @@
 #include <sys/un.h>
 #include <unistd.h>
 #include <vector>
+
+#include "app/ipc.h"
+#include "app/monitor_output.h"
+#include "app/wayland_state.h"
+
+#include "core/log.h"
+
+#include "modules/idle.h"
 
 namespace {
 

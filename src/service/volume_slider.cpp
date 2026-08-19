@@ -1,6 +1,6 @@
-#include "service/volume_slider.h"
-
 #include <algorithm>
+
+#include "service/volume_slider.h"
 
 uint32_t volume_slider_resolve_tag_id(const PipewireState &pw,
                                       const std::string &tag) {

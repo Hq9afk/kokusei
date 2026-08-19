@@ -1,9 +1,9 @@
 #pragma once
 
-#include "render/texture.h"
-
 #include <cstdint>
 #include <vector>
+
+#include "render/texture.h"
 
 class MatrixGrid {
   public:

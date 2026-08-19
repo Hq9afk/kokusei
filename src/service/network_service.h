@@ -1,14 +1,14 @@
 #pragma once
 
-#include "core/async_process.h"
-#include <sdbus-c++/sdbus-c++.h>
-
 #include <chrono>
 #include <functional>
 #include <map>
 #include <memory>
+#include <sdbus-c++/sdbus-c++.h>
 #include <set>
 #include <string>
+
+#include "core/async_process.h"
 
 struct NetworkInfo {
     std::string ssid, security;
