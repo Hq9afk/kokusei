@@ -188,6 +188,16 @@ void settings_retarget(WaylandState &app, SettingsState &settings,
                                    WaylandState::CompositorBackend::Hyprland
                                ? app.hypr.focused_monitor
                                : std::string();
+                },
+                [&app](const std::string &name,
+                      int column) -> WallpaperHwDecodeStatus {
+                    for (auto &mon : app.outputs) {
+                        if (mon->output.name != name)
+                            continue;
+                        if (auto *wp = mon->module<WallpaperPerMonitorModule>())
+                            return wp->decode_status(column);
+                    }
+                    return WallpaperHwDecodeStatus::Idle;
                 });
         });
     if (bound)

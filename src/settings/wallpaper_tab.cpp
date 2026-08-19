@@ -9,6 +9,7 @@
 #include "render/panel_scroll.h"
 
 #include "service/wallpaper_animate_service.h"
+#include "service/wallpaper_hw_decode.h"
 #include "service/wallpaper_service.h"
 
 #include "settings/wallpaper_tab.h"
@@ -522,6 +523,28 @@ void draw_wallpaper_grid(SettingsState &state, Node *parent, int32_t scale,
     }
 }
 
+// Only shown when the currently selected animated column has fallen back
+// to CPU decode (see WallpaperHwDecodeStatus::CpuFallback) - the point is
+// to surface a silently-degraded (high CPU) animated wallpaper, not to
+// narrate normal operation.
+float draw_wallpaper_decode_warning(SettingsState &state, Node *parent,
+                                    int32_t scale, float x, float y, float w) {
+    const Texture *tex = cached_text(
+        state.tcache,
+        "Zero-copy GPU decode unavailable - running on CPU (higher CPU usage)",
+        scale);
+    float text_h = tex ? tex->height : 0.0f;
+    float row_h = text_h + kSettingsWallpaperWarningPad * 2.0f;
+    node_add_rrect(parent, x, y, w, row_h, metrics::radius_sm,
+                   metrics::border_thin, rgba(palette::critical_alpha15),
+                   rgba(palette::critical));
+    if (tex)
+        node_add_texture(parent, x + kSettingsWallpaperWarningPad,
+                         y + (row_h - text_h) / 2.0f, *tex,
+                         rgba(palette::critical));
+    return row_h;
+}
+
 } // namespace
 
 float wallpaper_tab_paint(SettingsState &state, Node *root, int32_t scale,
@@ -565,6 +588,14 @@ float wallpaper_tab_paint(SettingsState &state, Node *root, int32_t scale,
     draw_wallpaper_grid(state, root, scale, x, y, sub.grid_width,
                         sub.grid_height, cfg, sub, animated);
     y += sub.grid_height;
+    if (animated && state.wallpaper_decode_status &&
+        state.wallpaper_decode_status(sub.selected_region,
+                                      sub.selected_column) ==
+            WallpaperHwDecodeStatus::CpuFallback) {
+        y += kPanelRowGap;
+        y += draw_wallpaper_decode_warning(state, root, scale, x, y,
+                                           sub.grid_width);
+    }
     return y;
 }
 

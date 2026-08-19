@@ -25,6 +25,12 @@ libavformat_dep    = dependency('libavformat')
 libavcodec_dep     = dependency('libavcodec')
 libavfilter_dep    = dependency('libavfilter')
 libavutil_dep      = dependency('libavutil')
+# Zero-copy VAAPI wallpaper decode (render/video_texture.cpp,
+# service/wallpaper_hw_decode.cpp): DRM_FORMAT_* fourcc constants for the
+# dma-buf plane import, nothing else - the VAAPI calls themselves stay
+# inside FFmpeg's own hwcontext_vaapi (already linked via libavutil), so
+# libva/libva-drm aren't needed directly.
+libdrm_dep         = dependency('libdrm')
 
 kokusei_inc = include_directories('src')
 
@@ -159,6 +165,7 @@ kokusei_render_main_only_sources = [
   'src/render/toplevel_window.cpp',
   'src/render/slider.cpp',
   'src/render/matrix_grid.cpp',
+  'src/render/video_texture.cpp',
 ]
 
 # service sources: each dbus service is a merged types+sdbus-c++ pair, and
@@ -344,6 +351,7 @@ executable(
     libavcodec_dep,
     libavfilter_dep,
     libavutil_dep,
+    libdrm_dep,
   ],
   cpp_args: [
     '-DKOKUSEI_FONT_DIR="' + kokusei_font_dir + '"',

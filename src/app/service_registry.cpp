@@ -419,6 +419,16 @@ class IdleService final : public Service {
         app.idle.timeout_seconds = app.cfg.idle_timeout_seconds;
         app.idle.on_idle_command = app.cfg.idle_command;
         app.idle.on_resume_command = app.cfg.idle_resume_command;
+        app.idle.on_idled = [&app] {
+            for (auto &mon : app.outputs)
+                if (auto *wp = mon->module<WallpaperPerMonitorModule>())
+                    wp->pause_animation();
+        };
+        app.idle.on_resumed = [&app] {
+            for (auto &mon : app.outputs)
+                if (auto *wp = mon->module<WallpaperPerMonitorModule>())
+                    wp->resume_animation();
+        };
         return idle_init(app.idle);
     }
 };

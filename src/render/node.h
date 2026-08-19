@@ -4,10 +4,11 @@
 #include <vector>
 
 #include "render/texture.h"
+#include "render/video_texture.h"
 
 class Renderer;
 
-enum class NodeKind { Group, Rect, RoundedRect, Texture };
+enum class NodeKind { Group, Rect, RoundedRect, Texture, VideoTexture };
 
 inline constexpr float kNodeTransparent[4] = {0, 0, 0, 0};
 inline constexpr float kNodeOpaqueWhite[4] = {1, 1, 1, 1};
@@ -19,6 +20,7 @@ struct Node {
     const float *fill = kNodeTransparent;
     const float *border = kNodeTransparent;
     const Texture *tex = nullptr;
+    const VideoTexture *video_tex = nullptr;
     const float *tint = kNodeOpaqueWhite;
     bool clip_children = false;
     bool dirty = true;
@@ -42,6 +44,9 @@ Node *node_add_rrect(Node *parent, float x, float y, float w, float h,
 
 Node *node_add_texture_rect(Node *parent, float x, float y, float w, float h,
                             const Texture &tex, const float tint[4]);
+
+Node *node_add_video_texture_rect(Node *parent, float x, float y, float w,
+                                  float h, const VideoTexture &tex);
 
 Node *node_add_texture(Node *parent, float x, float y, const Texture &tex,
                        const float tint[4]);

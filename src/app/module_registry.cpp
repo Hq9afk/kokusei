@@ -317,6 +317,16 @@ class SettingsModule final : public Module {
                                    WaylandState::CompositorBackend::Hyprland
                                ? app.hypr.focused_monitor
                                : std::string();
+                },
+                [&app](const std::string &name,
+                      int column) -> WallpaperHwDecodeStatus {
+                    for (auto &mon : app.outputs) {
+                        if (mon->output.name != name)
+                            continue;
+                        if (auto *wp = mon->module<WallpaperPerMonitorModule>())
+                            return wp->decode_status(column);
+                    }
+                    return WallpaperHwDecodeStatus::Idle;
                 }))
             return false;
         app.settings_bound_output = output_;
@@ -530,6 +540,19 @@ void WallpaperPerMonitorModule::destroy(WaylandState &app, MonitorOutput &) {
 
 bool WallpaperPerMonitorModule::owns_surface(wl_surface *surface) const {
     return surface == state_.surface;
+}
+
+void WallpaperPerMonitorModule::pause_animation() {
+    wallpaper_animate_pause_all(state_);
+}
+
+void WallpaperPerMonitorModule::resume_animation() {
+    wallpaper_animate_resume_all(state_);
+}
+
+WallpaperHwDecodeStatus
+WallpaperPerMonitorModule::decode_status(int column_index) const {
+    return wallpaper_animate_decode_status(state_, column_index);
 }
 
 void WallpaperPerMonitorModule::resync(WaylandState &, MonitorOutput &mon,

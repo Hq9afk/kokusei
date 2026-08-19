@@ -16,6 +16,7 @@ Node *Node::claim_child() {
     n->fill = kNodeTransparent;
     n->border = kNodeTransparent;
     n->tex = nullptr;
+    n->video_tex = nullptr;
     n->tint = kNodeOpaqueWhite;
     n->clip_children = false;
     n->live_children = 0;
@@ -85,6 +86,18 @@ Node *node_add_texture_rect(Node *parent, float x, float y, float w, float h,
     return n;
 }
 
+Node *node_add_video_texture_rect(Node *parent, float x, float y, float w,
+                                  float h, const VideoTexture &tex) {
+    Node *n = parent->claim_child();
+    n->kind = NodeKind::VideoTexture;
+    n->x = x;
+    n->y = y;
+    n->w = w;
+    n->h = h;
+    n->video_tex = &tex;
+    return n;
+}
+
 Node *node_add_texture(Node *parent, float x, float y, const Texture &tex,
                        const float tint[4]) {
     float inv_scale = 1.0f / static_cast<float>(tex.scale > 0 ? tex.scale : 1);
@@ -119,6 +132,10 @@ void node_draw(const Node &n, Renderer &renderer, float parent_x,
     case NodeKind::Texture:
         if (n.tex && n.tex->id)
             renderer.draw_texture_rect(x, y, n.w, n.h, *n.tex, n.tint);
+        break;
+    case NodeKind::VideoTexture:
+        if (n.video_tex && n.video_tex->y_tex)
+            renderer.draw_video_texture_rect(x, y, n.w, n.h, *n.video_tex);
         break;
     case NodeKind::Group:
         break;

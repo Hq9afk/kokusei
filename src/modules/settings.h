@@ -20,6 +20,7 @@
 #include "render/texture_cache.h"
 
 #include "service/keyboard.h"
+#include "service/wallpaper_hw_decode.h"
 
 #include "settings/visualizer_tab.h"
 #include "settings/wallpaper_tab.h"
@@ -53,6 +54,8 @@ struct SettingsState {
     WallpaperSubtabState wallpaper_static;
     WallpaperSubtabState wallpaper_animated;
     bool wallpaper_animated_active = false;
+    std::function<WallpaperHwDecodeStatus(const std::string &monitor, int column)>
+        wallpaper_decode_status;
 
     std::vector<std::string> monitor_names;
 
@@ -69,7 +72,9 @@ bool settings_init_egl(
     SettingsState &state, const Config &cfg, Renderer &renderer,
     EGLDisplay display, EGLConfig config, EGLContext context,
     std::function<std::vector<std::string>()> monitor_names_fn,
-    std::function<std::string()> focused_monitor_fn);
+    std::function<std::string()> focused_monitor_fn,
+    std::function<WallpaperHwDecodeStatus(const std::string &, int)>
+        wallpaper_decode_status_fn);
 
 void settings_request_frame(SettingsState &state);
 

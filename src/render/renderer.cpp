@@ -3,14 +3,18 @@
 
 #include "render/gl.h"
 #include "render/renderer.h"
+#include "render/texture.h"
 
 #include "shaders/renderer_shaders.h"
 
 bool Renderer::init() {
+    texture_detect_caps();
+    video_texture_detect_caps(eglGetCurrentDisplay());
     rect_program_ = gl_compile_program(kRendererQuadVs, kRendererRectFs);
     tex_program_ = gl_compile_program(kRendererQuadVs, kRendererTexFs);
     rrect_program_ = gl_compile_program(kRendererQuadVs, kRendererRrectFs);
-    if (!rect_program_ || !tex_program_ || !rrect_program_)
+    video_program_ = gl_compile_program(kRendererQuadVs, kRendererVideoFs);
+    if (!rect_program_ || !tex_program_ || !rrect_program_ || !video_program_)
         return false;
 
     static const float quad[] = {0, 0, 1, 0, 0, 1, 1, 1};
@@ -27,6 +31,8 @@ void Renderer::destroy() {
         glDeleteProgram(tex_program_);
     if (rrect_program_)
         glDeleteProgram(rrect_program_);
+    if (video_program_)
+        glDeleteProgram(video_program_);
     if (quad_vbo_)
         glDeleteBuffers(1, &quad_vbo_);
     *this = Renderer{};
@@ -110,6 +116,22 @@ void Renderer::draw_texture_rect(float x, float y, float w, float h,
     float tc[4] = {tint[0], tint[1], tint[2], tint[3] * opacity_};
     glUniform4fv(glGetUniformLocation(tex_program_, "u_color"), 1, tc);
     draw_quad(tex_program_);
+}
+
+void Renderer::draw_video_texture_rect(float x, float y, float w, float h,
+                                       const VideoTexture &tex) {
+    x = std::round(x);
+    y = std::round(y);
+    glUseProgram(video_program_);
+    set_common_uniforms(video_program_, x, y, w, h);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tex.y_tex);
+    glUniform1i(glGetUniformLocation(video_program_, "u_y_tex"), 0);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, tex.uv_tex);
+    glUniform1i(glGetUniformLocation(video_program_, "u_uv_tex"), 1);
+    draw_quad(video_program_);
+    glActiveTexture(GL_TEXTURE0);
 }
 
 void Renderer::apply_clip(const ClipRect &r) {

@@ -1,10 +1,12 @@
 #pragma once
 
+#include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include <cstdint>
 #include <vector>
 
 #include "render/texture.h"
+#include "render/video_texture.h"
 
 class Renderer {
   public:
@@ -34,6 +36,9 @@ class Renderer {
     void draw_texture_rect(float x, float y, float w, float h,
                            const Texture &tex, const float tint[4]);
 
+    void draw_video_texture_rect(float x, float y, float w, float h,
+                                 const VideoTexture &tex);
+
   private:
     struct ClipRect {
         float x0, y0, x1, y1;
@@ -49,6 +54,7 @@ class Renderer {
     GLuint rect_program_ = 0;
     GLuint tex_program_ = 0;
     GLuint rrect_program_ = 0;
+    GLuint video_program_ = 0;
     GLuint quad_vbo_ = 0;
     float viewport_[2] = {0, 0};
     int32_t scale_ = 1;

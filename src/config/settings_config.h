@@ -43,6 +43,8 @@ constexpr float kSettingsWallpaperLabelPad = 6.0f;
 constexpr float kSettingsWallpaperGridInset = 5.0f;
 
 constexpr float kSettingsWallpaperScrollSpeed = 3.0f;
+
+constexpr float kSettingsWallpaperWarningPad = 10.0f;
 constexpr float kSettingsMonitorChipHeight = 35.0f;
 constexpr float kSettingsMonitorChipGap = 6.0f;
 

@@ -49,10 +49,13 @@ bool settings_init_egl(
     SettingsState &state, const Config &cfg, Renderer &renderer,
     EGLDisplay display, EGLConfig config, EGLContext context,
     std::function<std::vector<std::string>()> monitor_names_fn,
-    std::function<std::string()> focused_monitor_fn) {
+    std::function<std::string()> focused_monitor_fn,
+    std::function<WallpaperHwDecodeStatus(const std::string &, int)>
+        wallpaper_decode_status_fn) {
     state.renderer = &renderer;
     if (!overlay_panel_init_egl(state.base, display, config, context))
         return false;
+    state.wallpaper_decode_status = std::move(wallpaper_decode_status_fn);
     state.base.frame_clock.draw = [&state, &cfg, monitor_names_fn,
                                    focused_monitor_fn] {
         settings_paint(state, cfg, monitor_names_fn(), focused_monitor_fn());

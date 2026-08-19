@@ -12,6 +12,7 @@
 
 #include "render/scene.h"
 #include "render/texture.h"
+#include "render/video_texture.h"
 
 #include "service/frame_clock.h"
 #include "service/output_scale.h"
@@ -27,6 +28,15 @@ struct AnimatedColumnPlayback {
     WallpaperHwDecodePlayback decode;
     std::string path;
     FillMode mode = FillMode::Crop;
+
+    // Zero-copy VAAPI path: video_tex samples straight from the decode
+    // surface's dma-buf. pinned_frame/pinned_frame_prev keep the last two
+    // imported VASurfaces alive (owning AVFrame* handles) so the decoder
+    // doesn't recycle a surface the GPU may still be reading from.
+    VideoTexture video_tex;
+    void *pinned_frame = nullptr;
+    void *pinned_frame_prev = nullptr;
+    bool zero_copy = false;
 };
 
 struct WallpaperState {
@@ -50,6 +60,7 @@ struct WallpaperState {
     unsigned char *pending_pixels = nullptr;
     int pending_width = 0;
     int pending_height = 0;
+    int pending_stride = 0;
     int pending_column = 0;
     std::vector<FillMode> column_fill_modes;
 
@@ -82,6 +93,13 @@ void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
 void wallpaper_animate_stop(WallpaperState &wp, int column_index);
 
 void wallpaper_animate_stop_all(WallpaperState &wp);
+
+void wallpaper_animate_pause_all(WallpaperState &wp);
+
+void wallpaper_animate_resume_all(WallpaperState &wp);
+
+WallpaperHwDecodeStatus wallpaper_animate_decode_status(const WallpaperState &wp,
+                                                        int column_index);
 
 void wallpaper_animate_sync_from_config(WallpaperState &wp, const Config &cfg,
                                         const std::string &monitor_name);

@@ -22,6 +22,8 @@ void idle_notification_idled(void *data, ext_idle_notification_v1 *) {
     state->idled = true;
     klog("idle: idled after %us", state->timeout_seconds);
     idle_run_command(state->on_idle_command);
+    if (state->on_idled)
+        state->on_idled();
 }
 
 void idle_notification_resumed(void *data, ext_idle_notification_v1 *) {
@@ -29,6 +31,8 @@ void idle_notification_resumed(void *data, ext_idle_notification_v1 *) {
     state->idled = false;
     klog("idle: resumed");
     idle_run_command(state->on_resume_command);
+    if (state->on_resumed)
+        state->on_resumed();
 }
 
 constexpr ext_idle_notification_v1_listener idle_notification_listener = {

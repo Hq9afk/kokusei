@@ -39,6 +39,10 @@ class WallpaperPerMonitorModule final : public PerMonitorModule {
 
     void resync(WaylandState &app, MonitorOutput &mon, const Config &new_cfg);
 
+    void pause_animation();
+    void resume_animation();
+    WallpaperHwDecodeStatus decode_status(int column_index) const;
+
   private:
     WallpaperState state_;
 };

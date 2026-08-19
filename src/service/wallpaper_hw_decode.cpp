@@ -8,10 +8,14 @@ extern "C" {
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
 #include <libavformat/avformat.h>
+#include <libavutil/error.h>
 #include <libavutil/hwcontext.h>
+#include <libavutil/hwcontext_drm.h>
 #include <libavutil/mem.h>
 #include <libavutil/rational.h>
 }
+
+#include <drm_fourcc.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -74,9 +78,64 @@ struct PacketGuard {
     ~PacketGuard() { av_packet_free(&packet); }
 };
 
+// Fills out from a mapped AV_PIX_FMT_DRM_PRIME frame. Drivers export NV12
+// two different ways: one layer with 2 planes (Y, UV), or two layers with
+// 1 plane each - Mesa's radeonsi/iHD VAAPI export uses the latter. Both are
+// accepted by matching on each plane's format rather than assuming layout;
+// anything else (not an R8+GR88/RG88 pair) reports failure so the caller
+// falls back to the CPU path.
+bool fill_drm_frame(WallpaperHwDrmFrame &out, const AVFrame *drm_frame) {
+    const auto *desc =
+        reinterpret_cast<const AVDRMFrameDescriptor *>(drm_frame->data[0]);
+    if (!desc)
+        return false;
+
+    const AVDRMPlaneDescriptor *y_plane = nullptr;
+    const AVDRMPlaneDescriptor *uv_plane = nullptr;
+    for (int li = 0; li < desc->nb_layers; ++li) {
+        const AVDRMLayerDescriptor &layer = desc->layers[li];
+        if (layer.format == DRM_FORMAT_NV12 && layer.nb_planes == 2) {
+            y_plane = &layer.planes[0];
+            uv_plane = &layer.planes[1];
+        } else if (layer.nb_planes == 1) {
+            if (layer.format == DRM_FORMAT_R8)
+                y_plane = &layer.planes[0];
+            else if (layer.format == DRM_FORMAT_GR88 ||
+                     layer.format == DRM_FORMAT_RG88)
+                uv_plane = &layer.planes[0];
+        }
+    }
+    if (!y_plane || !uv_plane)
+        return false;
+
+    out.width = drm_frame->width;
+    out.height = drm_frame->height;
+    out.plane_count = 2;
+    const AVDRMPlaneDescriptor *src_planes[2] = {y_plane, uv_plane};
+    constexpr uint32_t kPlaneFourcc[2] = {DRM_FORMAT_R8, DRM_FORMAT_GR88};
+    for (int i = 0; i < 2; ++i) {
+        const AVDRMPlaneDescriptor &p = *src_planes[i];
+        if (p.object_index < 0 || p.object_index >= desc->nb_objects)
+            return false;
+        const AVDRMObjectDescriptor &obj = desc->objects[p.object_index];
+        WallpaperHwDrmPlane &plane = out.planes[i];
+        plane.fd = obj.fd;
+        plane.modifier = obj.format_modifier;
+        plane.fourcc = kPlaneFourcc[i];
+        plane.offset = static_cast<int>(p.offset);
+        plane.pitch = static_cast<int>(p.pitch);
+        plane.width = i == 0 ? out.width : (out.width + 1) / 2;
+        plane.height = i == 0 ? out.height : (out.height + 1) / 2;
+    }
+    return true;
+}
+
 void decode_loop(std::string path, std::string filter_desc, int fps,
-                 WallpaperHwDecodeFrameCallback on_frame,
-                 std::shared_ptr<std::atomic<bool>> stop_flag) {
+                 bool supports_row_length, WallpaperHwDecodeFrameCallback on_frame,
+                 WallpaperHwDecodeDrmFrameCallback on_drm_frame,
+                 std::shared_ptr<std::atomic<bool>> stop_flag,
+                 std::shared_ptr<std::atomic<bool>> pause_flag,
+                 std::shared_ptr<std::atomic<WallpaperHwDecodeStatus>> status) {
     FormatCtxGuard fmt;
     if (avformat_open_input(&fmt.ctx, path.c_str(), nullptr, nullptr) < 0) {
         klog("wallpaper_hw_decode: open failed '%s'", path.c_str());
@@ -135,6 +194,8 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
         codec.ctx->get_format = get_hw_format;
         klog("wallpaper_hw_decode: hw decode enabled for '%s'", path.c_str());
     }
+    if (!on_drm_frame || hw_pix_fmt != AV_PIX_FMT_VAAPI)
+        status->store(WallpaperHwDecodeStatus::CpuFallback);
 
     if (avcodec_open2(codec.ctx, decoder, nullptr) < 0) {
         klog("wallpaper_hw_decode: avcodec_open2 failed '%s'", path.c_str());
@@ -201,15 +262,25 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
         while (av_buffersink_get_frame(buffersink_ctx, filtered.frame) >= 0) {
             int w = filtered.frame->width;
             int h = filtered.frame->height;
-            size_t row_bytes = static_cast<size_t>(w) * 4;
-            auto *copy = new unsigned char[row_bytes * static_cast<size_t>(h)];
-            for (int y = 0; y < h; ++y)
-                std::memcpy(
-                    copy + static_cast<size_t>(y) * row_bytes,
-                    filtered.frame->data[0] +
-                        static_cast<size_t>(y) * filtered.frame->linesize[0],
-                    row_bytes);
-            on_frame(copy, w, h);
+            int linesize = filtered.frame->linesize[0];
+            if (supports_row_length) {
+                // GL can read the padded buffer directly via
+                // GL_UNPACK_ROW_LENGTH, so hand it off with one bulk copy
+                // instead of stripping padding row by row.
+                size_t buf_bytes = static_cast<size_t>(linesize) * static_cast<size_t>(h);
+                auto *copy = new unsigned char[buf_bytes];
+                std::memcpy(copy, filtered.frame->data[0], buf_bytes);
+                on_frame(copy, w, h, linesize / 4);
+            } else {
+                size_t row_bytes = static_cast<size_t>(w) * 4;
+                auto *copy = new unsigned char[row_bytes * static_cast<size_t>(h)];
+                for (int y = 0; y < h; ++y)
+                    std::memcpy(copy + static_cast<size_t>(y) * row_bytes,
+                                filtered.frame->data[0] +
+                                    static_cast<size_t>(y) * linesize,
+                                row_bytes);
+                on_frame(copy, w, h, 0);
+            }
             av_frame_unref(filtered.frame);
         }
     };
@@ -217,6 +288,48 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
     PacketGuard packet;
     FrameGuard decoded;
     FrameGuard downloaded;
+    // Set on the first zero-copy failure: av_hwframe_map's result depends
+    // only on the driver/hwdevice, not the frame, so a failure is permanent
+    // for this decode session - retrying every frame would just add cost on
+    // top of the CPU fallback path for no chance of succeeding later.
+    bool zero_copy_disabled = false;
+
+    auto try_deliver_zero_copy = [&](AVFrame *hw_frame) -> bool {
+        AVFrame *drm_frame = av_frame_alloc();
+        if (!drm_frame)
+            return false;
+        drm_frame->format = AV_PIX_FMT_DRM_PRIME;
+        int map_ret = av_hwframe_map(drm_frame, hw_frame, AV_HWFRAME_MAP_READ);
+        if (map_ret < 0) {
+            char errbuf[AV_ERROR_MAX_STRING_SIZE] = {};
+            av_strerror(map_ret, errbuf, sizeof(errbuf));
+            klog("wallpaper_hw_decode: av_hwframe_map to DRM_PRIME failed for "
+                "'%s': %s (%d), disabling zero-copy for this playback",
+                path.c_str(), errbuf, map_ret);
+            av_frame_free(&drm_frame);
+            return false;
+        }
+        WallpaperHwDrmFrame out;
+        if (!fill_drm_frame(out, drm_frame)) {
+            const auto *desc = reinterpret_cast<const AVDRMFrameDescriptor *>(
+                drm_frame->data[0]);
+            if (desc && desc->nb_layers >= 1)
+                klog("wallpaper_hw_decode: unsupported DRM layout for '%s': "
+                    "nb_layers=%d format=0x%x nb_planes=%d, disabling "
+                    "zero-copy for this playback",
+                    path.c_str(), desc->nb_layers, desc->layers[0].format,
+                    desc->layers[0].nb_planes);
+            else
+                klog("wallpaper_hw_decode: DRM_PRIME frame for '%s' has no "
+                    "layers, disabling zero-copy for this playback",
+                    path.c_str());
+            av_frame_free(&drm_frame);
+            return false;
+        }
+        out.avframe_handle = drm_frame;
+        on_drm_frame(out);
+        return true;
+    };
 
     using clock = std::chrono::steady_clock;
     auto frame_interval = std::chrono::duration<double>(1.0 / std::max(1, fps));
@@ -228,18 +341,36 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
             if (recv_ret < 0)
                 return true;
 
-            AVFrame *sw_frame = decoded.frame;
-            if (hw_pix_fmt != AV_PIX_FMT_NONE &&
+            bool zero_copy_delivered = false;
+            if (on_drm_frame && !zero_copy_disabled &&
+                hw_pix_fmt == AV_PIX_FMT_VAAPI &&
                 decoded.frame->format == hw_pix_fmt) {
-                if (av_hwframe_transfer_data(downloaded.frame, decoded.frame, 0) <
-                    0) {
-                    av_frame_unref(decoded.frame);
-                    continue;
+                zero_copy_delivered = try_deliver_zero_copy(decoded.frame);
+                if (zero_copy_delivered) {
+                    status->store(WallpaperHwDecodeStatus::ZeroCopy);
+                } else {
+                    zero_copy_disabled = true;
+                    status->store(WallpaperHwDecodeStatus::CpuFallback);
+                    klog("wallpaper_hw_decode: zero-copy VAAPI import failed "
+                        "for '%s', falling back to CPU decode path for the "
+                        "rest of this playback",
+                        path.c_str());
                 }
-                sw_frame = downloaded.frame;
             }
-            deliver_frame(sw_frame);
-            av_frame_unref(downloaded.frame);
+            if (!zero_copy_delivered) {
+                AVFrame *sw_frame = decoded.frame;
+                if (hw_pix_fmt != AV_PIX_FMT_NONE &&
+                    decoded.frame->format == hw_pix_fmt) {
+                    if (av_hwframe_transfer_data(downloaded.frame,
+                                                 decoded.frame, 0) < 0) {
+                        av_frame_unref(decoded.frame);
+                        continue;
+                    }
+                    sw_frame = downloaded.frame;
+                }
+                deliver_frame(sw_frame);
+                av_frame_unref(downloaded.frame);
+            }
             av_frame_unref(decoded.frame);
 
             if (stop_flag->load())
@@ -264,6 +395,14 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
     };
 
     while (!stop_flag->load()) {
+        if (pause_flag->load()) {
+            while (!stop_flag->load() && pause_flag->load())
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            if (stop_flag->load())
+                return;
+            next_frame_due = clock::now();
+            continue;
+        }
         int read_ret = av_read_frame(fmt.ctx, packet.packet);
         if (read_ret < 0) {
             avcodec_send_packet(codec.ctx, nullptr);
@@ -292,13 +431,19 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
 
 } // namespace
 
-WallpaperHwDecodePlayback
-wallpaper_hw_decode_start(const std::string &path, const std::string &filter_desc,
-                          int fps, WallpaperHwDecodeFrameCallback on_frame) {
+WallpaperHwDecodePlayback wallpaper_hw_decode_start(
+    const std::string &path, const std::string &filter_desc, int fps,
+    bool supports_row_length, WallpaperHwDecodeFrameCallback on_frame,
+    WallpaperHwDecodeDrmFrameCallback on_drm_frame) {
     WallpaperHwDecodePlayback playback;
     playback.stop_flag = std::make_shared<std::atomic<bool>>(false);
-    playback.worker = std::thread(decode_loop, path, filter_desc, fps,
-                                  std::move(on_frame), playback.stop_flag);
+    playback.pause_flag = std::make_shared<std::atomic<bool>>(false);
+    playback.status = std::make_shared<std::atomic<WallpaperHwDecodeStatus>>(
+        WallpaperHwDecodeStatus::Idle);
+    playback.worker =
+        std::thread(decode_loop, path, filter_desc, fps, supports_row_length,
+                   std::move(on_frame), std::move(on_drm_frame),
+                   playback.stop_flag, playback.pause_flag, playback.status);
     return playback;
 }
 
@@ -309,4 +454,29 @@ void wallpaper_hw_decode_stop(WallpaperHwDecodePlayback &playback) {
     if (playback.worker.joinable())
         playback.worker.join();
     playback.stop_flag.reset();
+    playback.pause_flag.reset();
+    playback.status.reset();
+}
+
+void wallpaper_hw_decode_pause(WallpaperHwDecodePlayback &playback) {
+    if (playback.pause_flag)
+        playback.pause_flag->store(true);
+}
+
+void wallpaper_hw_decode_resume(WallpaperHwDecodePlayback &playback) {
+    if (playback.pause_flag)
+        playback.pause_flag->store(false);
+}
+
+void wallpaper_hw_decode_release_drm_frame(void *avframe_handle) {
+    if (!avframe_handle)
+        return;
+    auto *frame = static_cast<AVFrame *>(avframe_handle);
+    av_frame_free(&frame);
+}
+
+WallpaperHwDecodeStatus
+wallpaper_hw_decode_status(const WallpaperHwDecodePlayback &playback) {
+    return playback.status ? playback.status->load()
+                           : WallpaperHwDecodeStatus::Idle;
 }
