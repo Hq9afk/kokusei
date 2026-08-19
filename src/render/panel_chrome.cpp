@@ -195,8 +195,8 @@ float panel_draw_dropdown(Node *parent, TextureCache &cache, int32_t scale,
         }
 
     const Texture *active_tex = cached_text(cache, active_label, scale);
-    const Texture *chevron_tex = cached_icon(
-        cache, open ? icon::chevron_up : icon::chevron_down, scale);
+    const Texture *chevron_tex =
+        cached_icon(cache, open ? icon::chevron_up : icon::chevron_down, scale);
     float content_w = (active_tex ? active_tex->width : 0) + 6.0f +
                       (chevron_tex ? chevron_tex->width : 0);
     float trigger_w = content_w + 20.0f;
@@ -208,16 +208,14 @@ float panel_draw_dropdown(Node *parent, TextureCache &cache, int32_t scale,
                         : rgba(palette::text_alpha06),
                    open ? rgba(palette::accent) : rgba(palette::text_alpha11));
     if (active_tex)
-        node_add_texture(
-            parent, trigger_x + 10.0f,
-            y + (kSettingsFieldHeight - active_tex->height) / 2.0f,
-            *active_tex, rgba(palette::text));
+        node_add_texture(parent, trigger_x + 10.0f,
+                         y + (kSettingsFieldHeight - active_tex->height) / 2.0f,
+                         *active_tex, rgba(palette::text));
     if (chevron_tex)
-        node_add_texture(parent,
-                         trigger_x + trigger_w - 10.0f - chevron_tex->width,
-                         y + (kSettingsFieldHeight - chevron_tex->height) /
-                                 2.0f,
-                         *chevron_tex, rgba(palette::text_dim));
+        node_add_texture(
+            parent, trigger_x + trigger_w - 10.0f - chevron_tex->width,
+            y + (kSettingsFieldHeight - chevron_tex->height) / 2.0f,
+            *chevron_tex, rgba(palette::text_dim));
     click_regions.push_back({PanelClickKind::DropdownToggle,
                              {trigger_x, y, trigger_w, kSettingsFieldHeight},
                              dropdown_id});

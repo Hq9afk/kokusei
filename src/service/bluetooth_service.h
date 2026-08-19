@@ -22,7 +22,7 @@ std::optional<unsigned> read_sysfs_uint(const std::string &path);
 
 std::optional<std::string> read_sysfs_string(const std::string &path);
 
-}
+} // namespace rfkill_detail
 
 bool rfkill_bluetooth_hard_blocked();
 
@@ -66,7 +66,7 @@ inline bool is_nearby_bucket(const BluetoothDeviceInfo &d) {
     return !d.connected && !d.paired && !d.trusted;
 }
 
-}
+} // namespace bluetooth_detail
 
 using BluetoothNotifyFn =
     std::function<void(const std::string &summary, const std::string &body)>;

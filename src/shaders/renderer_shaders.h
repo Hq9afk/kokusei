@@ -28,22 +28,12 @@ constexpr const char *kRendererTexFs = R"(
     void main() { gl_FragColor = texture2D(u_tex, v_uv) * u_color; }
 )";
 
-// NV12 (BT.601 limited range) -> RGB, sampled straight from a zero-copy
-// VAAPI decode surface: no CPU-side YUV conversion or copy.
 constexpr const char *kRendererVideoFs = R"(
+    #extension GL_OES_EGL_image_external : require
     precision mediump float;
     varying vec2 v_uv;
-    uniform sampler2D u_y_tex;
-    uniform sampler2D u_uv_tex;
-    void main() {
-        float y = texture2D(u_y_tex, v_uv).r;
-        vec2 uv = texture2D(u_uv_tex, v_uv).rg - vec2(0.5, 0.5);
-        float yy = 1.164 * (y - 0.0625);
-        float r = yy + 1.596 * uv.y;
-        float g = yy - 0.391 * uv.x - 0.813 * uv.y;
-        float b = yy + 2.018 * uv.x;
-        gl_FragColor = vec4(r, g, b, 1.0);
-    }
+    uniform samplerExternalOES u_tex;
+    void main() { gl_FragColor = texture2D(u_tex, v_uv); }
 )";
 
 constexpr const char *kRendererRrectFs = R"(

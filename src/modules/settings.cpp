@@ -115,8 +115,9 @@ std::vector<IpcHandler> settings_ipc_handlers(SettingsState &settings,
              if (!settings.base.open && state.settings_enabled) {
                  MonitorOutput *target =
                      bar_detail::active_target_monitor(state);
-                 if (target && (target->output.wl != state.settings_bound_output ||
-                                !settings.base.layer_surface))
+                 if (target &&
+                     (target->output.wl != state.settings_bound_output ||
+                      !settings.base.layer_surface))
                      bar_detail::settings_retarget(state, settings, *target);
              }
              settings_toggle(settings, state.cfg, [&state](Config c) {
@@ -275,21 +276,20 @@ float draw_profile_block(SettingsState &state, Node *parent, int32_t scale,
     float avatar_x = x;
     float avatar_y = y + kSettingsProfileTopPadding;
     node_add_rrect(parent, avatar_x, avatar_y, kSettingsProfileAvatarSize,
-                   kSettingsProfileAvatarSize, kSettingsProfileAvatarSize / 2.0f,
-                   0.0f, rgba(palette::text_alpha04), kPanelNoBorder);
+                   kSettingsProfileAvatarSize,
+                   kSettingsProfileAvatarSize / 2.0f, 0.0f,
+                   rgba(palette::text_alpha04), kPanelNoBorder);
     const Texture *avatar_icon = cached_icon(state.tcache, icon::user, scale);
     if (avatar_icon)
-        node_add_texture(parent,
-                         avatar_x + (kSettingsProfileAvatarSize -
-                                     avatar_icon->width) /
-                                        2.0f,
-                         avatar_y + (kSettingsProfileAvatarSize -
-                                     avatar_icon->height) /
-                                        2.0f,
-                         *avatar_icon, rgba(palette::text));
+        node_add_texture(
+            parent,
+            avatar_x + (kSettingsProfileAvatarSize - avatar_icon->width) / 2.0f,
+            avatar_y +
+                (kSettingsProfileAvatarSize - avatar_icon->height) / 2.0f,
+            *avatar_icon, rgba(palette::text));
 
-    float text_x = avatar_x + kSettingsProfileAvatarSize +
-                   kSettingsProfileAvatarLabelGap;
+    float text_x =
+        avatar_x + kSettingsProfileAvatarSize + kSettingsProfileAvatarLabelGap;
     const Texture *name_tex =
         cached_text(state.tcache, user_info::username(), scale);
     const Texture *uptime_tex =
@@ -308,8 +308,7 @@ float draw_profile_block(SettingsState &state, Node *parent, int32_t scale,
 
     float block_h = kSettingsProfileTopPadding + kSettingsProfileAvatarSize +
                     kSettingsProfileBottomPadding;
-    node_add_rect(parent, x, y + block_h, w, 1.0f,
-                 rgba(palette::text_alpha11));
+    node_add_rect(parent, x, y + block_h, w, 1.0f, rgba(palette::text_alpha11));
     return block_h + kSettingsProfileDividerGap;
 }
 

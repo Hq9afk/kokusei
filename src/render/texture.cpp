@@ -1,8 +1,9 @@
-#include "render/texture.h"
-
+#include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <atomic>
 #include <cstring>
+
+#include "render/texture.h"
 
 namespace {
 
@@ -21,7 +22,8 @@ void clear_unpack_row_length(int stride_px) {
 } // namespace
 
 void texture_detect_caps() {
-    const char *ext = reinterpret_cast<const char *>(glGetString(GL_EXTENSIONS));
+    const char *ext =
+        reinterpret_cast<const char *>(glGetString(GL_EXTENSIONS));
     g_row_length_supported.store(
         ext && std::strstr(ext, "GL_EXT_unpack_subimage") != nullptr,
         std::memory_order_relaxed);

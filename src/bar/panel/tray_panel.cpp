@@ -541,10 +541,9 @@ void tray_panel_handle_click(TrayPanelState &state, TrayState &tray,
                             menu, app.compositor, app.layer_shell, output);
                     },
                     [&] {
-                        return tray_menu_init_egl(menu, app.renderer, tray,
-                                                  app.egl_display,
-                                                  app.egl_config,
-                                                  app.egl_context);
+                        return tray_menu_init_egl(
+                            menu, app.renderer, tray, app.egl_display,
+                            app.egl_config, app.egl_context);
                     });
                 bar_detail::rest_egl_current(app);
                 tray_menu_open(menu, tray, *item, region.rect,

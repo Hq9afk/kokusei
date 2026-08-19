@@ -120,7 +120,7 @@ bool volume_pill_peek_expire(MonitorOutput &mon);
 void volume_pill_peek_tick(MonitorOutput &mon);
 void volume_pill_handle_wheel(MonitorOutput &mon, double dy);
 
-}
+} // namespace bar_detail
 
 void bar_paint(MonitorOutput &mon);
 void bar_request_frame(MonitorOutput &mon);

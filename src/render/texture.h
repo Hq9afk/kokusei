@@ -34,19 +34,12 @@ struct Texture {
     }
 };
 
-// stride_px: row length in pixels the buffer was allocated with, if it
-// differs from width (0 means tightly packed, no padding).
 Texture make_texture_rgba(int width, int height, const uint8_t *rgba,
                           bool mipmapped = false, int stride_px = 0);
 
-// Reuses tex's existing GL texture object via glTexSubImage2D when its size
-// already matches, instead of reallocating; falls back to make_texture_rgba
-// otherwise (first upload, or a size change).
 void update_texture_rgba(Texture &tex, int width, int height,
                          const uint8_t *rgba, bool mipmapped = false,
                          int stride_px = 0);
 
-// Detects GL_EXT_unpack_subimage on the current context; call once with a
-// GL context current (e.g. from Renderer::init).
 void texture_detect_caps();
 bool texture_row_length_supported();

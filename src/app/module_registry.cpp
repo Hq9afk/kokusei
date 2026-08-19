@@ -319,7 +319,7 @@ class SettingsModule final : public Module {
                                : std::string();
                 },
                 [&app](const std::string &name,
-                      int column) -> WallpaperHwDecodeStatus {
+                       int column) -> WallpaperHwDecodeStatus {
                     for (auto &mon : app.outputs) {
                         if (mon->output.name != name)
                             continue;

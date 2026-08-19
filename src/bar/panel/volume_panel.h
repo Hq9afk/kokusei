@@ -101,7 +101,7 @@ float content_height(const std::vector<PanelRow> &rows);
 
 float panel_height(const std::vector<PanelRow> &rows);
 
-}
+} // namespace volume_panel_detail
 
 bool volume_panel_create_surface(VolumePanelState &state,
                                  wl_compositor *compositor,

@@ -54,7 +54,8 @@ struct SettingsState {
     WallpaperSubtabState wallpaper_static;
     WallpaperSubtabState wallpaper_animated;
     bool wallpaper_animated_active = false;
-    std::function<WallpaperHwDecodeStatus(const std::string &monitor, int column)>
+    std::function<WallpaperHwDecodeStatus(const std::string &monitor,
+                                          int column)>
         wallpaper_decode_status;
 
     std::vector<std::string> monitor_names;

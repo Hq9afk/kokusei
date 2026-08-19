@@ -24,8 +24,6 @@ struct IdleState {
     uint32_t timeout_seconds = 300;
     std::string on_idle_command;
     std::string on_resume_command;
-    // Wired to pause/resume the animated wallpaper decode threads so they
-    // don't burn CPU decoding frames nobody can see.
     std::function<void()> on_idled;
     std::function<void()> on_resumed;
 };

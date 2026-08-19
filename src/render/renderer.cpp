@@ -1,3 +1,5 @@
+#include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <algorithm>
 #include <cmath>
 
@@ -125,13 +127,9 @@ void Renderer::draw_video_texture_rect(float x, float y, float w, float h,
     glUseProgram(video_program_);
     set_common_uniforms(video_program_, x, y, w, h);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, tex.y_tex);
-    glUniform1i(glGetUniformLocation(video_program_, "u_y_tex"), 0);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, tex.uv_tex);
-    glUniform1i(glGetUniformLocation(video_program_, "u_uv_tex"), 1);
+    glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex.tex);
+    glUniform1i(glGetUniformLocation(video_program_, "u_tex"), 0);
     draw_quad(video_program_);
-    glActiveTexture(GL_TEXTURE0);
 }
 
 void Renderer::apply_clip(const ClipRect &r) {

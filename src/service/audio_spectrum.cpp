@@ -365,18 +365,19 @@ void AudioSpectrum::processChannel(ChannelPipeline &ch) {
     for (int i = 0; i < kBars; ++i) {
         size_t idx = static_cast<size_t>(i);
         if (ch.bands[idx] < ch.prev_bands[idx]) {
-            ch.bands[idx] = std::max(
-                static_cast<float>(static_cast<double>(ch.peak[idx]) *
-                                   (1.0 - static_cast<double>(ch.fall[idx]) *
-                                              static_cast<double>(ch.fall[idx]) *
-                                              gravity_mod)),
-                0.0f);
+            ch.bands[idx] =
+                std::max(static_cast<float>(
+                             static_cast<double>(ch.peak[idx]) *
+                             (1.0 - static_cast<double>(ch.fall[idx]) *
+                                        static_cast<double>(ch.fall[idx]) *
+                                        gravity_mod)),
+                         0.0f);
             ch.fall[idx] += 0.028f;
         } else {
             ch.peak[idx] = ch.bands[idx];
             ch.fall[idx] = 0.0f;
-            ch.bands[idx] =
-                ch.prev_bands[idx] + (ch.bands[idx] - ch.prev_bands[idx]) * 0.6f;
+            ch.bands[idx] = ch.prev_bands[idx] +
+                            (ch.bands[idx] - ch.prev_bands[idx]) * 0.6f;
         }
         ch.prev_bands[idx] = ch.bands[idx];
     }

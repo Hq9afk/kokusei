@@ -76,22 +76,25 @@ void wallpaper_paint(WallpaperState &wp) {
     for (size_t i = 0; i < columns; ++i) {
         bool zero_copy = i < wp.column_animations.size() &&
                          wp.column_animations[i].zero_copy &&
-                         wp.column_animations[i].video_tex.y_tex;
+                         wp.column_animations[i].video_tex.tex;
         Texture *tex = i < wp.column_textures.size() && wp.column_textures[i].id
-                          ? &wp.column_textures[i]
-                          : nullptr;
+                           ? &wp.column_textures[i]
+                           : nullptr;
         if (!zero_copy && !tex)
             continue;
-        int tex_w = zero_copy ? wp.column_animations[i].video_tex.width : tex->width;
-        int tex_h = zero_copy ? wp.column_animations[i].video_tex.height : tex->height;
+        int tex_w =
+            zero_copy ? wp.column_animations[i].video_tex.width : tex->width;
+        int tex_h =
+            zero_copy ? wp.column_animations[i].video_tex.height : tex->height;
 
         float column_x = static_cast<float>(i) * column_w;
         FillMode mode = wallpaper_column_fill_mode(wp, i);
 
-        float scale =
-            mode == FillMode::Fit
-                ? std::min(column_w / tex_w, static_cast<float>(wp.height) / tex_h)
-                : std::max(column_w / tex_w, static_cast<float>(wp.height) / tex_h);
+        float scale = mode == FillMode::Fit
+                          ? std::min(column_w / tex_w,
+                                     static_cast<float>(wp.height) / tex_h)
+                          : std::max(column_w / tex_w,
+                                     static_cast<float>(wp.height) / tex_h);
         float draw_w = tex_w * scale;
         float draw_h = tex_h * scale;
 
@@ -184,15 +187,11 @@ void wallpaper_upload_pending(WallpaperState &wp) {
     size_t column = static_cast<size_t>(wp.pending_column);
     bool animated = column < wp.column_animations.size() &&
                     wp.column_animations[column].decode.stop_flag != nullptr;
-    // Animated columns update ~24x/sec on a full-screen quad drawn near 1:1
-    // scale: never worth a mip chain, and worth reusing the texture object.
     update_texture_rgba(wp.column_textures[column], wp.pending_width,
                         wp.pending_height, wp.pending_pixels, !animated,
                         wp.pending_stride);
     delete[] wp.pending_pixels;
     wp.pending_pixels = nullptr;
-    klog("wallpaper: uploaded column %d %dx%d texture", wp.pending_column,
-         wp.pending_width, wp.pending_height);
     wallpaper_request_frame(wp);
 }
 
@@ -269,9 +268,9 @@ void wallpaper_animate_stop(WallpaperState &wp, int column_index) {
         wallpaper_hw_decode_release_drm_frame(pb.pinned_frame_prev);
         pb.pinned_frame_prev = nullptr;
     }
-    if (pb.video_tex.y_tex && wp.egl_surface != EGL_NO_SURFACE) {
+    if (pb.video_tex.tex && wp.egl_surface != EGL_NO_SURFACE) {
         eglMakeCurrent(wp.egl_display, wp.egl_surface, wp.egl_surface,
-                      wp.egl_context);
+                       wp.egl_context);
         pb.video_tex.reset();
     }
     pb.zero_copy = false;
@@ -292,8 +291,8 @@ void wallpaper_animate_resume_all(WallpaperState &wp) {
         wallpaper_hw_decode_resume(pb.decode);
 }
 
-WallpaperHwDecodeStatus wallpaper_animate_decode_status(const WallpaperState &wp,
-                                                        int column_index) {
+WallpaperHwDecodeStatus
+wallpaper_animate_decode_status(const WallpaperState &wp, int column_index) {
     if (column_index < 0 ||
         static_cast<size_t>(column_index) >= wp.column_animations.size())
         return WallpaperHwDecodeStatus::Idle;
@@ -333,22 +332,22 @@ void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
         texture_row_length_supported(),
         [&wp, generation, column_index](unsigned char *rgba, int w, int h,
                                         int stride_px) {
-            DeferredCall::call_later([&wp, rgba, w, h, stride_px, generation,
-                                      column_index] {
-                if (static_cast<size_t>(column_index) >=
-                        wp.column_generations.size() ||
-                    generation != wp.column_generations[static_cast<size_t>(
-                                      column_index)]) {
-                    delete[] rgba;
-                    return;
-                }
-                wp.pending_pixels = rgba;
-                wp.pending_width = w;
-                wp.pending_height = h;
-                wp.pending_stride = stride_px;
-                wp.pending_column = column_index;
-                wallpaper_upload_pending(wp);
-            });
+            DeferredCall::call_later(
+                [&wp, rgba, w, h, stride_px, generation, column_index] {
+                    if (static_cast<size_t>(column_index) >=
+                            wp.column_generations.size() ||
+                        generation != wp.column_generations[static_cast<size_t>(
+                                          column_index)]) {
+                        delete[] rgba;
+                        return;
+                    }
+                    wp.pending_pixels = rgba;
+                    wp.pending_width = w;
+                    wp.pending_height = h;
+                    wp.pending_stride = stride_px;
+                    wp.pending_column = column_index;
+                    wallpaper_upload_pending(wp);
+                });
         },
         video_texture_import_supported()
             ? WallpaperHwDecodeDrmFrameCallback(
@@ -365,26 +364,23 @@ void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
                                   frame.avframe_handle);
                               return;
                           }
-                          AnimatedColumnPlayback &pb = wp.column_animations
-                              [static_cast<size_t>(column_index)];
+                          AnimatedColumnPlayback &pb =
+                              wp.column_animations[static_cast<size_t>(
+                                  column_index)];
                           DrmFrameImport import;
                           import.plane_count = frame.plane_count;
                           import.width = frame.width;
                           import.height = frame.height;
                           for (int i = 0; i < frame.plane_count; ++i)
-                              import.planes[i] = {
-                                  frame.planes[i].fd,   frame.planes[i].fourcc,
-                                  frame.planes[i].modifier,
-                                  frame.planes[i].offset, frame.planes[i].pitch,
-                                  frame.planes[i].width, frame.planes[i].height};
+                              import.planes[i] = {frame.planes[i].fd,
+                                                  frame.planes[i].modifier,
+                                                  frame.planes[i].offset,
+                                                  frame.planes[i].pitch};
                           eglMakeCurrent(wp.egl_display, wp.egl_surface,
-                                        wp.egl_surface, wp.egl_context);
+                                         wp.egl_surface, wp.egl_context);
                           if (video_texture_import(pb.video_tex, wp.egl_display,
                                                    import)) {
                               pb.zero_copy = true;
-                              // Keep the previous frame pinned one extra
-                              // cycle so the driver isn't asked to recycle a
-                              // VASurface the GPU might still be reading.
                               if (pb.pinned_frame_prev)
                                   wallpaper_hw_decode_release_drm_frame(
                                       pb.pinned_frame_prev);
@@ -392,6 +388,8 @@ void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
                               pb.pinned_frame = frame.avframe_handle;
                               wallpaper_request_frame(wp);
                           } else {
+                              if (pb.decode.egl_import_failed)
+                                  pb.decode.egl_import_failed->store(true);
                               wallpaper_hw_decode_release_drm_frame(
                                   frame.avframe_handle);
                           }

@@ -173,9 +173,8 @@ bool bootstrap_egl(WaylandState &state) {
 
 bool renderer_bootstrap_init(WaylandState &state) {
     const EGLint pbuffer_attribs[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
-    EGLSurface pbuffer = eglCreatePbufferSurface(state.egl_display,
-                                                 state.egl_config,
-                                                 pbuffer_attribs);
+    EGLSurface pbuffer = eglCreatePbufferSurface(
+        state.egl_display, state.egl_config, pbuffer_attribs);
     if (pbuffer == EGL_NO_SURFACE)
         return false;
     if (!eglMakeCurrent(state.egl_display, pbuffer, pbuffer,

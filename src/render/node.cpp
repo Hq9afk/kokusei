@@ -134,7 +134,7 @@ void node_draw(const Node &n, Renderer &renderer, float parent_x,
             renderer.draw_texture_rect(x, y, n.w, n.h, *n.tex, n.tint);
         break;
     case NodeKind::VideoTexture:
-        if (n.video_tex && n.video_tex->y_tex)
+        if (n.video_tex && n.video_tex->tex)
             renderer.draw_video_texture_rect(x, y, n.w, n.h, *n.video_tex);
         break;
     case NodeKind::Group:

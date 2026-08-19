@@ -82,4 +82,4 @@ MonitorOutput *active_target_monitor(WaylandState &app);
 void settings_retarget(WaylandState &app, SettingsState &settings,
                        MonitorOutput &target);
 
-}
+} // namespace bar_detail

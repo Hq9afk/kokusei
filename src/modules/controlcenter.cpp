@@ -82,7 +82,7 @@ void controlcenter_toggle(ControlCenterState &state, bool by_widget) {
 
 std::vector<IpcHandler>
 controlcenter_ipc_handlers(ControlCenterState &controlcenter,
-                          WaylandState &state) {
+                           WaylandState &state) {
     return {
         {"controlcenter",
          [&controlcenter, &state] {
@@ -199,8 +199,7 @@ CardChrome card_chrome_draw(Node *root, TextureCache &tcache, int32_t scale,
 
 float draw_profile_card(Node *root, TextureCache &tcache, int32_t scale,
                         float x, float y, float w) {
-    const Texture *name_tex =
-        cached_text(tcache, user_info::username(), scale);
+    const Texture *name_tex = cached_text(tcache, user_info::username(), scale);
     const Texture *uptime_tex =
         cached_text(tcache, user_info::uptime_string(), scale);
     float info_h = (name_tex ? name_tex->height : 0) + kProfileInfoSpacing +

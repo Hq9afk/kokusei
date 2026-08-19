@@ -523,16 +523,10 @@ void draw_wallpaper_grid(SettingsState &state, Node *parent, int32_t scale,
     }
 }
 
-// Only shown when the currently selected animated column has fallen back
-// to CPU decode (see WallpaperHwDecodeStatus::CpuFallback) - the point is
-// to surface a silently-degraded (high CPU) animated wallpaper, not to
-// narrate normal operation.
 float draw_wallpaper_decode_warning(SettingsState &state, Node *parent,
                                     int32_t scale, float x, float y, float w) {
     const Texture *tex = cached_text(
-        state.tcache,
-        "Zero-copy GPU decode unavailable - running on CPU (higher CPU usage)",
-        scale);
+        state.tcache, "Warning: Animated wallpaper is running on CPU.", scale);
     float text_h = tex ? tex->height : 0.0f;
     float row_h = text_h + kSettingsWallpaperWarningPad * 2.0f;
     node_add_rrect(parent, x, y, w, row_h, metrics::radius_sm,

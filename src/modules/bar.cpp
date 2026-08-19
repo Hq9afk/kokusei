@@ -246,10 +246,10 @@ void bar_paint(MonitorOutput &mon) {
         std::chrono::steady_clock::now() < bs.capsule.label_linger_until;
     PointerState hit_pointer = app.pointer;
     hit_pointer.y -= content_y_offset;
-    PillId hovered =
-        current_panel_pill != PillId::None ? current_panel_pill
-        : lingering                        ? bs.capsule.label_linger_pill
-                    : hit_test_pills(bs.capsule, hit_pointer, mon.surface);
+    PillId hovered = current_panel_pill != PillId::None ? current_panel_pill
+                     : lingering
+                         ? bs.capsule.label_linger_pill
+                         : hit_test_pills(bs.capsule, hit_pointer, mon.surface);
     if (hovered == PillId::None && bs.volume_peek_active)
         hovered = PillId::Volume;
 
@@ -280,9 +280,8 @@ void bar_paint(MonitorOutput &mon) {
                                  control_center_pills, hovered, height);
     float batt_w = pills_row_width(bs.capsule, mon.animations, battery_pills,
                                    hovered, height);
-    float stub_w =
-        pills_row_width(bs.capsule, mon.animations, right_stub_pills, hovered,
-                        height, current_panel_pill);
+    float stub_w = pills_row_width(bs.capsule, mon.animations, right_stub_pills,
+                                   hovered, height, current_panel_pill);
 
     float cc_x = mon.width - cc_w;
     float batt_x = cc_x - (batt_w > 0 ? kCapsuleGap : 0.0f) - batt_w;
@@ -466,14 +465,12 @@ void BarPerMonitorModule::destroy(WaylandState &app, MonitorOutput &mon) {
                           state.volume_panel.base.layer_surface,
                           state.volume_panel.base.egl_window,
                           state.volume_panel.base.egl_surface);
-    destroy_layer_surface(d, state.tray_panel.base.surface,
-                          state.tray_panel.base.layer_surface,
-                          state.tray_panel.base.egl_window,
-                          state.tray_panel.base.egl_surface);
-    destroy_layer_surface(d, state.tray_menu.base.surface,
-                          state.tray_menu.base.layer_surface,
-                          state.tray_menu.base.egl_window,
-                          state.tray_menu.base.egl_surface);
+    destroy_layer_surface(
+        d, state.tray_panel.base.surface, state.tray_panel.base.layer_surface,
+        state.tray_panel.base.egl_window, state.tray_panel.base.egl_surface);
+    destroy_layer_surface(
+        d, state.tray_menu.base.surface, state.tray_menu.base.layer_surface,
+        state.tray_menu.base.egl_window, state.tray_menu.base.egl_surface);
 }
 
 bool BarPerMonitorModule::owns_surface(wl_surface *surface) const {
@@ -489,25 +486,22 @@ void BarPerMonitorModule::request_frame() {
     if (!mon_)
         return;
     bar_request_frame(*mon_);
-    network_panel_request_frame(state.network_panel,
-                                bar_detail::pill_center_x(state.capsule,
-                                                          PillId::Wifi),
-                                static_cast<float>(bar_detail::kBarHeight),
-                                bar_detail::kBarTopMargin);
+    network_panel_request_frame(
+        state.network_panel,
+        bar_detail::pill_center_x(state.capsule, PillId::Wifi),
+        static_cast<float>(bar_detail::kBarHeight), bar_detail::kBarTopMargin);
     bluetooth_panel_request_frame(
         state.bluetooth_panel,
         bar_detail::pill_center_x(state.capsule, PillId::Bluetooth),
         static_cast<float>(bar_detail::kBarHeight), bar_detail::kBarTopMargin);
-    volume_panel_request_frame(state.volume_panel,
-                               bar_detail::pill_center_x(state.capsule,
-                                                         PillId::Volume),
-                               static_cast<float>(bar_detail::kBarHeight),
-                               bar_detail::kBarTopMargin);
-    tray_panel_request_frame(state.tray_panel,
-                             bar_detail::pill_center_x(state.capsule,
-                                                       PillId::Tray),
-                             static_cast<float>(bar_detail::kBarHeight),
-                             bar_detail::kBarTopMargin);
+    volume_panel_request_frame(
+        state.volume_panel,
+        bar_detail::pill_center_x(state.capsule, PillId::Volume),
+        static_cast<float>(bar_detail::kBarHeight), bar_detail::kBarTopMargin);
+    tray_panel_request_frame(
+        state.tray_panel,
+        bar_detail::pill_center_x(state.capsule, PillId::Tray),
+        static_cast<float>(bar_detail::kBarHeight), bar_detail::kBarTopMargin);
     tray_menu_request_frame(state.tray_menu);
 }
 
@@ -594,8 +588,8 @@ void BarPerMonitorModule::handle_scroll(WaylandState &app, MonitorOutput &mon,
         volume_panel_handle_scroll(state.volume_panel, app.pipewire, dy);
         volume_panel_dispatch(app);
     } else if (surface == mon.surface &&
-              bar_detail::hit_test_pills(state.capsule, app.pointer,
-                                         mon.surface) == PillId::Volume) {
+               bar_detail::hit_test_pills(state.capsule, app.pointer,
+                                          mon.surface) == PillId::Volume) {
         bar_detail::volume_pill_handle_wheel(mon, dy);
     }
 }
@@ -605,8 +599,7 @@ void BarPerMonitorModule::handle_key_event(WaylandState &app,
                                            const KeyEvent &event) {
     (void)mon;
     if (state.network_panel.base.open) {
-        network_panel_handle_key_event(state.network_panel, app.network,
-                                       event);
+        network_panel_handle_key_event(state.network_panel, app.network, event);
         network_panel_dispatch(app, true);
     } else if (state.bluetooth_panel.base.open) {
         bluetooth_panel_handle_key_event(state.bluetooth_panel, app.bluetooth,

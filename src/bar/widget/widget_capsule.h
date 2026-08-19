@@ -98,7 +98,7 @@ float draw_pills(Node *root, WidgetCapsuleState &capsule,
 void dispatch_pill_click(WidgetCapsuleState &capsule,
                          const PointerState &pointer, wl_surface *own_surface);
 
-}
+} // namespace bar_detail
 
 struct NetworkPanelState;
 struct BluetoothPanelState;

@@ -29,10 +29,6 @@ struct AnimatedColumnPlayback {
     std::string path;
     FillMode mode = FillMode::Crop;
 
-    // Zero-copy VAAPI path: video_tex samples straight from the decode
-    // surface's dma-buf. pinned_frame/pinned_frame_prev keep the last two
-    // imported VASurfaces alive (owning AVFrame* handles) so the decoder
-    // doesn't recycle a surface the GPU may still be reading from.
     VideoTexture video_tex;
     void *pinned_frame = nullptr;
     void *pinned_frame_prev = nullptr;
@@ -98,8 +94,8 @@ void wallpaper_animate_pause_all(WallpaperState &wp);
 
 void wallpaper_animate_resume_all(WallpaperState &wp);
 
-WallpaperHwDecodeStatus wallpaper_animate_decode_status(const WallpaperState &wp,
-                                                        int column_index);
+WallpaperHwDecodeStatus
+wallpaper_animate_decode_status(const WallpaperState &wp, int column_index);
 
 void wallpaper_animate_sync_from_config(WallpaperState &wp, const Config &cfg,
                                         const std::string &monitor_name);

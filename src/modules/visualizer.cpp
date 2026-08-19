@@ -15,8 +15,9 @@ namespace {
 void render_thread_main(VisualizerState *state) {
     if (!eglMakeCurrent(state->base.egl_display, state->base.egl_surface,
                         state->base.egl_surface, state->render_context)) {
-        klog("visualizer: render thread eglMakeCurrent failed, eglGetError=0x%x",
-             eglGetError());
+        klog(
+            "visualizer: render thread eglMakeCurrent failed, eglGetError=0x%x",
+            eglGetError());
         return;
     }
     glEnable(GL_BLEND);

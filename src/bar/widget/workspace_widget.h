@@ -25,4 +25,4 @@ float draw_workspace_row(Node *root, WorkspaceWidgetState &wstate,
                          const std::vector<Workspace> &ws_list, int active_id,
                          const float pill_bg[4]);
 
-}
+} // namespace bar_detail
