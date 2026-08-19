@@ -47,7 +47,7 @@ struct Config {
     std::string idle_command;
     std::string idle_resume_command;
 
-    std::string visualizer_shape = "bars";
+    std::string visualizer_shape = "bar";
 };
 
 bool osd_effective_enabled(const Config &cfg, const std::string &monitor_name);

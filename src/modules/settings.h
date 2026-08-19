@@ -44,6 +44,7 @@ struct SettingsState {
     SettingsTab active_tab = SettingsTab::Wallpaper;
     SettingsFieldId focused_field = SettingsFieldId::None;
     TextFieldState field_buffer;
+    std::string open_dropdown_id;
 
     WallpaperSubtabState wallpaper_static;
     WallpaperSubtabState wallpaper_animated;

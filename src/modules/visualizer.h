@@ -2,13 +2,11 @@
 
 #include "app/config.h"
 #include "app/ipc.h"
-#include "config/visualizer_config.h"
-#include "render/ncs_visualizer.h"
-#include "render/renderer.h"
-#include "render/scene.h"
 #include "render/toplevel_window.h"
 #include "service/audio_spectrum.h"
 #include "service/keyboard.h"
+#include "visualizer/bar_visualizer.h"
+#include "visualizer/sphere_visualizer.h"
 
 #include <EGL/egl.h>
 
@@ -25,7 +23,7 @@ struct WaylandState;
 // the visualizer's dedicated render thread. Copied, not referenced: the
 // poll loop's spectrum vectors are only valid for the duration of its call.
 struct VisualizerFrame {
-    bool ncs_shape = false;
+    bool sphere_shape = false;
     int width = 0;
     int height = 0;
     int32_t scale = 1;
@@ -46,21 +44,16 @@ struct VisualizerRenderThreadState {
 };
 
 // VisualizerState owns one dedicated render thread covering both shapes
-// (bars and ncs alike), matching noctalia's model of a single thread doing
+// (bar and sphere alike), matching noctalia's model of a single thread doing
 // all GL/scene work for a visual, rather than kokusei's previous
-// ncs-only-threaded special case. state.scene, thread_renderer and
-// thread_renderer_ready are touched exclusively by render_thread once it is
-// running; the poll-loop thread only ever writes into thread_state's
-// pending frame under its mutex.
+// sphere-only-threaded special case. state.bar and state.sphere are touched
+// exclusively by render_thread once it is running; the poll-loop thread only
+// ever writes into thread_state's pending frame under its mutex.
 struct VisualizerState {
     ToplevelWindowBase base;
-    Scene scene;
-    Renderer thread_renderer;
-    bool thread_renderer_ready = false;
     AudioSpectrum spectrum;
-    NcsVisualizerState ncs;
-    std::vector<float> display_values =
-        std::vector<float>(kVisualizerBarCount, 0.0f);
+    BarVisualizerState bar;
+    SphereVisualizerState sphere;
     std::chrono::steady_clock::time_point last_frame;
     std::chrono::steady_clock::time_point start_time;
     bool spectrum_ready = false;

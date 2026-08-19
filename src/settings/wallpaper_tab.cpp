@@ -151,7 +151,7 @@ std::string wallpaper_column_override(const Config &cfg,
                                       const std::string &region, int column,
                                       bool animated) {
     return animated
-               ? wallpaper_service_animated_column_path(cfg, region, column)
+               ? wallpaper_service_animated_column_override(cfg, region, column)
                : wallpaper_service_column_override(cfg, region, column);
 }
 
@@ -536,15 +536,13 @@ float wallpaper_tab_paint(SettingsState &state, Node *root, int32_t scale,
     sub.grid_width =
         state.panel_rect.x + state.panel_rect.w - kPanelPadding - x;
     draw_toggle_row(state, root, scale, x, y, sub.grid_width,
+                    "Use Default Wallpaper", cfg.default_wallpaper_enabled,
+                    "usedefaultwallpaper", true);
+    y += kSettingsToggleTileHeight + kPanelRowGap;
+    draw_toggle_row(state, root, scale, x, y, sub.grid_width,
                     "Enable animated wallpaper", cfg.wallpaper_animated_enabled,
                     "enableanimatedwallpaper", true);
     y += kSettingsToggleTileHeight + kPanelRowGap;
-    if (!animated) {
-        draw_toggle_row(state, root, scale, x, y, sub.grid_width,
-                        "Use Default Wallpaper", cfg.default_wallpaper_enabled,
-                        "usedefaultwallpaper", true);
-        y += kSettingsToggleTileHeight + kPanelRowGap;
-    }
     draw_region_row(state, root, scale, x, y, sub.grid_width, cfg, sub,
                     animated);
     y += kSettingsMonitorChipHeight + kPanelRowGap;

@@ -1,59 +1,15 @@
 #include "render/renderer.h"
 
 #include "render/gl.h"
+#include "shaders/renderer_shaders.h"
 
 #include <algorithm>
 #include <cmath>
 
 bool Renderer::init() {
-    static const char *quad_vs = R"(
-        attribute vec2 a_pos;
-        uniform vec2 u_viewport;
-        uniform vec4 u_rect;
-        varying vec2 v_uv;
-        void main() {
-            v_uv = a_pos;
-            vec2 px = u_rect.xy + a_pos * u_rect.zw;
-            vec2 ndc = vec2(px.x / u_viewport.x * 2.0 - 1.0,
-                             1.0 - px.y / u_viewport.y * 2.0);
-            gl_Position = vec4(ndc, 0.0, 1.0);
-        }
-    )";
-    static const char *rect_fs = R"(
-        precision mediump float;
-        uniform vec4 u_color;
-        void main() { gl_FragColor = u_color; }
-    )";
-    static const char *tex_fs = R"(
-        precision mediump float;
-        varying vec2 v_uv;
-        uniform sampler2D u_tex;
-        uniform vec4 u_color;
-        void main() { gl_FragColor = texture2D(u_tex, v_uv) * u_color; }
-    )";
-
-    static const char *rrect_fs = R"(
-        precision mediump float;
-        varying vec2 v_uv;
-        uniform vec2 u_size;
-        uniform float u_radius;
-        uniform float u_border_width;
-        uniform vec4 u_fill_color;
-        uniform vec4 u_border_color;
-        void main() {
-            vec2 half_size = u_size * 0.5;
-            vec2 p = (v_uv - 0.5) * u_size;
-            vec2 b = half_size - u_radius;
-            float d = length(max(abs(p) - b, 0.0)) - u_radius;
-            float alpha = 1.0 - smoothstep(-0.5, 0.5, d);
-            vec4 color = d <= -u_border_width ? u_fill_color : u_border_color;
-            gl_FragColor = color * alpha;
-        }
-    )";
-
-    rect_program_ = gl_compile_program(quad_vs, rect_fs);
-    tex_program_ = gl_compile_program(quad_vs, tex_fs);
-    rrect_program_ = gl_compile_program(quad_vs, rrect_fs);
+    rect_program_ = gl_compile_program(kRendererQuadVs, kRendererRectFs);
+    tex_program_ = gl_compile_program(kRendererQuadVs, kRendererTexFs);
+    rrect_program_ = gl_compile_program(kRendererQuadVs, kRendererRrectFs);
     if (!rect_program_ || !tex_program_ || !rrect_program_)
         return false;
 
@@ -62,6 +18,18 @@ bool Renderer::init() {
     glBindBuffer(GL_ARRAY_BUFFER, quad_vbo_);
     glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
     return true;
+}
+
+void Renderer::destroy() {
+    if (rect_program_)
+        glDeleteProgram(rect_program_);
+    if (tex_program_)
+        glDeleteProgram(tex_program_);
+    if (rrect_program_)
+        glDeleteProgram(rrect_program_);
+    if (quad_vbo_)
+        glDeleteBuffers(1, &quad_vbo_);
+    *this = Renderer{};
 }
 
 void Renderer::begin_frame(int logical_width, int logical_height,

@@ -175,9 +175,7 @@ std::string wallpaper_service_column_path(const Config &cfg,
         wallpaper_service_column_override(cfg, monitor_name, column_index);
     if (!override.empty())
         return override;
-    return column_index == 0 && cfg.default_wallpaper_enabled
-               ? cfg.wallpaper_path
-               : "";
+    return cfg.default_wallpaper_enabled ? cfg.wallpaper_path : "";
 }
 
 std::string wallpaper_service_fill_mode(const Config &cfg,
@@ -199,13 +197,22 @@ int wallpaper_service_animated_column_count(const Config &cfg,
                : 1;
 }
 
-std::string wallpaper_service_animated_column_path(
+std::string wallpaper_service_animated_column_override(
     const Config &cfg, const std::string &monitor_name, int column_index) {
     auto it = cfg.wallpaper_animated_columns.find(monitor_name);
     if (it != cfg.wallpaper_animated_columns.end() && column_index >= 0 &&
         static_cast<size_t>(column_index) < it->second.size())
         return it->second[static_cast<size_t>(column_index)];
     return "";
+}
+
+std::string wallpaper_service_animated_column_path(
+    const Config &cfg, const std::string &monitor_name, int column_index) {
+    std::string override = wallpaper_service_animated_column_override(
+        cfg, monitor_name, column_index);
+    if (!override.empty())
+        return override;
+    return cfg.default_wallpaper_enabled ? cfg.wallpaper_path : "";
 }
 
 std::string wallpaper_service_animated_fill_mode(

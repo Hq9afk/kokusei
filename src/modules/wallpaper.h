@@ -5,6 +5,7 @@
 #include "render/texture.h"
 #include "service/frame_clock.h"
 #include "service/output_scale.h"
+#include "service/wallpaper_hw_decode.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include <EGL/egl.h>
 #include <wayland-client.h>
@@ -13,8 +14,6 @@
 #include <cstdint>
 #include <functional>
 #include <string>
-#include <sys/types.h>
-#include <thread>
 #include <vector>
 
 class Renderer;
@@ -22,8 +21,7 @@ class Renderer;
 enum class FillMode { Crop, Fit };
 
 struct AnimatedColumnPlayback {
-    pid_t pid = -1;
-    std::thread reader;
+    WallpaperHwDecodePlayback decode;
     std::string path;
     FillMode mode = FillMode::Crop;
 };

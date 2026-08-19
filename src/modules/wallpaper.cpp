@@ -1,7 +1,6 @@
 #include "modules/wallpaper.h"
 
 #include "config/wallpaper_config.h"
-#include "core/async_process.h"
 #include "core/deferred_call.h"
 #include "core/log.h"
 #include "render/node.h"
@@ -9,18 +8,13 @@
 #include "render/renderer.h"
 #include "service/layer_surface.h"
 #include "service/wallpaper_animate_service.h"
+#include "service/wallpaper_hw_decode.h"
 #include "service/wallpaper_service.h"
 
 #include <GLES2/gl2.h>
 
 #include <algorithm>
-#include <chrono>
-#include <csignal>
-#include <cstring>
-#include <fcntl.h>
-#include <sys/wait.h>
 #include <thread>
-#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -201,25 +195,24 @@ void wallpaper_decode_column_async(WallpaperState &wp, std::string path,
         if (data)
             klog("wallpaper: decode done '%s' (%dx%d)", path.c_str(), width,
                  height);
-        DeferredCall::call_later(
-            [&wp, data, width, height, generation, column_index] {
-                if (static_cast<size_t>(column_index) >=
-                        wp.column_generations.size() ||
-                    generation !=
-                        wp.column_generations[static_cast<size_t>(
-                            column_index)]) {
-                    if (data)
-                        delete[] data;
-                    return;
-                }
-                if (!data)
-                    return;
-                wp.pending_pixels = data;
-                wp.pending_width = width;
-                wp.pending_height = height;
-                wp.pending_column = column_index;
-                wallpaper_upload_pending(wp);
-            });
+        DeferredCall::call_later([&wp, data, width, height, generation,
+                                  column_index] {
+            if (static_cast<size_t>(column_index) >=
+                    wp.column_generations.size() ||
+                generation !=
+                    wp.column_generations[static_cast<size_t>(column_index)]) {
+                if (data)
+                    delete[] data;
+                return;
+            }
+            if (!data)
+                return;
+            wp.pending_pixels = data;
+            wp.pending_width = width;
+            wp.pending_height = height;
+            wp.pending_column = column_index;
+            wallpaper_upload_pending(wp);
+        });
     }).detach();
 }
 
@@ -230,8 +223,13 @@ void wallpaper_sync_from_config(WallpaperState &wp, const Config &cfg,
     wp.column_generations.resize(static_cast<size_t>(count));
     for (int i = 0; i < count; ++i) {
         std::string path = wallpaper_service_column_path(cfg, monitor_name, i);
-        if (!path.empty())
+        if (!path.empty()) {
             wallpaper_decode_column_async(wp, path, i, count);
+            continue;
+        }
+        wp.column_textures[static_cast<size_t>(i)].reset();
+        ++wp.column_generations[static_cast<size_t>(i)];
+        wallpaper_request_frame(wp);
     }
 }
 
@@ -240,13 +238,7 @@ void wallpaper_animate_stop(WallpaperState &wp, int column_index) {
         return;
     AnimatedColumnPlayback &pb =
         wp.column_animations[static_cast<size_t>(column_index)];
-    if (pb.pid <= 0)
-        return;
-    pid_t pid = pb.pid;
-    kill(pid, SIGKILL);
-    while (async_process_is_alive(pid))
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    pb.pid = -1;
+    wallpaper_hw_decode_stop(pb.decode);
     pb.path.clear();
 }
 
@@ -268,95 +260,39 @@ void wallpaper_animate_start(WallpaperState &wp, const std::string &cached_path,
     uint64_t generation =
         ++wp.column_generations[static_cast<size_t>(column_index)];
 
-    int pipefd[2];
-    if (pipe(pipefd) < 0) {
-        klog("wallpaper_animate: pipe failed");
-        return;
-    }
-    std::string resolved = async_process_detail_resolve_path("ffmpeg");
     std::string vf =
         mode == FillMode::Fit
             ? "scale=" + std::to_string(width) + ":" + std::to_string(height) +
                   ":force_original_aspect_ratio=decrease,pad=" +
                   std::to_string(width) + ":" + std::to_string(height) +
-                  ":(ow-iw)/2:(oh-ih)/2:color=black"
+                  ":(ow-iw)/2:(oh-ih)/2:color=black,format=rgba"
             : "scale=" + std::to_string(width) + ":" + std::to_string(height) +
                   ":force_original_aspect_ratio=increase,crop=" +
-                  std::to_string(width) + ":" + std::to_string(height);
-    std::vector<std::string> argv = {
-        resolved,   "-re",      "-stream_loop", "-1",  "-i", cached_path, "-f",
-        "rawvideo", "-pix_fmt", "rgba",         "-vf", vf,   "-"};
-    std::vector<char *> cargv;
-    cargv.reserve(argv.size() + 1);
-    for (std::string &a : argv)
-        cargv.push_back(a.data());
-    cargv.push_back(nullptr);
-
-    pid_t pid = fork();
-    if (pid < 0) {
-        klog("wallpaper_animate: fork failed");
-        close(pipefd[0]);
-        close(pipefd[1]);
-        return;
-    }
-    if (pid == 0) {
-        dup2(pipefd[1], STDOUT_FILENO);
-        int devnull = open("/dev/null", O_WRONLY);
-        if (devnull >= 0)
-            dup2(devnull, STDERR_FILENO);
-        close(pipefd[0]);
-        close(pipefd[1]);
-        execv(cargv[0], cargv.data());
-        _exit(127);
-    }
-    close(pipefd[1]);
-    int read_fd = pipefd[0];
+                  std::to_string(width) + ":" + std::to_string(height) +
+                  ",format=rgba";
 
     AnimatedColumnPlayback &pb =
         wp.column_animations[static_cast<size_t>(column_index)];
-    pb.pid = pid;
     pb.mode = mode;
-    pb.reader = std::thread([&wp, read_fd, pid, generation, column_index, width,
-                             height] {
-        size_t frame_bytes = static_cast<size_t>(width) * height * 4;
-        std::vector<unsigned char> frame(frame_bytes);
-        for (;;) {
-            size_t got = 0;
-            bool eof = false;
-            while (got < frame_bytes) {
-                ssize_t n =
-                    read(read_fd, frame.data() + got, frame_bytes - got);
-                if (n <= 0) {
-                    eof = true;
-                    break;
-                }
-                got += static_cast<size_t>(n);
-            }
-            if (eof)
-                break;
-            auto *copy = new unsigned char[frame_bytes];
-            memcpy(copy, frame.data(), frame_bytes);
-            DeferredCall::call_later([&wp, copy, width, height, generation,
+    pb.decode = wallpaper_hw_decode_start(
+        cached_path, vf, kAnimatedWallpaperMaxFps,
+        [&wp, generation, column_index](unsigned char *rgba, int w, int h) {
+            DeferredCall::call_later([&wp, rgba, w, h, generation,
                                       column_index] {
                 if (static_cast<size_t>(column_index) >=
                         wp.column_generations.size() ||
-                    generation !=
-                        wp.column_generations[static_cast<size_t>(
-                            column_index)]) {
-                    delete[] copy;
+                    generation != wp.column_generations[static_cast<size_t>(
+                                      column_index)]) {
+                    delete[] rgba;
                     return;
                 }
-                wp.pending_pixels = copy;
-                wp.pending_width = width;
-                wp.pending_height = height;
+                wp.pending_pixels = rgba;
+                wp.pending_width = w;
+                wp.pending_height = h;
                 wp.pending_column = column_index;
                 wallpaper_upload_pending(wp);
             });
-        }
-        close(read_fd);
-        waitpid(pid, nullptr, 0);
-    });
-    pb.reader.detach();
+        });
 }
 
 void wallpaper_animate_sync_from_config(WallpaperState &wp, const Config &cfg,
@@ -375,9 +311,12 @@ void wallpaper_animate_sync_from_config(WallpaperState &wp, const Config &cfg,
             wallpaper_service_animated_column_path(cfg, monitor_name, i);
         if (path.empty()) {
             wallpaper_animate_stop(wp, i);
+            wp.column_textures[static_cast<size_t>(i)].reset();
+            ++wp.column_generations[static_cast<size_t>(i)];
+            wallpaper_request_frame(wp);
             continue;
         }
-        if (wp.column_animations[static_cast<size_t>(i)].pid > 0 &&
+        if (wp.column_animations[static_cast<size_t>(i)].decode.stop_flag &&
             wp.column_animations[static_cast<size_t>(i)].path == path &&
             wp.column_animations[static_cast<size_t>(i)].mode ==
                 wallpaper_column_fill_mode(wp, static_cast<size_t>(i)))

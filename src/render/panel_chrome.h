@@ -66,11 +66,18 @@ enum class PanelClickKind {
     MediaPlayPause,
     MediaNext,
     MediaPrevious,
+    DropdownToggle,
+    DropdownSelect,
 };
 struct PanelClickRegion {
     PanelClickKind kind;
     Rect rect;
     std::string tag;
+};
+
+struct PanelDropdownOption {
+    std::string label;
+    std::string value;
 };
 
 namespace panel_chrome_detail {
@@ -111,3 +118,12 @@ void panel_draw_confirm_subpanel(Node *parent, TextureCache &cache,
                                  const std::string &confirm_label,
                                  float panel_x, float sub_y, float panel_w,
                                  std::vector<PanelClickRegion> &click_regions);
+
+float panel_draw_dropdown(Node *parent, TextureCache &cache, int32_t scale,
+                          float x, float y, float row_w,
+                          const std::string &label,
+                          const std::string &active_value,
+                          const std::vector<PanelDropdownOption> &options,
+                          const std::string &dropdown_id,
+                          const std::string &open_dropdown_id,
+                          std::vector<PanelClickRegion> &click_regions);

@@ -20,7 +20,6 @@ void test_config() {
 
     std::string config_dir = std::string(tmp_dir) + "/.config/kokusei";
     mkdir((std::string(tmp_dir) + "/.config").c_str(), 0755);
-    mkdir(config_dir.c_str(), 0755);
 
     std::string path = config_path();
     assert(path == config_dir + "/config.toml");

@@ -8,6 +8,7 @@
 #include <fstream>
 #include <sstream>
 #include <sys/inotify.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 bool osd_effective_enabled(const Config &cfg, const std::string &monitor_name) {
@@ -141,6 +142,10 @@ Config load_config() {
             tbl["idle"]["resume_command"].value_or(cfg.idle_resume_command);
         cfg.visualizer_shape =
             tbl["visualizer"]["shape"].value_or(cfg.visualizer_shape);
+        if (cfg.visualizer_shape == "bars")
+            cfg.visualizer_shape = "bar";
+        else if (cfg.visualizer_shape == "ncs")
+            cfg.visualizer_shape = "sphere";
     } catch (const toml::parse_error &) {
     }
     return cfg;
@@ -149,6 +154,9 @@ Config load_config() {
 namespace {
 
 bool write_file_atomic(const std::string &path, const std::string &content) {
+    size_t slash = path.find_last_of('/');
+    if (slash != std::string::npos)
+        mkdir(path.substr(0, slash).c_str(), 0755);
     std::string tmp_path = path + ".tmp";
     {
         std::ofstream f(tmp_path, std::ios::trunc);

@@ -184,7 +184,8 @@ class StarwardModule final : public Module {
                 starward_retarget(state_, app.compositor, app.layer_shell,
                                   app.display, app.renderer, app.egl_display,
                                   app.egl_config, app.egl_context,
-                                  target->output.wl, target->output.name.c_str());
+                                  target->output.wl,
+                                  target->output.name.c_str());
         }
         starward_toggle(state_, true);
     }
@@ -270,11 +271,11 @@ class ControlCenterModule final : public Module {
             MonitorOutput *target = bar_detail::active_target_monitor(app);
             if (target && (target->output.wl != state_.bound_output ||
                            !state_.base.layer_surface))
-                controlcenter_retarget(
-                    state_, app.compositor, app.layer_shell, app.display,
-                    app.renderer, app, app.egl_display, app.egl_config,
-                    app.egl_context, target->output.wl,
-                    target->output.name.c_str());
+                controlcenter_retarget(state_, app.compositor, app.layer_shell,
+                                       app.display, app.renderer, app,
+                                       app.egl_display, app.egl_config,
+                                       app.egl_context, target->output.wl,
+                                       target->output.name.c_str());
         }
         controlcenter_toggle(state_, true);
     }
@@ -462,16 +463,15 @@ bool OsdPerMonitorModule::configured() const {
 bool OsdPerMonitorModule::init_egl(WaylandState &app, MonitorOutput &mon) {
     if (state_.layer_surface &&
         osd_init_egl(state_, app.renderer, app.egl_display, app.egl_config,
-                    app.egl_context))
+                     app.egl_context))
         eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
-                      app.egl_context);
+                       app.egl_context);
     return true;
 }
 
 void OsdPerMonitorModule::destroy(WaylandState &app, MonitorOutput &) {
-    destroy_layer_surface(app.egl_display, state_.surface,
-                          state_.layer_surface, state_.egl_window,
-                          state_.egl_surface);
+    destroy_layer_surface(app.egl_display, state_.surface, state_.layer_surface,
+                          state_.egl_window, state_.egl_surface);
 }
 
 bool OsdPerMonitorModule::owns_surface(wl_surface *surface) const {
@@ -486,15 +486,8 @@ void OsdPerMonitorModule::tick(WaylandState &, MonitorOutput &) {
 bool WallpaperPerMonitorModule::create_surface(WaylandState &app,
                                                MonitorOutput &mon,
                                                wl_output *output) {
-    bool wanted =
-        app.cfg.wallpaper_animated_enabled
-            ? !wallpaper_service_animated_column_path(app.cfg,
-                                                      mon.output.name, 0)
-                   .empty()
-            : !wallpaper_service_column_path(app.cfg, mon.output.name, 0)
-                   .empty();
-    if (wanted && !wallpaper_create_surface(state_, app.compositor,
-                                            app.layer_shell, output))
+    if (!wallpaper_create_surface(state_, app.compositor, app.layer_shell,
+                                  output))
         klog("wallpaper: failed to create layer surface on '%s'",
              mon.output.name.c_str());
     return true;
@@ -528,9 +521,8 @@ bool WallpaperPerMonitorModule::init_egl(WaylandState &app,
 
 void WallpaperPerMonitorModule::destroy(WaylandState &app, MonitorOutput &) {
     wallpaper_animate_stop_all(state_);
-    destroy_layer_surface(app.egl_display, state_.surface,
-                          state_.layer_surface, state_.egl_window,
-                          state_.egl_surface);
+    destroy_layer_surface(app.egl_display, state_.surface, state_.layer_surface,
+                          state_.egl_window, state_.egl_surface);
 }
 
 bool WallpaperPerMonitorModule::owns_surface(wl_surface *surface) const {
@@ -549,8 +541,8 @@ void WallpaperPerMonitorModule::resync(WaylandState &, MonitorOutput &mon,
 }
 
 bool NotificationViewPerMonitorModule::create_surface(WaylandState &app,
-                                                       MonitorOutput &mon,
-                                                       wl_output *output) {
+                                                      MonitorOutput &mon,
+                                                      wl_output *output) {
     if (notifications_effective_enabled(app.cfg, mon.output.name) &&
         !notification_view_create_surface(state_, app.compositor,
                                           app.layer_shell, output))
@@ -570,19 +562,17 @@ bool NotificationViewPerMonitorModule::init_egl(WaylandState &app,
                                    app.egl_display, app.egl_config,
                                    app.egl_context))
         eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
-                      app.egl_context);
+                       app.egl_context);
     return true;
 }
 
 void NotificationViewPerMonitorModule::destroy(WaylandState &app,
                                                MonitorOutput &) {
-    destroy_layer_surface(app.egl_display, state_.surface,
-                          state_.layer_surface, state_.egl_window,
-                          state_.egl_surface);
+    destroy_layer_surface(app.egl_display, state_.surface, state_.layer_surface,
+                          state_.egl_window, state_.egl_surface);
 }
 
-bool NotificationViewPerMonitorModule::owns_surface(
-    wl_surface *surface) const {
+bool NotificationViewPerMonitorModule::owns_surface(wl_surface *surface) const {
     return surface == state_.surface;
 }
 
@@ -596,15 +586,14 @@ void NotificationViewPerMonitorModule::resync(WaylandState &app,
     bool have = state_.layer_surface != nullptr;
     if (want && !have) {
         if (notification_view_create_surface(state_, app.compositor,
-                                             app.layer_shell,
-                                             mon.output.wl)) {
+                                             app.layer_shell, mon.output.wl)) {
             while (!state_.configured)
                 wl_display_dispatch(app.display);
             if (notification_view_init_egl(state_, app.notification,
-                                          app.renderer, app.egl_display,
-                                          app.egl_config, app.egl_context))
+                                           app.renderer, app.egl_display,
+                                           app.egl_config, app.egl_context))
                 eglMakeCurrent(app.egl_display, mon.egl_surface,
-                              mon.egl_surface, app.egl_context);
+                               mon.egl_surface, app.egl_context);
         }
     } else if (!want && have) {
         destroy_layer_surface(app.egl_display, state_.surface,

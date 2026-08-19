@@ -56,7 +56,6 @@
 - animation.h / animation.cpp
 - slider.h / slider.cpp
 - matrix_grid.h / matrix_grid.cpp
-- ncs_visualizer.h / ncs_visualizer.cpp
 
 ## src/service
 
@@ -78,6 +77,8 @@
 - active_output.h / active_output.cpp
 - workspace.h
 - wallpaper_service.h / wallpaper_service.cpp
+- wallpaper_animate_service.h / wallpaper_animate_service.cpp
+- wallpaper_hw_decode.h / wallpaper_hw_decode.cpp
 - settings_service.h / settings_service.cpp
 - icon_theme.h / icon_theme.cpp
 - audio_spectrum.h / audio_spectrum.cpp
@@ -136,6 +137,17 @@
 - widget/bluetooth_widget.h / widget/bluetooth_widget.cpp
 - widget/volume_widget.h / widget/volume_widget.cpp
 - widget/control_center_widget.h / widget/control_center_widget.cpp
+
+## src/visualizer
+
+- sphere_visualizer.h / sphere_visualizer.cpp
+- bar_visualizer.h / bar_visualizer.cpp
+
+## src/shaders
+
+- renderer_shaders.h
+- sphere_particle.h
+- sphere_post.h
 
 ## src
 

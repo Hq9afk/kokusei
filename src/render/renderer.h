@@ -9,6 +9,8 @@ class Renderer {
   public:
     bool init();
 
+    void destroy();
+
     void begin_frame(int logical_width, int logical_height, int32_t scale = 1);
 
     void set_clip(float x, float y, float w, float h);

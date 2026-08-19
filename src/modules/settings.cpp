@@ -93,6 +93,7 @@ void settings_toggle(SettingsState &state, const Config &cfg,
          static_cast<int>(state.focused_field));
     if (state.base.open) {
         settings_commit_focused_field(state, cfg, on_commit);
+        state.open_dropdown_id.clear();
     } else {
         state.active_tab = SettingsTab::Wallpaper;
     }
@@ -150,6 +151,10 @@ void settings_handle_click(SettingsState &state, const Config &cfg,
             continue;
         klog("settings: click (%.0f,%.0f) hit region kind=%d", px, py,
              static_cast<int>(region.kind));
+        if (!state.open_dropdown_id.empty() &&
+            region.kind != PanelClickKind::DropdownToggle &&
+            region.kind != PanelClickKind::DropdownSelect)
+            state.open_dropdown_id.clear();
         switch (region.kind) {
         case PanelClickKind::Close:
             settings_toggle(state, cfg, on_commit);
@@ -184,6 +189,18 @@ void settings_handle_click(SettingsState &state, const Config &cfg,
         case PanelClickKind::AnimatedWallpaperSelect:
             wallpaper_tab_handle_click(state, cfg, on_commit, region);
             return;
+        case PanelClickKind::DropdownToggle:
+            state.open_dropdown_id =
+                state.open_dropdown_id == region.tag ? "" : region.tag;
+            settings_request_frame(state);
+            return;
+        case PanelClickKind::DropdownSelect:
+            visualizer_tab_handle_click(state, cfg, on_commit, region) ||
+                wallpaper_tab_handle_click(state, cfg, on_commit, region) ||
+                displays_tab_handle_click(state, cfg, on_commit, region);
+            state.open_dropdown_id.clear();
+            settings_request_frame(state);
+            return;
         default:
             return;
         }
@@ -196,8 +213,14 @@ void settings_handle_click(SettingsState &state, const Config &cfg,
          static_cast<double>(state.panel_rect.y),
          static_cast<double>(state.panel_rect.w),
          static_cast<double>(state.panel_rect.h));
-    if (!hit(state.panel_rect, px, py))
+    if (!hit(state.panel_rect, px, py)) {
         settings_toggle(state, cfg, on_commit);
+        return;
+    }
+    if (!state.open_dropdown_id.empty()) {
+        state.open_dropdown_id.clear();
+        settings_request_frame(state);
+    }
 }
 
 void settings_handle_key_event(SettingsState &state, const Config &cfg,

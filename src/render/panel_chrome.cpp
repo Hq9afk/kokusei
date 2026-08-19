@@ -1,5 +1,7 @@
 #include "render/panel_chrome.h"
 
+#include "config/settings_config.h"
+
 namespace panel_chrome_detail {
 
 const Texture *cached_text(TextureCache &cache, const std::string &s,
@@ -166,4 +168,88 @@ void panel_draw_confirm_subpanel(Node *parent, TextureCache &cache,
             cancel_rect.y + (cancel_rect.h - cancel_tex->height) / 2.0f,
             *cancel_tex, white);
     click_regions.push_back({PanelClickKind::SubCancel, cancel_rect, ""});
+}
+
+float panel_draw_dropdown(Node *parent, TextureCache &cache, int32_t scale,
+                          float x, float y, float row_w,
+                          const std::string &label,
+                          const std::string &active_value,
+                          const std::vector<PanelDropdownOption> &options,
+                          const std::string &dropdown_id,
+                          const std::string &open_dropdown_id,
+                          std::vector<PanelClickRegion> &click_regions) {
+    using namespace panel_chrome_detail;
+    bool open = open_dropdown_id == dropdown_id;
+
+    const Texture *lbl_tex = cached_text(cache, label, scale);
+    if (lbl_tex)
+        node_add_texture(parent, x,
+                         y + (kSettingsFieldHeight - lbl_tex->height) / 2.0f,
+                         *lbl_tex, rgba(palette::text));
+
+    std::string active_label = "\xE2\x80\x94";
+    for (const PanelDropdownOption &opt : options)
+        if (opt.value == active_value) {
+            active_label = opt.label;
+            break;
+        }
+
+    const Texture *active_tex = cached_text(cache, active_label, scale);
+    const Texture *chevron_tex = cached_icon(
+        cache, open ? icon::chevron_up : icon::chevron_down, scale);
+    float content_w = (active_tex ? active_tex->width : 0) + 6.0f +
+                      (chevron_tex ? chevron_tex->width : 0);
+    float trigger_w = content_w + 20.0f;
+    float trigger_x = x + row_w - trigger_w;
+
+    node_add_rrect(parent, trigger_x, y, trigger_w, kSettingsFieldHeight,
+                   metrics::radius_sm, metrics::border_thin,
+                   open ? rgba(palette::accent_alpha12)
+                        : rgba(palette::text_alpha06),
+                   open ? rgba(palette::accent) : rgba(palette::text_alpha11));
+    if (active_tex)
+        node_add_texture(
+            parent, trigger_x + 10.0f,
+            y + (kSettingsFieldHeight - active_tex->height) / 2.0f,
+            *active_tex, rgba(palette::text));
+    if (chevron_tex)
+        node_add_texture(parent,
+                         trigger_x + trigger_w - 10.0f - chevron_tex->width,
+                         y + (kSettingsFieldHeight - chevron_tex->height) /
+                                 2.0f,
+                         *chevron_tex, rgba(palette::text_dim));
+    click_regions.push_back({PanelClickKind::DropdownToggle,
+                             {trigger_x, y, trigger_w, kSettingsFieldHeight},
+                             dropdown_id});
+
+    if (open) {
+        float popup_y = y + kSettingsFieldHeight + kPanelTightGap;
+        float popup_h =
+            static_cast<float>(options.size()) * kSettingsFieldHeight;
+        node_add_rrect(parent, trigger_x, popup_y, trigger_w, popup_h,
+                       metrics::radius_sm, metrics::border_thin,
+                       rgba(palette::overlay), rgba(palette::accent));
+        float oy = popup_y;
+        for (const PanelDropdownOption &opt : options) {
+            bool active = opt.value == active_value;
+            if (active)
+                node_add_rrect(parent, trigger_x, oy, trigger_w,
+                               kSettingsFieldHeight, metrics::radius_sm, 0.0f,
+                               rgba(palette::accent_alpha19), kPanelNoBorder);
+            const Texture *opt_tex = cached_text(cache, opt.label, scale);
+            if (opt_tex)
+                node_add_texture(
+                    parent, trigger_x + 10.0f,
+                    oy + (kSettingsFieldHeight - opt_tex->height) / 2.0f,
+                    *opt_tex,
+                    active ? rgba(palette::accent) : rgba(palette::text));
+            click_regions.push_back(
+                {PanelClickKind::DropdownSelect,
+                 {trigger_x, oy, trigger_w, kSettingsFieldHeight},
+                 dropdown_id + "|" + opt.value});
+            oy += kSettingsFieldHeight;
+        }
+    }
+
+    return y + kSettingsRowHeight;
 }

@@ -29,7 +29,8 @@
 - `src/bar/widget/battery_widget.*`, `network_widget.*`, `bluetooth_widget.*`, `volume_widget.*`, `starward_widget.*`, `control_center_widget.*`: One pair per bar pill, each needing full `WaylandState`.
 - `src/bar/panel/`: One `<name>_panel.h/.cpp` pair per on-demand panel (network, bluetooth, volume, tray+menu).
 - `src/config/wallpaper_config.h`: Wallpaper layer-shell namespace constant.
-- `src/modules/wallpaper.h`+`.cpp`: Per-monitor background surface, multi-column texture upload, per-column fill mode (crop/fit/stretch/tile, tile clipped and repeated from each column's own local origin); decode itself lives in `service/wallpaper_service`.
+- `src/modules/wallpaper.h`+`.cpp`: Per-monitor background surface, multi-column texture upload, per-column fill mode (crop/fit/stretch/tile, tile clipped and repeated from each column's own local origin); static decode lives in `service/wallpaper_service`, animated decode/playback lives in `service/wallpaper_hw_decode`.
+- `src/service/wallpaper_hw_decode.h`+`.cpp`: In-process `libavcodec`/`libavfilter` decode loop for animated wallpaper playback, one background thread per column; tries hardware decode (`CUDA`, then `VAAPI`) before falling back to software, loops the source via seek+flush on EOF, hands filtered `rgba` frames to a caller-supplied callback.
 - `src/config/notification_config.h`: Notification card padding/size/timing constants.
 - `src/modules/notification.h`+`.cpp`: D-Bus notification service (process-wide), per-monitor `NotificationView` render state, and card paint (stacking, urgency color, fade/slide animation).
 - `src/modules/idle.h`+`.cpp`: Idle-notify timeout and manual idle-inhibit, single seat-level instance.
@@ -41,10 +42,14 @@
 - `src/config/matrix_config.h`: Matrix-rain window size, glyph/cell/timing constants, ported from keqing-shell's `MatrixConfig.qml`.
 - `src/render/matrix_grid.h`+`.cpp`: Matrix-rain glyph column simulation and Cairo-rasterized texture, state-free of any surface/window concerns.
 - `src/modules/matrix.h`+`.cpp`: Matrix-rain overlay, a real `xdg_toplevel` window (`ToplevelWindowBase`) created on open and destroyed after its close fade, not a persistent layer-shell surface. Rebuilds the grid on live resize instead of stretching.
-- `src/config/visualizer_config.h`: Audio visualizer window size, bar layout, PipeWire spectrum constants, plus the `ncs` shape's ported `ncs.glsl` constants, from keqing-shell's `VisualizerConfig.qml` and `ncs-spectrum-glava`.
-- `src/service/audio_spectrum.h`+`.cpp`: Direct-PipeWire FFT spectrum capture (own `pw_stream`, own `process` callback), parallel mono/left/right `ChannelPipeline`s feeding the visualizer's bar and NCS shapes.
-- `src/modules/visualizer.h`+`.cpp`: Audio visualizer overlay, a real `xdg_toplevel` window (`ToplevelWindowBase`) created on open and destroyed after its close fade; owns one dedicated render thread and share-context `EGLContext` covering both `bars` and `ncs` shapes for the whole time the window is open, per `Config::visualizer_shape`. The main poll-loop thread only hands off a per-frame struct (shape, spectrum, opacity, time, dimensions) and never touches GL for this window.
-- `src/render/ncs_visualizer.h`+`.cpp`: GLES2 point-sprite particle/glow multi-pass shape for the visualizer, ported from `ncs-spectrum-glava`; a set of draw passes invoked by `visualizer.cpp`'s render thread, outside the Node/Scene graph, owning no thread or EGL context of its own.
+- `src/config/visualizer_config.h`: Audio visualizer window size, bar layout, PipeWire spectrum constants, plus the `sphere` shape's constants, ported from keqing-shell's `VisualizerConfig.qml` and `~/references/ncs4au/src/NCS4AU.obj`.
+- `src/service/audio_spectrum.h`+`.cpp`: Direct-PipeWire FFT spectrum capture (own `pw_stream`, own `process` callback), parallel mono/left/right `ChannelPipeline`s feeding the visualizer's bar and sphere shapes.
+- `src/modules/visualizer.h`+`.cpp`: Audio visualizer overlay, a real `xdg_toplevel` window (`ToplevelWindowBase`) created on open and destroyed after its close fade; owns one dedicated render thread and share-context `EGLContext` covering both `bar` and `sphere` shapes for the whole time the window is open, per `Config::visualizer_shape`. `VisualizerState` holds only orchestration (window/surface, audio capture, render-thread plumbing, timing) plus one `BarVisualizerState`/`SphereVisualizerState` field per shape; the main poll-loop thread only hands off a per-frame struct (shape, spectrum, opacity, time, dimensions) and never touches GL for this window.
+- `src/visualizer/sphere_visualizer.h`+`.cpp`: GLES2 point-sprite particle/glow multi-pass shape for the visualizer; its particle math is ported from `~/references/ncs4au/src/NCS4AU.obj` (grid of points, 3D Perlin noise displacement, sphere projection with back-hemisphere fold-back), its shaders living in `src/shaders/sphere_particle.h`+`sphere_post.h`. A set of draw passes invoked by `visualizer.cpp`'s render thread, outside the Node/Scene graph, owning no thread or EGL context of its own. Owns its full render state in `SphereVisualizerState` (programs/VBOs/FBOs) with its own `render`/`destroy_gl` pair.
+- `src/visualizer/bar_visualizer.h`+`.cpp`: The visualizer's other shape, drawn as ordinary rects through the Node/Scene graph. Mirrors `sphere_visualizer`'s shape: owns its own `Renderer`+`Scene`+smoothing buffer in `BarVisualizerState`, with its own `render`/`destroy_gl` pair, rather than sharing state with `VisualizerState`.
+- `src/shaders/renderer_shaders.h`: The shared `Renderer`'s four GLES2 shaders (quad vertex, rect/tex/rrect fragment), extracted out of `src/render/renderer.cpp`'s inline literals.
+- `src/shaders/sphere_particle.h`: The `sphere` shape's particle vertex+fragment shaders, the `ncs4au`-ported noise/projection math described above.
+- `src/shaders/sphere_post.h`: The `sphere` shape's shared post-processing shaders (fullscreen vertex, glow blur+feedback, composite), generic and reference-independent.
 - `src/config/osd_config.h`: OSD surface size/margin/duration/animation-owner constants.
 - `src/modules/osd.h`+`.cpp`: Volume/brightness popup, per-monitor, auto-hides, reactive to system state changes.
 - `src/config/starward_config.h`: Ring-menu geometry, timing, and the 8-button action table.
@@ -88,7 +93,7 @@
 - `src/render/node.h`+`.cpp`/`scene.h`: `Node`/`Scene` retained-allocation scene graph with per-frame node pooling.
 - `src/render/renderer.h`+`.cpp`: GL draw calls, clip-stack management, shared `Renderer` across every surface.
 - `src/render/rect.h`: Shared `Rect{x,y,w,h}` struct for hit-testing.
-- `src/render/panel_chrome.h`+`.cpp`: Shared box/header/confirm chrome and click-kind enum for all on-demand panels.
+- `src/render/panel_chrome.h`+`.cpp`: Shared box/header/confirm/dropdown chrome and click-kind enum for all on-demand panels.
 - `src/render/slider.h`+`.cpp`: `draw_slider_track`, shared track+fill+click-region drawing for any slider, used by the volume panel and control center.
 - `src/render/panel_scroll.h`+`.cpp`: Shared scroll-offset/clamp/wheel-input helper for scrollable panel lists.
 - `src/render/text.h`+`.cpp`: Cairo+Pango text rasterization, fixed body/small font sizes, string elision.

@@ -9,7 +9,7 @@
 // visualizer's dedicated render thread (see modules/visualizer.h); this
 // struct owns no thread or EGL context of its own, only GL resource handles
 // living in that thread's shared-namespace context.
-struct NcsVisualizerState {
+struct SphereVisualizerState {
     GLuint particle_program = 0;
     GLuint glow_program = 0;
     GLuint composite_program = 0;
@@ -36,17 +36,18 @@ struct NcsVisualizerState {
     bool ready = false;
 };
 
-// Runs the ncs particle/glow/composite passes against whichever EGL
+// Runs the sphere particle/glow/composite passes against whichever EGL
 // surface/context the caller (the visualizer's dedicated render thread)
 // already made current. width/height are logical pixels, scale is the
 // output scale. Lazily compiles programs and allocates GL resources on
 // first call.
-void ncs_visualizer_render(NcsVisualizerState &state, int width, int height,
-                           int32_t scale, float time_seconds, float opacity,
-                           const std::vector<float> &spectrum_l,
-                           const std::vector<float> &spectrum_r);
+void sphere_visualizer_render(SphereVisualizerState &state, int width,
+                              int height, int32_t scale, float time_seconds,
+                              float opacity,
+                              const std::vector<float> &spectrum_l,
+                              const std::vector<float> &spectrum_r);
 
 // Deletes every GL object and resets state to defaults. Must be called from
 // the thread whose context created these objects, with that context still
 // current.
-void ncs_visualizer_destroy_gl(NcsVisualizerState &state);
+void sphere_visualizer_destroy_gl(SphereVisualizerState &state);

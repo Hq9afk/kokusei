@@ -21,6 +21,10 @@ xkbcommon_dep      = dependency('xkbcommon')
 libpng_dep         = dependency('libpng')
 libjpeg_dep        = dependency('libjpeg')
 threads_dep        = dependency('threads')
+libavformat_dep    = dependency('libavformat')
+libavcodec_dep     = dependency('libavcodec')
+libavfilter_dep    = dependency('libavfilter')
+libavutil_dep      = dependency('libavutil')
 
 kokusei_inc = include_directories('src')
 
@@ -155,7 +159,6 @@ kokusei_render_main_only_sources = [
   'src/render/toplevel_window.cpp',
   'src/render/slider.cpp',
   'src/render/matrix_grid.cpp',
-  'src/render/ncs_visualizer.cpp',
 ]
 
 # service sources: each dbus service is a merged types+sdbus-c++ pair, and
@@ -191,6 +194,7 @@ kokusei_service_main_only_sources = [
   'src/service/hyprland.cpp',
   'src/service/shojiwm.cpp',
   'src/service/audio_spectrum.cpp',
+  'src/service/wallpaper_hw_decode.cpp',
 ]
 
 # launcher.cpp now only touches EGL/GL/Wayland for the panel itself (the
@@ -251,6 +255,12 @@ kokusei_overlay_main_only_sources = [
   'src/modules/visualizer.cpp',
 ]
 
+# visualizer/*: real EGL/GL rendering, no test coverage, main-executable-only.
+kokusei_visualizer_main_only_sources = [
+  'src/visualizer/sphere_visualizer.cpp',
+  'src/visualizer/bar_visualizer.cpp',
+]
+
 # app/config.cpp is exercised by test/app/test_config.cpp and
 # test/app/test_wallpaper_resolve.cpp; single_instance_lock.cpp has no test.
 kokusei_app_test_sources = [
@@ -291,6 +301,7 @@ kokusei_split_sources = [
   kokusei_settings_main_only_sources,
   kokusei_bar_panels_main_only_sources,
   kokusei_bar_main_only_sources,
+  kokusei_visualizer_main_only_sources,
 ]
 
 kokusei_test_split_sources = [
@@ -328,6 +339,10 @@ executable(
     threads_dep,
     libpng_dep,
     libjpeg_dep,
+    libavformat_dep,
+    libavcodec_dep,
+    libavfilter_dep,
+    libavutil_dep,
   ],
   cpp_args: [
     '-DKOKUSEI_FONT_DIR="' + kokusei_font_dir + '"',
