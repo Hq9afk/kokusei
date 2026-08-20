@@ -48,6 +48,7 @@ struct WaylandState {
     NotificationService notification;
     std::vector<std::unique_ptr<Module>> overlays;
     std::vector<std::unique_ptr<Service>> services;
+    UpowerState upower;
     NetworkState network;
     BluetoothState bluetooth;
     TrayState tray;
@@ -56,7 +57,6 @@ struct WaylandState {
     SeatCapabilityState seat_caps;
     BrightnessBackend brightness;
     PipewireState pipewire;
-    UpowerState upower;
     CpuTempState cpu_temp;
     GpuTempState gpu_temp;
     SystemStatsState system_stats;

@@ -94,6 +94,12 @@ void overlay_panel_request_frame(OverlayPanelBase &base) {
 }
 
 void overlay_panel_destroy_surface(OverlayPanelBase &base) {
+    if (base.frame_clock.callback) {
+        wl_callback_destroy(base.frame_clock.callback);
+        base.frame_clock.callback = nullptr;
+    }
+    base.frame_clock.surface = nullptr;
+    base.frame_clock.redraw_requested = false;
     if (base.egl_surface != EGL_NO_SURFACE) {
         eglDestroySurface(base.egl_display, base.egl_surface);
         base.egl_surface = EGL_NO_SURFACE;

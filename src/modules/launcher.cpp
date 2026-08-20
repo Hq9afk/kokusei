@@ -256,6 +256,12 @@ void launcher_request_frame(LauncherState &state) {
 }
 
 void launcher_destroy_surface(LauncherState &state) {
+    if (state.frame_clock.callback) {
+        wl_callback_destroy(state.frame_clock.callback);
+        state.frame_clock.callback = nullptr;
+    }
+    state.frame_clock.surface = nullptr;
+    state.frame_clock.redraw_requested = false;
     if (state.egl_surface != EGL_NO_SURFACE) {
         eglDestroySurface(state.egl_display, state.egl_surface);
         state.egl_surface = EGL_NO_SURFACE;
