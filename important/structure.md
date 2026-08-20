@@ -44,10 +44,10 @@
 - `src/render/matrix_grid.h`+`.cpp`: Matrix-rain glyph column simulation and Cairo-rasterized texture, state-free of surface concerns.
 - `src/modules/matrix.h`+`.cpp`: Matrix-rain overlay, a real `xdg_toplevel` window, rebuilds the grid on live resize.
 - `src/config/visualizer_config.h`: Audio visualizer window size, bar layout, PipeWire spectrum, and `sphere` shape constants.
-- `src/service/audio_spectrum.h`+`.cpp`: Direct-PipeWire FFT spectrum capture, parallel mono/left/right `ChannelPipeline`s.
+- `src/service/audio_spectrum.h`+`.cpp`: Direct-PipeWire FFT spectrum capture, parallel mono/left/right `ChannelPipeline`s; mono's bar count is runtime-resizable via `setBarCount`.
 - `src/modules/visualizer.h`+`.cpp`: Audio visualizer overlay window; dedicated render thread and share-context `EGLContext` for both shapes.
 - `src/visualizer/sphere_visualizer.h`+`.cpp`: GLES2 point-sprite particle/glow multi-pass shape, owns its own `SphereVisualizerState`.
-- `src/visualizer/bar_visualizer.h`+`.cpp`: The visualizer's other shape, drawn as ordinary rects through the Node/Scene graph.
+- `src/visualizer/bar_visualizer.h`+`.cpp`: The visualizer's other shape, drawn as ordinary rects through the Node/Scene graph; bar count derives from window width each frame.
 - `src/shaders/renderer_shaders.h`: The shared `Renderer`'s four GLES2 shaders (quad vertex, rect/tex/rrect fragment).
 - `src/shaders/sphere_particle.h`: The `sphere` shape's particle vertex+fragment shaders.
 - `src/shaders/sphere_post.h`: The `sphere` shape's shared post-processing shaders (fullscreen vertex, glow blur+feedback, composite).
@@ -56,7 +56,7 @@
 - `src/config/starward_config.h`: Ring-menu geometry, timing, and the 8-button action table.
 - `src/modules/starward.h`+`.cpp`: Starward (logout ring) state, rasterizer, animation choreography, input dispatch, and paint.
 - `src/config/controlcenter_config.h`: Control-center card-stack geometry constants.
-- `src/modules/controlcenter.h`+`.cpp`: Control-center singleton state, fixed top-right overlay, IPC/widget-triggered open wiring, card layout.
+- `src/modules/controlcenter.h`+`.cpp`: Control-center singleton state, fixed top-right overlay, IPC/widget-triggered open wiring, clamped/scrollable card layout.
 - `src/config/launcher_config.h`: Every launcher data type and constant, no function bodies.
 - `src/modules/launcher.h`+`.cpp`: `LauncherState`, surface/EGL/tick/toggle/key/click/paint core only.
 - `src/launcher/apps_provider.h`+`.cpp`: App name scoring and search over `DesktopEntry` lists.
@@ -97,7 +97,7 @@
 - `src/render/panel_chrome.h`+`.cpp`: Shared box/header/confirm/dropdown chrome and click-kind enum for on-demand panels.
 - `src/render/slider.h`+`.cpp`: `draw_slider_track`, shared track+fill+click-region drawing for any slider.
 - `src/render/panel_scroll.h`+`.cpp`: Shared scroll-offset/clamp/wheel-input helper for scrollable panel lists.
-- `src/render/text.h`+`.cpp`: Cairo+Pango text rasterization, fixed body/small font sizes, string elision.
+- `src/render/text.h`+`.cpp`: Cairo+Pango text rasterization, fixed body/small/large font sizes, string elision.
 - `src/render/text_field.h`+`.cpp`: Shared single-line editable text buffer core (key handling, UTF-8-safe backspace).
 - `src/render/icon.h`+`.cpp`: Direct FreeType+Cairo rendering of single icon glyphs.
 - `src/render/icons.h`: Tabler Icons codepoint constants.

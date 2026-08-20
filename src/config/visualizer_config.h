@@ -7,7 +7,7 @@ constexpr float kVisualizerBarHeightRatio = 0.7f;
 constexpr float kVisualizerBarRadius = 3.0f;
 constexpr float kVisualizerBarSpacing = 7.0f;
 constexpr float kVisualizerBarWidth = 10.0f;
-constexpr int kVisualizerBarCount = 100;
+constexpr int kVisualizerSphereSampleCount = 100;
 constexpr float kVisualizerBarsAnimDurationMs = 60.0f;
 
 constexpr int kVisualizerDefaultWindowWidth = 480;

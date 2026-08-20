@@ -47,3 +47,5 @@ void mpris_play_pause(MprisState &state);
 void mpris_next(MprisState &state);
 
 void mpris_previous(MprisState &state);
+
+void mpris_poll_position(MprisState &state);

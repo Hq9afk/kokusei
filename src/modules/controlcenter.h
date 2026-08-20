@@ -2,6 +2,8 @@
 
 #include <EGL/egl.h>
 #include <optional>
+#include <string>
+#include <unordered_map>
 #include <vector>
 #include <wayland-client.h>
 
@@ -34,6 +36,13 @@ struct ControlCenterState {
     wl_output *bound_output = nullptr;
     std::optional<DraggedSlider> dragging;
     std::string selected_slider_tag;
+
+    float scroll_offset = 0.0f;
+    float content_height = 0.0f;
+    float visible_height = 0.0f;
+
+    Texture avatar_tex;
+    std::unordered_map<std::string, Texture> art_cache;
 
     float pending_bar_height = 0.0f;
     float pending_bar_top_margin = 0.0f;
@@ -70,6 +79,8 @@ void controlcenter_handle_click(ControlCenterState &state, WaylandState &app,
 
 void controlcenter_handle_pointer_move(ControlCenterState &state,
                                        PipewireState &pw, double px);
+
+void controlcenter_handle_scroll(ControlCenterState &state, double dy);
 
 void controlcenter_handle_key_event(ControlCenterState &state,
                                     PipewireState &pw, const KeyEvent &event);

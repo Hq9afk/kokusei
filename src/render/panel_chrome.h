@@ -66,6 +66,7 @@ enum class PanelClickKind {
     MediaPlayPause,
     MediaNext,
     MediaPrevious,
+    ProfileSettings,
     DropdownToggle,
     DropdownSelect,
 };
@@ -90,6 +91,9 @@ const Texture *cached_icon(TextureCache &cache, const char *codepoint,
 
 const Texture *cached_text_clipped(TextureCache &cache, const std::string &s,
                                    int32_t scale, int max_width_px);
+
+const Texture *cached_text_large(TextureCache &cache, const std::string &s,
+                                 int32_t scale);
 
 } // namespace panel_chrome_detail
 

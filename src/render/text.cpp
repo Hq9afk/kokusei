@@ -52,6 +52,12 @@ PangoFontDescription *kokusei_font_description_small() {
     return desc;
 }
 
+PangoFontDescription *kokusei_font_description_large() {
+    static PangoFontDescription *desc =
+        pango_font_description_from_string(KOKUSEI_FONT_LARGE);
+    return desc;
+}
+
 cairo_font_options_t *kokusei_font_options() {
     static cairo_font_options_t *options = [] {
         cairo_font_options_t *opts = cairo_font_options_create();
@@ -152,5 +158,11 @@ RasterizedText rasterize_text(const std::string &text, int32_t scale,
 RasterizedText rasterize_text_small(const std::string &text, int32_t scale,
                                     int max_width_px) {
     return rasterize_text_with(text, kokusei_font_description_small(), scale,
+                               max_width_px);
+}
+
+RasterizedText rasterize_text_large(const std::string &text, int32_t scale,
+                                    int max_width_px) {
+    return rasterize_text_with(text, kokusei_font_description_large(), scale,
                                max_width_px);
 }

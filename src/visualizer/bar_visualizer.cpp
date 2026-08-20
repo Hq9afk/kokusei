@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "config/visualizer_config.h"
+
 #include "render/color_ops.h"
 #include "render/node.h"
 
@@ -12,6 +14,12 @@ static constexpr Color kBarColor =
     with_alpha(palette::accent, kVisualizerBarOpacity);
 
 } // namespace
+
+int bar_visualizer_compute_bar_count(int width) {
+    return std::max(1, static_cast<int>(
+                           (static_cast<float>(width) - kVisualizerBarSpacing) /
+                           (kVisualizerBarWidth + kVisualizerBarSpacing)));
+}
 
 void bar_visualizer_render(BarVisualizerState &state, int width, int height,
                            int32_t scale, float opacity, float elapsed_ms,
@@ -36,12 +44,15 @@ void bar_visualizer_render(BarVisualizerState &state, int width, int height,
     float k = 1.0f - std::exp(-std::max(0.0f, elapsed_ms) /
                               kVisualizerBarsAnimDurationMs);
 
-    float total_w = kVisualizerBarCount * kVisualizerBarWidth +
-                    (kVisualizerBarCount - 1) * kVisualizerBarSpacing;
+    state.display_values.resize(spectrum.size(), 0.0f);
+    int bar_count = static_cast<int>(spectrum.size());
+
+    float total_w = bar_count * kVisualizerBarWidth +
+                    (bar_count - 1) * kVisualizerBarSpacing;
     float start_x = (win_w - total_w) / 2.0f;
     float baseline_y = win_h;
 
-    for (int i = 0; i < kVisualizerBarCount; ++i) {
+    for (int i = 0; i < bar_count; ++i) {
         float &v = state.display_values[static_cast<size_t>(i)];
         v += (spectrum[static_cast<size_t>(i)] - v) * k;
         float bar_h = std::max(1.0f, v * kVisualizerBarHeightRatio * win_h);

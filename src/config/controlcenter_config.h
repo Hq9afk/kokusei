@@ -14,11 +14,13 @@ constexpr float kPanelColumnSpacing = 10.0f;
 
 constexpr float kProfileAvatarSize = 100.0f;
 constexpr float kProfileBorderWidth = 1.0f;
+constexpr float kProfileAvatarRingWidth = 3.0f;
 constexpr float kProfileRadius = 12.0f;
 constexpr float kProfileVerticalPadding = 24.0f;
 constexpr float kProfileTopPadding = 12.0f;
 constexpr float kProfileAvatarGap = 8.0f;
 constexpr float kProfileInfoSpacing = 2.0f;
+constexpr float kProfileSettingsHitPadding = 8.0f;
 
 constexpr float kBatteryBarHeight = 6.0f;
 constexpr float kBatteryBarRadius = 3.0f;
@@ -27,11 +29,19 @@ constexpr float kBatteryRowSpacing = 8.0f;
 
 constexpr float kGaugeDiameter = 68.0f;
 constexpr float kGaugeStroke = 6.0f;
+constexpr float kGaugeIconValueGap = 2.0f;
 constexpr float kStatsColumnGap = 16.0f;
 constexpr float kStatsGaugeLabelSpacing = 4.0f;
 constexpr float kStatsSpacing = 10.0f;
 
 constexpr float kTempRowHeight = 26.0f;
+constexpr int kCpuCoreColumns = 2;
+constexpr float kCpuCoreColumnSpacing = 8.0f;
+constexpr float kCpuCoreItemHeight = 24.0f;
+constexpr float kCpuCoreItemRadius = 6.0f;
+constexpr float kCpuCoreRowSpacing = 6.0f;
+constexpr float kCpuCoreTextMargin = 8.0f;
+constexpr float kCpuTempGridTopMargin = 8.0f;
 
 constexpr float kMediaThumbSize = 72.0f;
 constexpr float kMediaThumbRadius = 8.0f;

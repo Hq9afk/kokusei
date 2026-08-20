@@ -1,4 +1,3 @@
-#include <cstdio>
 #include <pwd.h>
 #include <sys/sysinfo.h>
 #include <unistd.h>
@@ -26,9 +25,14 @@ std::string uptime_string() {
         return "";
     long hours = info.uptime / 3600;
     long minutes = (info.uptime % 3600) / 60;
-    char buf[32];
-    std::snprintf(buf, sizeof(buf), "%ldh %ldm", hours, minutes);
-    return buf;
+    auto plural = [](long n, const char *unit) {
+        return std::to_string(n) + " " + unit + (n == 1 ? "" : "s");
+    };
+    if (hours == 0)
+        return plural(minutes, "minute");
+    if (minutes == 0)
+        return plural(hours, "hour");
+    return plural(hours, "hour") + ", " + plural(minutes, "minute");
 }
 
 } // namespace user_info

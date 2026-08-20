@@ -9,8 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "config/visualizer_config.h"
-
 class AudioSpectrum {
   public:
     ~AudioSpectrum();
@@ -20,6 +18,8 @@ class AudioSpectrum {
     void setTargetNode(uint32_t node_id, const std::string &node_name);
 
     void processFrame();
+
+    void setBarCount(int count);
 
     const std::vector<float> &values() const { return mono_.values; }
     const std::vector<float> &valuesLeft() const { return left_.values; }
@@ -45,16 +45,16 @@ class AudioSpectrum {
     void buildStream();
     void destroyStream();
     void feedSamples(ChannelPipeline &ch, const float *samples, int count);
-    void computeBandBins();
-    void processChannel(ChannelPipeline &ch);
+    void computeBandBinsFor(int bars, std::vector<int> &bin_low,
+                            std::vector<int> &bin_high);
+    void processChannel(ChannelPipeline &ch, const std::vector<int> &bin_low,
+                        const std::vector<int> &bin_high);
 
     static void onProcess(void *data);
     static void onParamChanged(void *data, uint32_t id, const spa_pod *param);
     static void onStateChanged(void *data, pw_stream_state old_state,
                                pw_stream_state state, const char *error);
     static void onStreamDestroy(void *data);
-
-    static constexpr int kBars = kVisualizerBarCount;
 
     uint32_t target_node_id_ = 0;
     std::string target_node_name_;
@@ -72,8 +72,11 @@ class AudioSpectrum {
     bool samples_received_ = false;
 
     std::vector<float> window_;
-    std::vector<int> bin_low_;
-    std::vector<int> bin_high_;
+    std::vector<int> bin_low_lr_;
+    std::vector<int> bin_high_lr_;
+    std::vector<int> bin_low_mono_;
+    std::vector<int> bin_high_mono_;
+    int mono_bar_count_ = 0;
 
     ChannelPipeline mono_;
     ChannelPipeline left_;

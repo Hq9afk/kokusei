@@ -233,3 +233,19 @@ void mpris_next(MprisState &state) { call_player_method(state, "Next"); }
 void mpris_previous(MprisState &state) {
     call_player_method(state, "Previous");
 }
+
+void mpris_poll_position(MprisState &state) {
+    if (!state.has_player || !state.player)
+        return;
+    try {
+        sdbus::Variant v;
+        state.player->callMethod("Get")
+            .onInterface(mpris_detail::kPropertiesIface)
+            .withArguments(std::string(mpris_detail::kPlayerIface),
+                          std::string("Position"))
+            .storeResultsTo(v);
+        if (auto pos = mpris_detail::variant_get<int64_t>(v))
+            state.track.position_us = *pos;
+    } catch (const sdbus::Error &) {
+    }
+}

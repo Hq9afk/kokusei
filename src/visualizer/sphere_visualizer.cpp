@@ -43,15 +43,15 @@ GLuint make_audio_texture() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, kVisualizerBarCount, 1, 0,
-                 GL_LUMINANCE, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, kVisualizerSphereSampleCount,
+                 1, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, nullptr);
     return tex;
 }
 
 void upload_audio_texture(GLuint tex, const std::vector<float> &spectrum) {
     static thread_local std::vector<uint8_t> bytes;
-    bytes.resize(kVisualizerBarCount);
-    for (int i = 0; i < kVisualizerBarCount; ++i) {
+    bytes.resize(kVisualizerSphereSampleCount);
+    for (int i = 0; i < kVisualizerSphereSampleCount; ++i) {
         float v = i < static_cast<int>(spectrum.size())
                       ? spectrum[static_cast<size_t>(i)]
                       : 0.0f;
@@ -59,7 +59,7 @@ void upload_audio_texture(GLuint tex, const std::vector<float> &spectrum) {
             static_cast<uint8_t>(std::clamp(v, 0.0f, 1.0f) * 255.0f);
     }
     glBindTexture(GL_TEXTURE_2D, tex);
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, kVisualizerBarCount, 1,
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, kVisualizerSphereSampleCount, 1,
                     GL_LUMINANCE, GL_UNSIGNED_BYTE, bytes.data());
 }
 

@@ -58,15 +58,27 @@ AudioSpectrum::~AudioSpectrum() {
 }
 
 bool AudioSpectrum::init() {
-    for (ChannelPipeline *ch : {&mono_, &left_, &right_}) {
+    mono_bar_count_ = std::max(
+        1, static_cast<int>(
+               (kVisualizerDefaultWindowWidth - kVisualizerBarSpacing) /
+               (kVisualizerBarWidth + kVisualizerBarSpacing)));
+    for (ChannelPipeline *ch : {&left_, &right_}) {
         ch->ring_buf.assign(kSpectrumFftSize, 0.0f);
         ch->fft_buf.resize(kSpectrumFftSize);
-        ch->prev_bands.assign(kBars, 0.0f);
-        ch->peak.assign(kBars, 0.0f);
-        ch->fall.assign(kBars, 0.0f);
-        ch->bands.assign(kBars, 0.0f);
-        ch->values.assign(kBars, 0.0f);
+        ch->prev_bands.assign(kVisualizerSphereSampleCount, 0.0f);
+        ch->peak.assign(kVisualizerSphereSampleCount, 0.0f);
+        ch->fall.assign(kVisualizerSphereSampleCount, 0.0f);
+        ch->bands.assign(kVisualizerSphereSampleCount, 0.0f);
+        ch->values.assign(kVisualizerSphereSampleCount, 0.0f);
     }
+    mono_.ring_buf.assign(kSpectrumFftSize, 0.0f);
+    mono_.fft_buf.resize(kSpectrumFftSize);
+    mono_.prev_bands.assign(static_cast<size_t>(mono_bar_count_), 0.0f);
+    mono_.peak.assign(static_cast<size_t>(mono_bar_count_), 0.0f);
+    mono_.fall.assign(static_cast<size_t>(mono_bar_count_), 0.0f);
+    mono_.bands.assign(static_cast<size_t>(mono_bar_count_), 0.0f);
+    mono_.values.assign(static_cast<size_t>(mono_bar_count_), 0.0f);
+
     window_.resize(kSpectrumFftSize);
     for (int i = 0; i < kSpectrumFftSize; ++i) {
         window_[static_cast<size_t>(i)] =
@@ -74,7 +86,8 @@ bool AudioSpectrum::init() {
                                     static_cast<float>(i) /
                                     static_cast<float>(kSpectrumFftSize - 1)));
     }
-    computeBandBins();
+    computeBandBinsFor(kVisualizerSphereSampleCount, bin_low_lr_, bin_high_lr_);
+    computeBandBinsFor(mono_bar_count_, bin_low_mono_, bin_high_mono_);
 
     pw_init(nullptr, nullptr);
     loop_ = pw_thread_loop_new("kokusei-visualizer", nullptr);
@@ -92,9 +105,10 @@ bool AudioSpectrum::init() {
     return true;
 }
 
-void AudioSpectrum::computeBandBins() {
-    bin_low_.resize(kBars);
-    bin_high_.resize(kBars);
+void AudioSpectrum::computeBandBinsFor(int bars, std::vector<int> &bin_low,
+                                       std::vector<int> &bin_high) {
+    bin_low.resize(static_cast<size_t>(bars));
+    bin_high.resize(static_cast<size_t>(bars));
 
     float f_low = static_cast<float>(kSpectrumLowerCutoffHz);
     float f_high =
@@ -102,30 +116,29 @@ void AudioSpectrum::computeBandBins() {
     float ratio = f_high / f_low;
     int fft_bins = kSpectrumFftSize / 2;
 
-    for (int i = 0; i < kBars; ++i) {
+    for (int i = 0; i < bars; ++i) {
         float freq_low = f_low * std::pow(ratio, static_cast<float>(i) /
-                                                     static_cast<float>(kBars));
-        float freq_high =
-            f_low * std::pow(ratio, static_cast<float>(i + 1) /
-                                        static_cast<float>(kBars));
-        int bin_low = static_cast<int>(
+                                                     static_cast<float>(bars));
+        float freq_high = f_low * std::pow(ratio, static_cast<float>(i + 1) /
+                                                      static_cast<float>(bars));
+        int low = static_cast<int>(
             std::ceil(freq_low * static_cast<float>(kSpectrumFftSize) /
                       static_cast<float>(sample_rate_)));
-        int bin_high = static_cast<int>(
+        int high = static_cast<int>(
             std::floor(freq_high * static_cast<float>(kSpectrumFftSize) /
                        static_cast<float>(sample_rate_)));
 
-        bin_low = std::clamp(bin_low, 1, fft_bins);
-        bin_high = std::clamp(bin_high, bin_low, fft_bins);
-        if (i > 0 && bin_low <= bin_high_[static_cast<size_t>(i - 1)]) {
-            bin_low = bin_high_[static_cast<size_t>(i - 1)] + 1;
-            if (bin_low > fft_bins)
-                bin_low = fft_bins;
-            if (bin_high < bin_low)
-                bin_high = bin_low;
+        low = std::clamp(low, 1, fft_bins);
+        high = std::clamp(high, low, fft_bins);
+        if (i > 0 && low <= bin_high[static_cast<size_t>(i - 1)]) {
+            low = bin_high[static_cast<size_t>(i - 1)] + 1;
+            if (low > fft_bins)
+                low = fft_bins;
+            if (high < low)
+                high = low;
         }
-        bin_low_[static_cast<size_t>(i)] = bin_low;
-        bin_high_[static_cast<size_t>(i)] = bin_high;
+        bin_low[static_cast<size_t>(i)] = low;
+        bin_high[static_cast<size_t>(i)] = high;
     }
 }
 
@@ -290,7 +303,13 @@ void AudioSpectrum::onParamChanged(void *data, uint32_t id,
     self->format_ = raw;
     self->format_ready_ = true;
     self->sample_rate_ = static_cast<int>(raw.rate);
-    self->computeBandBins();
+    {
+        std::lock_guard<std::mutex> lock(self->ring_mutex_);
+        self->computeBandBinsFor(kVisualizerSphereSampleCount,
+                                 self->bin_low_lr_, self->bin_high_lr_);
+        self->computeBandBinsFor(self->mono_bar_count_, self->bin_low_mono_,
+                                 self->bin_high_mono_);
+    }
 }
 
 void AudioSpectrum::onStateChanged(void *data, pw_stream_state,
@@ -306,7 +325,11 @@ void AudioSpectrum::onStreamDestroy(void *data) {
     self->format_ready_ = false;
 }
 
-void AudioSpectrum::processChannel(ChannelPipeline &ch) {
+void AudioSpectrum::processChannel(ChannelPipeline &ch,
+                                   const std::vector<int> &bin_low,
+                                   const std::vector<int> &bin_high) {
+    int bars = static_cast<int>(ch.bands.size());
+
     for (int i = 0; i < kSpectrumFftSize; ++i) {
         int idx = (ch.ring_pos + i) % kSpectrumFftSize;
         ch.fft_buf[static_cast<size_t>(i)] = {
@@ -318,17 +341,17 @@ void AudioSpectrum::processChannel(ChannelPipeline &ch) {
     fft(ch.fft_buf.data(), kSpectrumFftSize);
 
     float current_frame_max = 1e-5f;
-    for (int i = 0; i < kBars; ++i) {
+    for (int i = 0; i < bars; ++i) {
         float max_mag_sq = 0.0f;
-        for (int bin = bin_low_[static_cast<size_t>(i)];
-             bin <= bin_high_[static_cast<size_t>(i)]; ++bin) {
+        for (int bin = bin_low[static_cast<size_t>(i)];
+             bin <= bin_high[static_cast<size_t>(i)]; ++bin) {
             float mag_sq = std::norm(ch.fft_buf[static_cast<size_t>(bin)]);
             if (mag_sq > max_mag_sq)
                 max_mag_sq = mag_sq;
         }
         float mag = std::sqrt(max_mag_sq);
-        float freq_scale = static_cast<float>(i) /
-                           static_cast<float>(kBars > 1 ? kBars - 1 : 1);
+        float freq_scale =
+            static_cast<float>(i) / static_cast<float>(bars > 1 ? bars - 1 : 1);
         mag *= (2.5f + freq_scale * 4.0f);
         if (freq_scale <= 0.15f)
             mag *= 1.3f;
@@ -339,18 +362,18 @@ void AudioSpectrum::processChannel(ChannelPipeline &ch) {
 
     ch.global_max = std::max(ch.global_max * 0.995f, current_frame_max);
     float noise_gate = kSpectrumNoiseReduction * 0.01f;
-    for (int i = 0; i < kBars; ++i)
+    for (int i = 0; i < bars; ++i)
         ch.bands[static_cast<size_t>(i)] = std::clamp(
             (ch.bands[static_cast<size_t>(i)] / ch.global_max) - noise_gate,
             0.0f, 1.0f);
 
     if constexpr (kSpectrumSmoothing) {
         constexpr float kDropOff = 0.66f;
-        for (int i = 1; i < kBars; ++i)
+        for (int i = 1; i < bars; ++i)
             ch.bands[static_cast<size_t>(i)] =
                 std::max(ch.bands[static_cast<size_t>(i)],
                          ch.bands[static_cast<size_t>(i - 1)] * kDropOff);
-        for (int i = kBars - 2; i >= 0; --i)
+        for (int i = bars - 2; i >= 0; --i)
             ch.bands[static_cast<size_t>(i)] =
                 std::max(ch.bands[static_cast<size_t>(i)],
                          ch.bands[static_cast<size_t>(i + 1)] * kDropOff);
@@ -362,7 +385,7 @@ void AudioSpectrum::processChannel(ChannelPipeline &ch) {
     if (gravity_mod < 1.0)
         gravity_mod = 1.0;
 
-    for (int i = 0; i < kBars; ++i) {
+    for (int i = 0; i < bars; ++i) {
         size_t idx = static_cast<size_t>(i);
         if (ch.bands[idx] < ch.prev_bands[idx]) {
             ch.bands[idx] =
@@ -382,7 +405,7 @@ void AudioSpectrum::processChannel(ChannelPipeline &ch) {
         ch.prev_bands[idx] = ch.bands[idx];
     }
 
-    for (int i = 0; i < kBars; ++i)
+    for (int i = 0; i < bars; ++i)
         ch.values[static_cast<size_t>(i)] = ch.bands[static_cast<size_t>(i)];
 }
 
@@ -398,9 +421,9 @@ void AudioSpectrum::processFrame() {
         }
         samples_received_ = false;
 
-        processChannel(mono_);
-        processChannel(left_);
-        processChannel(right_);
+        processChannel(mono_, bin_low_mono_, bin_high_mono_);
+        processChannel(left_, bin_low_lr_, bin_high_lr_);
+        processChannel(right_, bin_low_lr_, bin_high_lr_);
     }
 
     bool silence = true;
@@ -424,4 +447,20 @@ void AudioSpectrum::processFrame() {
         idle_frames_ = 0;
         idle_ = false;
     }
+}
+
+void AudioSpectrum::setBarCount(int count) {
+    count = std::clamp(count, 1, kSpectrumFftSize / 2);
+
+    std::lock_guard<std::mutex> lock(ring_mutex_);
+    if (count == mono_bar_count_)
+        return;
+    mono_bar_count_ = count;
+    size_t bars = static_cast<size_t>(count);
+    mono_.prev_bands.resize(bars, 0.0f);
+    mono_.peak.resize(bars, 0.0f);
+    mono_.fall.resize(bars, 0.0f);
+    mono_.bands.resize(bars, 0.0f);
+    mono_.values.resize(bars, 0.0f);
+    computeBandBinsFor(count, bin_low_mono_, bin_high_mono_);
 }

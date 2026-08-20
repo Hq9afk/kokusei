@@ -20,6 +20,7 @@
 #include "render/image.h"
 
 #include "service/layer_surface.h"
+#include "service/mpris_service.h"
 #include "service/wallpaper_service.h"
 
 namespace {
@@ -240,6 +241,7 @@ class ControlCenterModule final : public Module {
         }
         if (poll_tick_ % 5 == 0)
             gpu_temp_poll(app.gpu_temp);
+        mpris_poll_position(app.mpris);
         request_frame();
         return true;
     }
@@ -262,6 +264,10 @@ class ControlCenterModule final : public Module {
     }
     void handle_key_event(WaylandState &app, const KeyEvent &event) override {
         controlcenter_handle_key_event(state_, app.pipewire, event);
+    }
+    void handle_scroll(WaylandState &, double dy) override {
+        controlcenter_handle_scroll(state_, dy);
+        request_frame();
     }
 
     std::vector<IpcHandler> ipc_handlers(WaylandState &app) override {
@@ -404,6 +410,8 @@ class MatrixModule final : public Module {
 
 class VisualizerModule final : public Module {
   public:
+    ~VisualizerModule() override { visualizer_shutdown(state_); }
+
     const char *name() const override { return "visualizer"; }
     bool is_open() const override { return state_.base.open; }
 

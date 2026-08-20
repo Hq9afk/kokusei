@@ -58,6 +58,8 @@ struct VisualizerState {
 
 void visualizer_request_frame(VisualizerState &state);
 
+void visualizer_shutdown(VisualizerState &state);
+
 void visualizer_toggle(VisualizerState &state, WaylandState &app);
 
 void visualizer_handle_key_event(VisualizerState &state, WaylandState &app,

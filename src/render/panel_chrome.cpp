@@ -27,6 +27,14 @@ const Texture *cached_text_clipped(TextureCache &cache, const std::string &s,
                      [&] { return rasterize_text(s, scale, max_width_px); });
 }
 
+const Texture *cached_text_large(TextureCache &cache, const std::string &s,
+                                 int32_t scale) {
+    if (s.empty())
+        return nullptr;
+    return cache.get("tl" + std::to_string(scale) + ":" + s,
+                     [&] { return rasterize_text_large(s, scale); });
+}
+
 } // namespace panel_chrome_detail
 
 Node *panel_draw_box(Node *parent, float x, float y, float w, float h,

@@ -12,6 +12,9 @@ inline constexpr const char *KOKUSEI_FONT = "ComicShannsMono Nerd Font 13";
 
 inline constexpr const char *KOKUSEI_FONT_SMALL = "ComicShannsMono Nerd Font 9";
 
+inline constexpr const char *KOKUSEI_FONT_LARGE =
+    "ComicShannsMono Nerd Font Bold 20";
+
 struct RasterizedText {
     int width = 0;
     int height = 0;
@@ -28,6 +31,8 @@ PangoFontDescription *kokusei_font_description();
 
 PangoFontDescription *kokusei_font_description_small();
 
+PangoFontDescription *kokusei_font_description_large();
+
 cairo_font_options_t *kokusei_font_options();
 
 std::string elide(const std::string &s, size_t max_chars);
@@ -42,4 +47,7 @@ RasterizedText rasterize_text(const std::string &text, int32_t scale = 1,
                               int max_width_px = 0);
 
 RasterizedText rasterize_text_small(const std::string &text, int32_t scale = 1,
+                                    int max_width_px = 0);
+
+RasterizedText rasterize_text_large(const std::string &text, int32_t scale = 1,
                                     int max_width_px = 0);

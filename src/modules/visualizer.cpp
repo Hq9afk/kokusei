@@ -87,7 +87,21 @@ void visualizer_render_thread_submit(VisualizerState &state,
     ts.cv.notify_one();
 }
 
-void visualizer_render_thread_destroy(VisualizerState &state) {
+void retarget_spectrum(VisualizerState &state, WaylandState &app) {
+    uint32_t sink_id = app.pipewire.default_sink_id;
+    auto it = app.pipewire.nodes.find(sink_id);
+    std::string sink_name =
+        it != app.pipewire.nodes.end() ? it->second.name : "";
+    state.spectrum.setTargetNode(sink_id, sink_name);
+}
+
+} // namespace
+
+void visualizer_request_frame(VisualizerState &state) {
+    toplevel_window_request_frame(state.base);
+}
+
+void visualizer_shutdown(VisualizerState &state) {
     if (state.thread_state) {
         {
             std::lock_guard<std::mutex> lock(state.thread_state->mutex);
@@ -102,20 +116,6 @@ void visualizer_render_thread_destroy(VisualizerState &state) {
         state.render_context = EGL_NO_CONTEXT;
     }
     state.thread_state.reset();
-}
-
-void retarget_spectrum(VisualizerState &state, WaylandState &app) {
-    uint32_t sink_id = app.pipewire.default_sink_id;
-    auto it = app.pipewire.nodes.find(sink_id);
-    std::string sink_name =
-        it != app.pipewire.nodes.end() ? it->second.name : "";
-    state.spectrum.setTargetNode(sink_id, sink_name);
-}
-
-} // namespace
-
-void visualizer_request_frame(VisualizerState &state) {
-    toplevel_window_request_frame(state.base);
 }
 
 void visualizer_toggle(VisualizerState &state, WaylandState &app) {
@@ -159,7 +159,7 @@ void visualizer_toggle(VisualizerState &state, WaylandState &app) {
     } else {
         state.base.animations.cancelForOwner(kOverlayFadeOwner);
         state.base.open = false;
-        visualizer_render_thread_destroy(state);
+        visualizer_shutdown(state);
         toplevel_window_destroy_surface(state.base);
     }
 }
@@ -189,6 +189,8 @@ void visualizer_paint(VisualizerState &state, const Config &cfg,
     if (state.base.egl_surface == EGL_NO_SURFACE)
         return;
 
+    state.spectrum.setBarCount(
+        bar_visualizer_compute_bar_count(state.base.width));
     state.spectrum.processFrame();
 
     bool sphere_shape = cfg.visualizer_shape == "sphere";

@@ -22,6 +22,7 @@ One statement + One explanation, ≤ 20 words each.
 - **Reusing a handle across restarts needs a generation counter.** A cancelled worker can still wake later with a stale result unless generations are checked.
 - **`async_process`'s worker thread resets `pid` to `-1` in the same instant it sets `done` and fills `buffer`.** Track "request in flight" with your own bool flag, not by reading `pid` back on a later poll.
 - **Stopping N worker threads on shutdown must signal every stop flag before joining any of them.** Signal-then-join one at a time made `kokusei kill` block on each column's thread serially, looking laggy.
+- **A module's owned background thread must be torn down in its own destructor, not only its explicit-close code path.** `kokusei kill` skipped the visualizer's shutdown entirely; the still-joinable thread's destruction called `std::terminate()` mid-`eglSwapBuffers`.
 
 ## 2. Debugging methodology
 
@@ -78,6 +79,11 @@ One statement + One explanation, ≤ 20 words each.
 - **An AviUtl custom-object `.obj` script is Shift-JIS text, not binary.** It reads as binary garbage to a UTF-8 reader; `iconv -f SHIFT-JIS -t UTF-8` turns it into ordinary Lua.
 - **Two prior sphere references both ported the same 2D noise-plus-pull-to-circle effect, not an actual sphere.** Retuning constants couldn't fix structurally wrong math; the reference was swapped to `ncs4au`'s real algorithm.
 - **A uniform grid projected orthographically onto a sphere brightens at its own silhouette, no separate ring effect needed.** Points-per-pixel diverges near the limb; `ncs4au`'s fold-back (`z=abs(z)`) plus glow should reproduce the dot-ring look.
+- **This renderer has no circular or rounded-corner texture draw, only solid rrects.** A photo (avatar, album art) renders as a plain square texture inside a round card slot; a real circular/rounded crop needs new shader work.
+- **A scrollable clipped region needs two nested groups, not one.** Outer group sits at the fixed absolute viewport rect for the clip; inner group is offset by `-scroll_offset` so children keep using their original unscrolled coordinates unchanged.
+- **Click regions inside a scrolled clip must stay in unscrolled coordinates, adjusted only at hit-test time.** Storing pre-scroll absolute rects and adding `scroll_offset` to the incoming pointer `y` keeps region math independent of the render-side offset trick above.
+- **kokusei has only 3 font-size tiers (default/small/large), not per-widget pixel sizes like the QML reference.** A large headline value uses the new `KOKUSEI_FONT_LARGE` tier instead of porting every `FontConfig.font*` field 1:1.
+- **Control center's font family/size and card border/glow numerically match `keqing-shell`'s config already.** The flatter/monospace-heavier visual diff there is a Pango/cairo rasterization-path difference, not a config gap — still an open follow-up, not yet root-caused.
 
 ## 4. Wayland protocol
 
@@ -122,6 +128,7 @@ One statement + One explanation, ≤ 20 words each.
 - **Calling a shared AnimationManager's `tick()` multiple times per instant is safe if absolute-time-based.** It recomputes from wall-clock time, not accumulated delta, so repeats don't double-advance.
 - **A hover-driven highlight must clear on lost surface focus, not just recompute on motion.** Another surface stealing pointer focus mid-hover leaves a stale hovered index unless explicitly cleared.
 - **A mutex must cover the read side of a shared buffer, not just the write side.** Per-channel splitting moved ring-buffer reads outside `ring_mutex_` while the PipeWire thread still wrote under it.
+- **Adding a second writer to shared per-bin state should prompt auditing every existing writer, not just the new one.** `onParamChanged` recomputed FFT bin ranges on the PipeWire thread without `ring_mutex_`; only became a problem once `setBarCount` made recomputation frequent.
 - **A sync-from-config function uploading only on non-empty paths must also explicitly clear the texture when the path becomes empty.** The fix resets the column's `Texture` and bumps its generation counter to reject stale decodes.
 - **Clearing a texture in memory doesn't repaint the surface, only uploading one does, unless both call `wallpaper_request_frame`.** The empty-path clear branch skipped that call, so the compositor kept showing the old wallpaper.
 
@@ -175,8 +182,10 @@ One statement + One explanation, ≤ 20 words each.
 - **An include-path migration script must exclude generated protocol-header includes from rewriting.** They resolve as if under `src/` but are build-directory outputs, breaking only at compile time.
 - **Launcher is split: `launcher.cpp` is main-executable-only (EGL/GL/Wayland); pure logic in `src/launcher/*` is dual-compiled into both binaries.** A `src/launcher/*` file still can't gain a `WaylandState`-typed function; now enforced by the file boundary.
 - **A module can't include another module's header, and `kokusei.cpp` can't name a module's function directly.** Cross-module orchestration (IPC verb table, key-dispatch table) lives in `src/app/` instead.
+- **One module can still trigger another by name, through the generic `Module` interface.** Find it in `app.overlays` by `name()`, then call its own `ipc_handlers()` and invoke the matching verb — no header dependency, no new dispatch table.
 - **A shared helper that drifted into one feature module's directory pulls every later caller across the module boundary with it.** `spawn_detached`/`resolve_app_icon_path` had no launcher-specific logic; moving to `core/`/`service/` fixed every caller.
 - **A generic dispatcher needing another module's `open` flag should take a `bool`, not the module's full state struct.** `panel_pill()` took full state structs just to read two fields; it now resolves bools itself.
 - **An enum shared between a module and its infrastructure-layer consumer belongs in `config/`, not in the module's own header.** `SettingsFieldId` lived in `settings.h`, forcing the service to include the whole module; moved to `config/`.
 - **A pure-logic function needed by a second feature module should move to `service/`, even mid-file with private helpers.** `wallpaper_decode_scaled` lived in `wallpaper.cpp` until the settings tab needed it too, forcing the move.
 - **A `grep -rln '#include "modules/'` sweep across the whole tree catches violations a targeted per-file review misses.** A reasoning-based pass found 4 violations; a full-tree grep found 2 more.
+- **A constant shared by two consumers should split once one needs to vary and the other must stay fixed.** `kVisualizerBarCount` sized both the bar shape's draw count and the sphere shape's texture; renamed to `kVisualizerSphereSampleCount` instead of capping the bar count to it.
