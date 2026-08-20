@@ -229,6 +229,8 @@ kokusei_bar_panels_main_only_sources = [
   'src/bar/panel/network_panel.cpp',
   'src/bar/panel/bluetooth_panel.cpp',
   'src/bar/panel/volume_panel.cpp',
+  'src/bar/panel/battery_panel.cpp',
+  'src/bar/panel/system_monitor_panel.cpp',
 ]
 
 # bar/ itself + widget/: real EGL/GL rendering, no test coverage,

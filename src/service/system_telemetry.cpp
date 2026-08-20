@@ -1,10 +1,22 @@
+#include <algorithm>
+#include <array>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <sys/statvfs.h>
 #include <unistd.h>
 
 #include "service/system_telemetry.h"
+
+namespace {
+
+constexpr std::array<const char *, 11> kVirtualIfacePrefixes = {
+    "lo",  "docker", "veth", "br-",       "virbr",   "vnet",
+    "tun", "tap",    "wg",   "tailscale", "nordlynx"};
+
+} // namespace
 
 bool cpu_temp_detail_is_cpu_hwmon_name(const std::string &name) {
     return name == "coretemp" || name == "k10temp" || name == "zenpower";
@@ -137,9 +149,25 @@ bool nvidia_smi_on_path() {
 
 } // namespace
 
+namespace {
+
+std::string find_gpu_usage_sensor(const std::string &temp_hwmon_path) {
+    if (temp_hwmon_path.empty())
+        return {};
+    std::filesystem::path device_dir =
+        std::filesystem::path(temp_hwmon_path).parent_path() / "device";
+    std::error_code ec;
+    std::filesystem::path busy = device_dir / "gpu_busy_percent";
+    return std::filesystem::exists(busy, ec) ? busy.string() : std::string();
+}
+
+} // namespace
+
 void gpu_temp_init(GpuTempState &state) {
     state.sensor_path = find_gpu_hwmon_sensor();
-    if (state.sensor_path.empty())
+    if (!state.sensor_path.empty())
+        state.usage_sensor_path = find_gpu_usage_sensor(state.sensor_path);
+    else
         state.nvidia_smi_present = nvidia_smi_on_path();
 }
 
@@ -150,25 +178,42 @@ void gpu_temp_poll(GpuTempState &state) {
         state.celsius = (f >> millidegrees)
                             ? static_cast<float>(millidegrees) / 1000.0f
                             : -1.0f;
+        if (!state.usage_sensor_path.empty()) {
+            std::ifstream uf(state.usage_sensor_path);
+            long pct = 0;
+            state.usage_percent = (uf >> pct) ? static_cast<float>(pct) : -1.0f;
+        }
         return;
     }
     if (!state.nvidia_smi_present)
         return;
     if (async_process_pid(state.nvidia_smi_proc) > 0) {
         if (async_process_poll(state.nvidia_smi_proc)) {
-            auto parsed = gpu_temp_detail_parse_nvidia_smi_output(
-                state.nvidia_smi_proc.buffer);
-            state.celsius = parsed.value_or(-1.0f);
+            const std::string &out = state.nvidia_smi_proc.buffer;
+            size_t comma = out.find(',');
+            auto temp_parsed = gpu_temp_detail_parse_nvidia_smi_output(
+                comma == std::string::npos ? out : out.substr(0, comma));
+            state.celsius = temp_parsed.value_or(-1.0f);
+            if (comma != std::string::npos) {
+                auto usage_parsed = gpu_temp_detail_parse_nvidia_smi_output(
+                    out.substr(comma + 1));
+                state.usage_percent = usage_parsed.value_or(-1.0f);
+            }
         }
         return;
     }
     async_process_start(state.nvidia_smi_proc,
-                        {"nvidia-smi", "--query-gpu=temperature.gpu",
+                        {"nvidia-smi",
+                         "--query-gpu=temperature.gpu,utilization.gpu",
                          "--format=csv,noheader,nounits"});
 }
 
 bool gpu_temp_available(const GpuTempState &state) {
     return state.celsius >= 0.0f;
+}
+
+bool gpu_stats_available(const GpuTempState &state) {
+    return state.celsius >= 0.0f && state.usage_percent >= 0.0f;
 }
 
 std::optional<CpuJiffies>
@@ -244,6 +289,102 @@ float system_stats_detail_mem_usage(const MemInfo &info) {
            static_cast<float>(info.total_kb);
 }
 
+std::optional<float>
+system_stats_detail_parse_cpu_freq_avg_mhz(const std::string &cpuinfo_text) {
+    std::istringstream ss(cpuinfo_text);
+    std::string line;
+    double sum = 0.0;
+    int count = 0;
+    while (std::getline(ss, line)) {
+        if (!line.starts_with("cpu MHz"))
+            continue;
+        size_t colon = line.find(':');
+        if (colon == std::string::npos)
+            continue;
+        try {
+            sum += std::stod(line.substr(colon + 1));
+            ++count;
+        } catch (...) {
+            continue;
+        }
+    }
+    if (count == 0)
+        return std::nullopt;
+    return static_cast<float>(sum / count);
+}
+
+std::optional<DiskUsage> system_stats_detail_disk_usage(const char *path) {
+    struct statvfs vfs;
+    if (statvfs(path, &vfs) != 0)
+        return std::nullopt;
+    uint64_t total = static_cast<uint64_t>(vfs.f_blocks) * vfs.f_frsize;
+    uint64_t free = static_cast<uint64_t>(vfs.f_bfree) * vfs.f_frsize;
+    if (total == 0 || free > total)
+        return std::nullopt;
+    return DiskUsage{total - free, total};
+}
+
+std::optional<NetBytes>
+system_stats_detail_parse_proc_net_dev(const std::string &text) {
+    std::istringstream ss(text);
+    std::string line;
+    std::getline(ss, line);
+    std::getline(ss, line);
+    NetBytes total;
+    bool any = false;
+    while (std::getline(ss, line)) {
+        size_t colon = line.find(':');
+        if (colon == std::string::npos)
+            continue;
+        std::string iface = line.substr(0, colon);
+        size_t start = iface.find_first_not_of(" \t");
+        if (start == std::string::npos)
+            continue;
+        iface = iface.substr(start);
+        bool is_virtual = false;
+        for (const char *prefix : kVirtualIfacePrefixes) {
+            if (iface.starts_with(prefix)) {
+                is_virtual = true;
+                break;
+            }
+        }
+        if (is_virtual)
+            continue;
+        std::istringstream ls(line.substr(colon + 1));
+        uint64_t values[16] = {};
+        int n = 0;
+        uint64_t v;
+        while (n < 16 && ls >> v)
+            values[n++] = v;
+        if (n < 9)
+            continue;
+        total.rx_bytes += values[0];
+        total.tx_bytes += values[8];
+        any = true;
+    }
+    if (!any)
+        return std::nullopt;
+    return total;
+}
+
+std::string system_stats_detail_format_speed(double bytes_per_sec) {
+    static constexpr const char *kUnits[] = {"KiB", "MiB", "GiB"};
+    double v = bytes_per_sec / 1024.0;
+    size_t i = 0;
+    while (v >= 1024.0 && i < 2) {
+        v /= 1024.0;
+        ++i;
+    }
+    if (v < 0.0)
+        v = 0.0;
+    char buf[32];
+    if (v < 10.0)
+        std::snprintf(buf, sizeof(buf), "%.1f%s", v, kUnits[i]);
+    else
+        std::snprintf(buf, sizeof(buf), "%.0f%s", v, kUnits[i]);
+    return buf;
+}
+
 namespace {
 
 std::string read_file(const char *path) {
@@ -269,5 +410,60 @@ void system_stats_poll(SystemStatsState &state) {
 
     auto mem =
         system_stats_detail_parse_proc_meminfo(read_file("/proc/meminfo"));
-    state.mem_usage = mem ? system_stats_detail_mem_usage(*mem) : -1.0f;
+    if (mem) {
+        state.mem_usage = system_stats_detail_mem_usage(*mem);
+        state.mem_used_gb =
+            static_cast<float>(mem->total_kb - mem->available_kb) / 1048576.0f;
+        state.mem_total_gb = static_cast<float>(mem->total_kb) / 1048576.0f;
+    } else {
+        state.mem_usage = -1.0f;
+        state.mem_used_gb = -1.0f;
+        state.mem_total_gb = -1.0f;
+    }
+
+    auto freq_mhz =
+        system_stats_detail_parse_cpu_freq_avg_mhz(read_file("/proc/cpuinfo"));
+    state.cpu_freq_ghz = freq_mhz ? *freq_mhz / 1000.0f : -1.0f;
+
+    auto disk = system_stats_detail_disk_usage("/");
+    if (disk) {
+        state.disk_used_gb =
+            static_cast<float>(disk->used_bytes) / 1073741824.0f;
+        state.disk_total_gb =
+            static_cast<float>(disk->total_bytes) / 1073741824.0f;
+        state.disk_pct = static_cast<float>(disk->used_bytes) * 100.0f /
+                         static_cast<float>(disk->total_bytes);
+    } else {
+        state.disk_used_gb = -1.0f;
+        state.disk_total_gb = -1.0f;
+        state.disk_pct = -1.0f;
+    }
+
+    auto net =
+        system_stats_detail_parse_proc_net_dev(read_file("/proc/net/dev"));
+    auto now = std::chrono::steady_clock::now();
+    if (net) {
+        if (state.have_prev_net) {
+            double dt = std::chrono::duration<double>(now - state.prev_net_time)
+                            .count();
+            if (dt > 0.0) {
+                state.net_rx_bps =
+                    std::max<int64_t>(
+                        0, static_cast<int64_t>(net->rx_bytes -
+                                                state.prev_net.rx_bytes)) /
+                    dt;
+                state.net_tx_bps =
+                    std::max<int64_t>(
+                        0, static_cast<int64_t>(net->tx_bytes -
+                                                state.prev_net.tx_bytes)) /
+                    dt;
+            }
+        }
+        state.prev_net = *net;
+        state.prev_net_time = now;
+        state.have_prev_net = true;
+    } else {
+        state.net_rx_bps = -1.0;
+        state.net_tx_bps = -1.0;
+    }
 }

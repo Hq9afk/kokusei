@@ -277,6 +277,9 @@ void wallpaper_animate_stop(WallpaperState &wp, int column_index) {
 }
 
 void wallpaper_animate_stop_all(WallpaperState &wp) {
+    for (auto &pb : wp.column_animations)
+        if (pb.decode.stop_flag)
+            pb.decode.stop_flag->store(true);
     for (size_t i = 0; i < wp.column_animations.size(); ++i)
         wallpaper_animate_stop(wp, static_cast<int>(i));
 }
@@ -426,7 +429,7 @@ void wallpaper_animate_sync_from_config(WallpaperState &wp, const Config &cfg,
             continue;
         wp.column_animations[static_cast<size_t>(i)].path = path;
         std::thread([&wp, path, i, target_w, target_h] {
-            std::string cached = wallpaper_animate_prepare(path, target_h);
+            std::string cached = wallpaper_animate_prepare(path);
             if (cached.empty()) {
                 klog("wallpaper_animate: prepare failed, skipping column %d",
                      i);

@@ -27,10 +27,11 @@
 - `src/bar/widget/widget_capsule.h`+`.cpp`: Shared pill bookkeeping, hover-expand/click dispatch, and generic scene-node draw helpers.
 - `src/bar/widget/workspace_widget.h`+`.cpp`, `clock_widget.h`+`.cpp`: State-free workspace-row and clock-pill drawing.
 - `src/bar/widget/battery_widget.*`, `network_widget.*`, `bluetooth_widget.*`, `volume_widget.*`, `starward_widget.*`, `control_center_widget.*`: One pair per bar pill.
-- `src/bar/panel/`: One `<name>_panel.h/.cpp` pair per on-demand panel (network, bluetooth, volume, tray+menu).
+- `src/bar/panel/`: One `<name>_panel.h/.cpp` pair per on-demand panel (network, bluetooth, volume, tray+menu, battery, system monitor).
 - `src/config/wallpaper_config.h`: Wallpaper layer-shell namespace constant.
 - `src/modules/wallpaper.h`+`.cpp`: Per-monitor background surface, multi-column texture upload, per-column fill mode (crop/fit/stretch/tile).
 - `src/service/wallpaper_hw_decode.h`+`.cpp`: In-process `libavcodec`/`libavfilter` decode loop for animated wallpaper, one thread per column.
+- `src/service/wallpaper_animate_service.h`+`.cpp`: Stable mtime-keyed cache path per animated wallpaper source; thumbnail extraction via a single-frame `ffmpeg` call.
 - `src/config/notification_config.h`: Notification card padding/size/timing constants.
 - `src/modules/notification.h`+`.cpp`: D-Bus notification service, per-monitor `NotificationView` render state, and card paint.
 - `src/modules/idle.h`+`.cpp`: Idle-notify timeout and manual idle-inhibit, single seat-level instance.
@@ -73,8 +74,8 @@
 - `src/service/frame_clock.h`+`.cpp`: `wp_presentation`/frame-callback pacing shared across surfaces.
 - `src/service/pipewire.h`+`.cpp`: Direct libpipewire client for OSD volume/mic triggers and volume-panel writes.
 - `src/service/volume_slider.h`+`.cpp`: `DraggedSlider`, tag-to-node-id resolution, drag-to-volume application.
-- `src/service/system_telemetry.h`+`.cpp`: CPU/GPU temperature via hwmon/thermal-zone/`nvidia-smi`, plus CPU-usage/RAM percent.
-- `src/service/upower_service.h`+`.cpp`: UPower D-Bus client for the bar's battery pill.
+- `src/service/system_telemetry.h`+`.cpp`: CPU/GPU temperature and usage via hwmon/thermal-zone/`nvidia-smi`, plus CPU frequency, CPU/RAM/disk usage, and network throughput.
+- `src/service/upower_service.h`+`.cpp`: UPower D-Bus client; single display device for the bar's battery pill, plus full device enumeration for the battery panel.
 - `src/service/network_service.h`+`.cpp`: NetworkManager client (nmcli subprocesses + D-Bus) and pure output parsers.
 - `src/service/bluetooth_service.h`+`.cpp`: BlueZ D-Bus client, device-classification logic, rfkill soft-block reader/clearer.
 - `src/service/pointer.h`+`.cpp`: `wl_pointer` handling, hover, click queue with button and click-time coordinates.

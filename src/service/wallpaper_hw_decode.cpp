@@ -322,14 +322,64 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
     };
 
     using clock = std::chrono::steady_clock;
-    auto frame_interval = std::chrono::duration<double>(1.0 / std::max(1, fps));
-    auto next_frame_due = clock::now();
+    double frame_interval_seconds = 1.0 / std::max(1, fps);
+    double pts_time_base = av_q2d(stream->time_base);
+    bool have_anchor = false;
+    double anchor_pts_seconds = 0.0;
+    clock::time_point anchor_time;
+    bool have_shown_frame = false;
+    double last_shown_pts_seconds = 0.0;
+
+    auto reset_pacing = [&] {
+        have_anchor = false;
+        have_shown_frame = false;
+    };
 
     auto drain_available_frames = [&]() -> bool {
         for (;;) {
             int recv_ret = avcodec_receive_frame(codec.ctx, decoded.frame);
             if (recv_ret < 0)
                 return true;
+
+            int64_t raw_pts = decoded.frame->pts != AV_NOPTS_VALUE
+                                  ? decoded.frame->pts
+                                  : decoded.frame->pkt_dts;
+            double pts_seconds =
+                raw_pts != AV_NOPTS_VALUE
+                    ? static_cast<double>(raw_pts) * pts_time_base
+                    : (have_shown_frame
+                           ? last_shown_pts_seconds + frame_interval_seconds
+                           : 0.0);
+
+            bool due =
+                !have_shown_frame || pts_seconds - last_shown_pts_seconds >=
+                                         frame_interval_seconds - 1e-6;
+            if (!due) {
+                av_frame_unref(decoded.frame);
+                if (stop_flag->load())
+                    return false;
+                continue;
+            }
+
+            if (!have_anchor) {
+                anchor_pts_seconds = pts_seconds;
+                anchor_time = clock::now();
+                have_anchor = true;
+            }
+            auto due_time =
+                anchor_time + std::chrono::duration_cast<clock::duration>(
+                                  std::chrono::duration<double>(
+                                      pts_seconds - anchor_pts_seconds));
+            while (!stop_flag->load() && clock::now() < due_time) {
+                auto remaining = due_time - clock::now();
+                auto step = remaining < std::chrono::milliseconds(20)
+                                ? remaining
+                                : std::chrono::duration_cast<clock::duration>(
+                                      std::chrono::milliseconds(20));
+                std::this_thread::sleep_for(step);
+            }
+            if (stop_flag->load())
+                return false;
 
             bool zero_copy_delivered = false;
             if (on_drm_frame && !zero_copy_disabled &&
@@ -354,6 +404,8 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
                     if (av_hwframe_transfer_data(downloaded.frame,
                                                  decoded.frame, 0) < 0) {
                         av_frame_unref(decoded.frame);
+                        if (stop_flag->load())
+                            return false;
                         continue;
                     }
                     sw_frame = downloaded.frame;
@@ -362,23 +414,9 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
                 av_frame_unref(downloaded.frame);
             }
             av_frame_unref(decoded.frame);
+            last_shown_pts_seconds = pts_seconds;
+            have_shown_frame = true;
 
-            if (stop_flag->load())
-                return false;
-
-            next_frame_due +=
-                std::chrono::duration_cast<clock::duration>(frame_interval);
-            auto now = clock::now();
-            if (next_frame_due < now)
-                next_frame_due = now;
-            while (!stop_flag->load() && clock::now() < next_frame_due) {
-                auto remaining = next_frame_due - clock::now();
-                auto step = remaining < std::chrono::milliseconds(20)
-                                ? remaining
-                                : std::chrono::duration_cast<clock::duration>(
-                                      std::chrono::milliseconds(20));
-                std::this_thread::sleep_for(step);
-            }
             if (stop_flag->load())
                 return false;
         }
@@ -390,7 +428,7 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
             if (stop_flag->load())
                 return;
-            next_frame_due = clock::now();
+            reset_pacing();
             continue;
         }
         int read_ret = av_read_frame(fmt.ctx, packet.packet);
@@ -405,6 +443,7 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
                 return;
             }
             avcodec_flush_buffers(codec.ctx);
+            reset_pacing();
             continue;
         }
         if (packet.packet->stream_index != stream_index) {

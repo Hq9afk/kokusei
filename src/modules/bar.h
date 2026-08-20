@@ -13,8 +13,10 @@
 #include "app/per_monitor_module.h"
 #include "app/wayland_state.h"
 
+#include "bar/panel/battery_panel.h"
 #include "bar/panel/bluetooth_panel.h"
 #include "bar/panel/network_panel.h"
+#include "bar/panel/system_monitor_panel.h"
 #include "bar/panel/tray_panel.h"
 #include "bar/panel/volume_panel.h"
 #include "bar/widget/widget_capsule.h"
@@ -33,6 +35,8 @@ struct BarPerMonitorState {
     VolumePanelState volume_panel;
     TrayPanelState tray_panel;
     TrayMenuState tray_menu;
+    BatteryPanelState battery_panel;
+    SystemMonitorPanelState system_monitor_panel;
 
     Texture clock_texture;
     Texture starward_texture;
@@ -86,6 +90,7 @@ class BarPerMonitorModule final : public PerMonitorModule {
 
   private:
     MonitorOutput *mon_ = nullptr;
+    int poll_tick_ = 0;
 };
 
 BarPerMonitorState &bar_state(MonitorOutput &mon);

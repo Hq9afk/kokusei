@@ -118,6 +118,8 @@ void registry_global_remove(void *data, wl_registry *, uint32_t name) {
     if (it == state->outputs.end())
         return;
     klog("output: '%s' removed", (*it)->output.name.c_str());
+    if (state->last_pointer_monitor == it->get())
+        state->last_pointer_monitor = nullptr;
     monitor_output_destroy(**it);
     state->outputs.erase(it);
 }

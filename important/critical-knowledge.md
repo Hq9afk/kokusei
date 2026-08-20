@@ -20,6 +20,7 @@ One statement + One explanation, ≤ 20 words each.
 - **A cancelled background process must be killed, not just detached.** Leaving it running lets retyped searches pile up competing processes that never finish.
 - **SIGKILL stops future CPU use but doesn't guarantee immediate process death.** Confirm actual death before forking a replacement, or the two processes compete.
 - **Reusing a handle across restarts needs a generation counter.** A cancelled worker can still wake later with a stale result unless generations are checked.
+- **Stopping N worker threads on shutdown must signal every stop flag before joining any of them.** Signal-then-join one at a time made `kokusei kill` block on each column's thread serially, looking laggy.
 
 ## 2. Debugging methodology
 
@@ -100,6 +101,7 @@ One statement + One explanation, ≤ 20 words each.
 - **Matrix and visualizer are meant to tile as regular windows, not float.** Do not add a `float = true` window rule for these; that's a rejected direction, not an oversight.
 - **A destroy-on-close `xdg_toplevel` can hand its next window handle the exact address a prior instance had.** Per-window state keyed by address must clear when the window goes away, or a reopened window inherits stale state.
 - **In `hl`'s Lua event API, a window's fields are only safe to read on `window.close`, not `window.destroy`.** By `window.destroy` fields read back `nil`; assigning to a nil table key crashes Lua.
+- **A best-effort pointer-hint into a per-output struct must be cleared on that output's removal.** `wl_output` removal frees its `MonitorOutput`; a stale `last_pointer_monitor` left dangling caused a use-after-free crash.
 
 ## 5. Async state correctness
 
@@ -138,6 +140,7 @@ One statement + One explanation, ≤ 20 words each.
 - **Looping in-process decoded video needs a seek-and-flush, not a process restart.** `av_seek_frame` plus `avcodec_flush_buffers` on EOF replaces the `ffmpeg` CLI's loop flag.
 - **A decoder can hold a frame back internally, released only by the next `send_packet` or an explicit flush.** Flushing before draining drops it; fix sends a nullptr flush packet and drains first.
 - **A reference's per-output design choice can be a consequence of threading, not correctness.** kokusei is single-threaded, needing one shared EGLContext; the visualizer window is a scoped, authorized exception.
+- **A glyph missing from the primary font shifts an entire line's baseline, not just that glyph.** U+00B7 isn't in kokusei's font; Pango's fallback font inflates line ascent. Use the em dash instead.
 - **`noctalia`'s render architecture is one thread for all GL/scene work, every style an ordinary `Node` sharing one opacity pipeline.** kokusei's earlier sphere-only special-case caused divergence; one thread for both shapes now matches noctalia's model.
 - **An abstraction earns its place only by removing duplication that exists today.** A planned compositor-backend interface was dropped once its motivating duplication was already merged away.
 - **Build a generic primitive only once a second real caller is visible, not imaginable.** `DeferredCall` ended up with no caller and stays documented rather than wired in.
@@ -149,6 +152,9 @@ One statement + One explanation, ≤ 20 words each.
 - **A fallback gated on `column_index == 0` isn't global, it's whichever monitor resolves column 0 first.** A truly global toggle needs the same check on every column, everywhere.
 - **Animated mode's empty-column default-wallpaper fallback reuses the static `wallpaper_path` image.** No separate default-animated-wallpaper asset exists; resolve any future one the same way, not a parallel field.
 - **A per-monitor module's `create_surface()` must not gate on config state, since it runs once with no re-entry point.** Wallpaper's module gated surface creation on a startup check, breaking later toggle-on.
+- **A "prepare" step that pre-scales/fps-caps a video duplicates work the live decode filter graph already does per frame.** The software `libx264` transcode caused the CPU spike/delay it aimed to avoid; removed for the existing filter graph.
+- **A zero-copy DRM delivery path can bypass the filter graph entirely, so an `fps=` filter there fixes nothing for it.** `wallpaper_hw_decode.cpp`'s VAAPI zero-copy branch delivers straight from the decoder, skipping `ensure_filter_graph`.
+- **A fixed per-decoded-frame sleep throttles decode rate, not display rate, ignoring source timestamps.** Pace playback via each frame's own pts against a wall-clock anchor, matching `qtmultimedia`'s `Renderer`; drop early frames, re-anchor on pause/seek.
 
 ## 7. Build and workflow
 

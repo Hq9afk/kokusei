@@ -1,7 +1,9 @@
 #include <algorithm>
 
+#include "bar/panel/battery_panel.h"
 #include "bar/panel/bluetooth_panel.h"
 #include "bar/panel/network_panel.h"
+#include "bar/panel/system_monitor_panel.h"
 #include "bar/panel/tray_panel.h"
 #include "bar/panel/volume_panel.h"
 #include "bar/widget/widget_capsule.h"
@@ -110,8 +112,10 @@ PillId hit_test_pills(const WidgetCapsuleState &capsule,
 PillId panel_pill(const NetworkPanelState &network_panel,
                   const BluetoothPanelState &bluetooth_panel,
                   const VolumePanelState &volume_panel,
-                  const TrayPanelState &tray_panel, bool starward_open,
-                  bool controlcenter_open) {
+                  const TrayPanelState &tray_panel,
+                  const BatteryPanelState &battery_panel,
+                  const SystemMonitorPanelState &system_monitor_panel,
+                  bool starward_open, bool controlcenter_open) {
     if (network_panel.base.open)
         return PillId::Wifi;
     if (bluetooth_panel.base.open)
@@ -120,6 +124,10 @@ PillId panel_pill(const NetworkPanelState &network_panel,
         return PillId::Volume;
     if (tray_panel.base.open)
         return PillId::Tray;
+    if (battery_panel.base.open)
+        return PillId::Battery;
+    if (system_monitor_panel.base.open)
+        return PillId::Cpu;
     if (starward_open)
         return PillId::Starward;
     if (controlcenter_open)

@@ -66,6 +66,10 @@ void close_other_overlays(MonitorOutput &mon, PillId keep) {
         tray_panel_toggle(bs.tray_panel);
     if (keep != PillId::Tray && bs.tray_menu.base.open)
         tray_menu_close(bs.tray_menu);
+    if (keep != PillId::Battery && bs.battery_panel.base.open)
+        battery_panel_toggle(bs.battery_panel);
+    if (keep != PillId::Cpu && bs.system_monitor_panel.base.open)
+        system_monitor_panel_toggle(bs.system_monitor_panel);
 }
 
 BarGeometry bar_autohide_geometry(bool autohide, bool collapsed,
@@ -126,6 +130,14 @@ void volume_panel_dispatch(WaylandState &app) {
 
 void tray_dispatch(WaylandState &app) { bar_dispatch_request_frame(app); }
 
+void battery_panel_dispatch(WaylandState &app) {
+    bar_dispatch_request_frame(app);
+}
+
+void system_monitor_panel_dispatch(WaylandState &app) {
+    bar_dispatch_request_frame(app);
+}
+
 } // namespace
 
 bool bar_init_egl(MonitorOutput &mon, Renderer &renderer, EGLDisplay display,
@@ -185,6 +197,7 @@ void bar_paint(MonitorOutput &mon) {
     Module *controlcenter_m = find_overlay_by_name(app, "controlcenter");
     PillId current_panel_pill = panel_pill(
         bs.network_panel, bs.bluetooth_panel, bs.volume_panel, bs.tray_panel,
+        bs.battery_panel, bs.system_monitor_panel,
         starward_m && starward_m->is_open() && starward_m->opened_by_widget(),
         controlcenter_m && controlcenter_m->is_open() &&
             controlcenter_m->opened_by_widget());
@@ -377,6 +390,15 @@ bool BarPerMonitorModule::create_surface(WaylandState &app, MonitorOutput &mon,
                                   app.layer_shell, output))
         klog("tray_menu: failed to create layer surface on '%s'",
              mon.output.name.c_str());
+    if (!battery_panel_create_surface(state.battery_panel, app.compositor,
+                                      app.layer_shell, output))
+        klog("battery_panel: failed to create layer surface on '%s'",
+             mon.output.name.c_str());
+    if (!system_monitor_panel_create_surface(state.system_monitor_panel,
+                                             app.compositor, app.layer_shell,
+                                             output))
+        klog("system_monitor_panel: failed to create layer surface on '%s'",
+             mon.output.name.c_str());
     return true;
 }
 
@@ -391,7 +413,11 @@ bool BarPerMonitorModule::configured() const {
            (!state.tray_panel.base.layer_surface ||
             state.tray_panel.base.configured) &&
            (!state.tray_menu.base.layer_surface ||
-            state.tray_menu.base.configured);
+            state.tray_menu.base.configured) &&
+           (!state.battery_panel.base.layer_surface ||
+            state.battery_panel.base.configured) &&
+           (!state.system_monitor_panel.base.layer_surface ||
+            state.system_monitor_panel.base.configured);
 }
 
 bool BarPerMonitorModule::init_egl(WaylandState &app, MonitorOutput &mon) {
@@ -439,6 +465,24 @@ bool BarPerMonitorModule::init_egl(WaylandState &app, MonitorOutput &mon) {
         eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
                        app.egl_context);
     }
+    if (state.battery_panel.base.layer_surface &&
+        battery_panel_init_egl(state.battery_panel, app.renderer, app.upower,
+                               app.egl_display, app.egl_config,
+                               app.egl_context)) {
+        battery_panel_request_frame(state.battery_panel, 0.0f, 0.0f, 0.0f);
+        eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
+                       app.egl_context);
+    }
+    if (state.system_monitor_panel.base.layer_surface &&
+        system_monitor_panel_init_egl(state.system_monitor_panel, app.renderer,
+                                      app.cpu_temp, app.gpu_temp,
+                                      app.system_stats, app.egl_display,
+                                      app.egl_config, app.egl_context)) {
+        system_monitor_panel_request_frame(state.system_monitor_panel, 0.0f,
+                                           0.0f, 0.0f);
+        eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
+                       app.egl_context);
+    }
 
     if (mon.autohide.enabled) {
         mon.autohide.hidden = true;
@@ -471,6 +515,14 @@ void BarPerMonitorModule::destroy(WaylandState &app, MonitorOutput &mon) {
     destroy_layer_surface(
         d, state.tray_menu.base.surface, state.tray_menu.base.layer_surface,
         state.tray_menu.base.egl_window, state.tray_menu.base.egl_surface);
+    destroy_layer_surface(d, state.battery_panel.base.surface,
+                          state.battery_panel.base.layer_surface,
+                          state.battery_panel.base.egl_window,
+                          state.battery_panel.base.egl_surface);
+    destroy_layer_surface(d, state.system_monitor_panel.base.surface,
+                          state.system_monitor_panel.base.layer_surface,
+                          state.system_monitor_panel.base.egl_window,
+                          state.system_monitor_panel.base.egl_surface);
 }
 
 bool BarPerMonitorModule::owns_surface(wl_surface *surface) const {
@@ -479,7 +531,9 @@ bool BarPerMonitorModule::owns_surface(wl_surface *surface) const {
            surface == state.bluetooth_panel.base.surface ||
            surface == state.volume_panel.base.surface ||
            surface == state.tray_panel.base.surface ||
-           surface == state.tray_menu.base.surface;
+           surface == state.tray_menu.base.surface ||
+           surface == state.battery_panel.base.surface ||
+           surface == state.system_monitor_panel.base.surface;
 }
 
 void BarPerMonitorModule::request_frame() {
@@ -503,17 +557,36 @@ void BarPerMonitorModule::request_frame() {
         bar_detail::pill_center_x(state.capsule, PillId::Tray),
         static_cast<float>(bar_detail::kBarHeight), bar_detail::kBarTopMargin);
     tray_menu_request_frame(state.tray_menu);
+    battery_panel_request_frame(
+        state.battery_panel,
+        bar_detail::pill_center_x(state.capsule, PillId::Battery),
+        static_cast<float>(bar_detail::kBarHeight), bar_detail::kBarTopMargin);
+    system_monitor_panel_request_frame(
+        state.system_monitor_panel,
+        bar_detail::pill_center_x(state.capsule, PillId::Cpu),
+        static_cast<float>(bar_detail::kBarHeight), bar_detail::kBarTopMargin);
 }
 
 void BarPerMonitorModule::tick(WaylandState &, MonitorOutput &mon) {
     bar_detail::volume_pill_peek_tick(mon);
 }
 
-void BarPerMonitorModule::timer_tick(WaylandState &, MonitorOutput &mon) {
+void BarPerMonitorModule::timer_tick(WaylandState &app, MonitorOutput &mon) {
     update_clock(mon);
     bar_request_frame(mon);
     if (bar_detail::volume_pill_peek_expire(mon))
         bar_request_frame(mon);
+
+    if (state.system_monitor_panel.base.open) {
+        ++poll_tick_;
+        if (poll_tick_ % 2 == 0) {
+            cpu_temp_poll(app.cpu_temp);
+            system_stats_poll(app.system_stats);
+        }
+        if (poll_tick_ % 5 == 0)
+            gpu_temp_poll(app.gpu_temp);
+        system_monitor_panel_dispatch(app);
+    }
 }
 
 std::vector<IpcHandler> BarPerMonitorModule::ipc_handlers(WaylandState &app) {
@@ -530,7 +603,9 @@ std::vector<IpcHandler> BarPerMonitorModule::ipc_handlers(WaylandState &app) {
 
 bool BarPerMonitorModule::is_open() const {
     return state.network_panel.base.open || state.bluetooth_panel.base.open ||
-           state.volume_panel.base.open;
+           state.volume_panel.base.open || state.tray_panel.base.open ||
+           state.battery_panel.base.open ||
+           state.system_monitor_panel.base.open;
 }
 
 void BarPerMonitorModule::handle_click(WaylandState &app, MonitorOutput &mon,
@@ -563,12 +638,20 @@ void BarPerMonitorModule::handle_click(WaylandState &app, MonitorOutput &mon,
     } else if (surface == state.volume_panel.base.surface) {
         volume_panel_handle_click(state.volume_panel, app.pipewire, x, y);
         volume_panel_dispatch(app);
+    } else if (surface == state.battery_panel.base.surface) {
+        battery_panel_handle_click(state.battery_panel, x, y);
+        battery_panel_dispatch(app);
+    } else if (surface == state.system_monitor_panel.base.surface) {
+        system_monitor_panel_handle_click(state.system_monitor_panel, x, y);
+        system_monitor_panel_dispatch(app);
     } else if (surface == mon.surface) {
         dispatch_pill_click(mon, x, y);
         network_panel_dispatch(app, true);
         bluetooth_panel_dispatch(app);
         volume_panel_dispatch(app);
         tray_dispatch(app);
+        battery_panel_dispatch(app);
+        system_monitor_panel_dispatch(app);
         for (auto &m : app.overlays) {
             m->request_frame();
             bar_detail::rest_egl_current(app);
@@ -587,6 +670,13 @@ void BarPerMonitorModule::handle_scroll(WaylandState &app, MonitorOutput &mon,
     } else if (surface == state.volume_panel.base.surface) {
         volume_panel_handle_scroll(state.volume_panel, app.pipewire, dy);
         volume_panel_dispatch(app);
+    } else if (surface == state.battery_panel.base.surface) {
+        battery_panel_handle_scroll(state.battery_panel, app.upower, dy);
+        battery_panel_dispatch(app);
+    } else if (surface == state.system_monitor_panel.base.surface) {
+        system_monitor_panel_handle_scroll(state.system_monitor_panel,
+                                           app.gpu_temp, dy);
+        system_monitor_panel_dispatch(app);
     } else if (surface == mon.surface &&
                bar_detail::hit_test_pills(state.capsule, app.pointer,
                                           mon.surface) == PillId::Volume) {
@@ -608,6 +698,13 @@ void BarPerMonitorModule::handle_key_event(WaylandState &app,
     } else if (state.volume_panel.base.open) {
         volume_panel_handle_key_event(state.volume_panel, app.pipewire, event);
         volume_panel_dispatch(app);
+    } else if (state.battery_panel.base.open) {
+        battery_panel_handle_key_event(state.battery_panel, event);
+        battery_panel_dispatch(app);
+    } else if (state.system_monitor_panel.base.open) {
+        system_monitor_panel_handle_key_event(state.system_monitor_panel,
+                                              event);
+        system_monitor_panel_dispatch(app);
     }
 }
 
