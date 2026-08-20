@@ -20,6 +20,7 @@ One statement + One explanation, ≤ 20 words each.
 - **A cancelled background process must be killed, not just detached.** Leaving it running lets retyped searches pile up competing processes that never finish.
 - **SIGKILL stops future CPU use but doesn't guarantee immediate process death.** Confirm actual death before forking a replacement, or the two processes compete.
 - **Reusing a handle across restarts needs a generation counter.** A cancelled worker can still wake later with a stale result unless generations are checked.
+- **`async_process`'s worker thread resets `pid` to `-1` in the same instant it sets `done` and fills `buffer`.** Track "request in flight" with your own bool flag, not by reading `pid` back on a later poll.
 - **Stopping N worker threads on shutdown must signal every stop flag before joining any of them.** Signal-then-join one at a time made `kokusei kill` block on each column's thread serially, looking laggy.
 
 ## 2. Debugging methodology

@@ -131,6 +131,7 @@ void controlcenter_handle_click(ControlCenterState &state, WaylandState &app,
         }
         case PanelClickKind::SliderDrag: {
             state.dragging = DraggedSlider{region.tag, region.rect};
+            state.selected_slider_tag = region.tag;
             volume_slider_apply_drag(app.pipewire, *state.dragging, px);
             break;
         }
@@ -161,9 +162,30 @@ void controlcenter_handle_pointer_move(ControlCenterState &state,
 }
 
 void controlcenter_handle_key_event(ControlCenterState &state,
-                                    const KeyEvent &event) {
-    if (event.kind == KeyKind::Escape)
+                                    PipewireState &pw, const KeyEvent &event) {
+    switch (event.kind) {
+    case KeyKind::Escape:
         controlcenter_toggle(state);
+        break;
+    case KeyKind::Left:
+    case KeyKind::Right: {
+        if (state.selected_slider_tag.empty())
+            break;
+        uint32_t id =
+            volume_slider_resolve_tag_id(pw, state.selected_slider_tag);
+        if (id == 0)
+            break;
+        auto it = pw.nodes.find(id);
+        if (it == pw.nodes.end())
+            break;
+        float step = event.kind == KeyKind::Right ? 0.01f : -0.01f;
+        pipewire_set_node_volume(
+            pw, id, std::clamp(it->second.level + step, 0.0f, 1.0f));
+        break;
+    }
+    default:
+        break;
+    }
 }
 
 using namespace panel_chrome_detail;
@@ -413,24 +435,47 @@ float draw_cpu_temp_card(Node *root, TextureCache &tcache, int32_t scale,
              ? std::to_string(static_cast<int>(cpu_temp.celsius)) + "C"
              : "--");
     const Texture *label_tex = cached_text(tcache, label, scale);
-    float content_h =
+    float row_h =
         std::max(icon_tex ? icon_tex->height : 0.0f,
                  label_tex ? static_cast<float>(label_tex->height) : 0.0f);
-    content_h = std::max(content_h, kTempRowHeight);
+    row_h = std::max(row_h, kTempRowHeight);
+
+    size_t core_rows = 0;
+    for (const CpuCoreTemp &core : cpu_temp.cores)
+        if (core.celsius >= 0.0f)
+            ++core_rows;
+    float content_h = row_h + static_cast<float>(core_rows) * kTempRowHeight;
 
     CardChrome chrome = card_chrome_draw(root, tcache, scale, x, y, w,
                                          content_h, "CPU Temperature");
     float cx = chrome.content_x, cy = chrome.content_y;
 
     if (icon_tex)
-        node_add_texture(root, cx, cy + (content_h - icon_tex->height) / 2.0f,
+        node_add_texture(root, cx, cy + (row_h - icon_tex->height) / 2.0f,
                          *icon_tex, rgba(palette::text));
     if (label_tex)
         node_add_texture(root,
                          cx + (icon_tex ? icon_tex->width : 0) +
                              kCardHorizontalPadding,
-                         cy + (content_h - label_tex->height) / 2.0f,
-                         *label_tex, rgba(palette::text));
+                         cy + (row_h - label_tex->height) / 2.0f, *label_tex,
+                         rgba(palette::text));
+
+    float core_y = cy + row_h;
+    for (const CpuCoreTemp &core : cpu_temp.cores) {
+        if (core.celsius < 0.0f)
+            continue;
+        std::string core_label =
+            core.label + "  " + std::to_string(static_cast<int>(core.celsius)) +
+            "C";
+        const Texture *core_tex = cached_text(tcache, core_label, scale);
+        if (core_tex)
+            node_add_texture(
+                root,
+                cx + (icon_tex ? icon_tex->width : 0) + kCardHorizontalPadding,
+                core_y + (kTempRowHeight - core_tex->height) / 2.0f, *core_tex,
+                rgba(palette::text_dim));
+        core_y += kTempRowHeight;
+    }
 
     return chrome.box_h;
 }

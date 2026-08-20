@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "core/async_process.h"
 
@@ -11,9 +12,18 @@ bool cpu_temp_detail_is_cpu_hwmon_name(const std::string &name);
 
 bool cpu_temp_detail_is_cpu_thermal_zone_type(const std::string &type);
 
+int cpu_temp_detail_core_label_index(const std::string &label);
+
+struct CpuCoreTemp {
+    std::string label;
+    std::string sensor_path;
+    float celsius = -1.0f;
+};
+
 struct CpuTempState {
     std::string sensor_path;
     float celsius = -1.0f;
+    std::vector<CpuCoreTemp> cores;
 };
 
 void cpu_temp_init(CpuTempState &state);
@@ -31,6 +41,7 @@ struct GpuTempState {
     std::string sensor_path;
     std::string usage_sensor_path;
     bool nvidia_smi_present = false;
+    bool nvidia_smi_running = false;
     AsyncProcess nvidia_smi_proc;
     float celsius = -1.0f;
     float usage_percent = -1.0f;

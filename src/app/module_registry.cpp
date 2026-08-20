@@ -260,8 +260,8 @@ class ControlCenterModule final : public Module {
     void handle_click(WaylandState &app, double x, double y) override {
         controlcenter_handle_click(state_, app, x, y);
     }
-    void handle_key_event(WaylandState &, const KeyEvent &event) override {
-        controlcenter_handle_key_event(state_, event);
+    void handle_key_event(WaylandState &app, const KeyEvent &event) override {
+        controlcenter_handle_key_event(state_, app.pipewire, event);
     }
 
     std::vector<IpcHandler> ipc_handlers(WaylandState &app) override {

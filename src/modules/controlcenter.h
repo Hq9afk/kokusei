@@ -33,6 +33,7 @@ struct ControlCenterState {
     bool opened_by_widget = false;
     wl_output *bound_output = nullptr;
     std::optional<DraggedSlider> dragging;
+    std::string selected_slider_tag;
 
     float pending_bar_height = 0.0f;
     float pending_bar_top_margin = 0.0f;
@@ -71,7 +72,7 @@ void controlcenter_handle_pointer_move(ControlCenterState &state,
                                        PipewireState &pw, double px);
 
 void controlcenter_handle_key_event(ControlCenterState &state,
-                                    const KeyEvent &event);
+                                    PipewireState &pw, const KeyEvent &event);
 
 void controlcenter_paint(ControlCenterState &state, WaylandState &app,
                          float bar_height, float bar_top_margin);
