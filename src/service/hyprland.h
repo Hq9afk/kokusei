@@ -57,7 +57,4 @@ enum class HyprEventResult {
 
 HyprEventResult hypr_poll_events(HyprlandState &state);
 
-// Fire-and-forget "dispatch <command>" over the same request socket
-// hypr_refresh() uses, e.g. hypr_dispatch(state, "workspace 3") or
-// hypr_dispatch(state, "focuswindow address:0x...").
 void hypr_dispatch(HyprlandState &state, const std::string &command);

@@ -242,7 +242,7 @@ void mpris_poll_position(MprisState &state) {
         state.player->callMethod("Get")
             .onInterface(mpris_detail::kPropertiesIface)
             .withArguments(std::string(mpris_detail::kPlayerIface),
-                          std::string("Position"))
+                           std::string("Position"))
             .storeResultsTo(v);
         if (auto pos = mpris_detail::variant_get<int64_t>(v))
             state.track.position_us = *pos;

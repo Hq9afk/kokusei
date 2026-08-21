@@ -385,7 +385,12 @@ void tray_panel_toggle(TrayPanelState &state, float pill_center_x) {
             state.base.animations.animate(
                 state.visible_height, 0.0f, kOverlayFadeMs,
                 Easing::EaseOutCubic,
-                [&state](float v) { state.visible_height = v; }, {},
+                [&state](float v) { state.visible_height = v; },
+                [&state] {
+                    state.visible_height = -1.0f;
+                    state.locked_center_x = -1.0f;
+                    state.locked_panel_h = -1.0f;
+                },
                 kPanelHeightAnimOwner);
         });
 }
@@ -431,11 +436,14 @@ void tray_panel_paint(TrayPanelState &state, TrayState &tray,
     const float *dim = rgba(palette::text_dim);
 
     float panel_w = kTrayPanelWidth;
-    float content_h = grid_content_height(tray.items.size());
-    float panel_h = panel_total_height(content_h);
 
     if (state.locked_center_x < 0.0f)
         state.locked_center_x = pill_center_x;
+    if (state.locked_panel_h < 0.0f) {
+        float content_h = grid_content_height(tray.items.size());
+        state.locked_panel_h = panel_total_height(content_h);
+    }
+    float panel_h = state.locked_panel_h;
     if (state.visible_height < 0.0f) {
         state.visible_height = 0.0f;
         state.base.animations.animate(

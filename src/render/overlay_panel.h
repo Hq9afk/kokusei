@@ -103,7 +103,6 @@ inline bool panel_lock_toggle(OverlayPanelBase &base, float &locked_center_x,
     bool was_open = base.open;
     overlay_panel_toggle(base);
     if (was_open) {
-        locked_center_x = -1.0f;
         on_close();
     } else {
         if (pill_center_x >= 0.0f)

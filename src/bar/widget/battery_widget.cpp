@@ -1,6 +1,7 @@
 #include <string>
 
 #include "bar/panel/battery_panel.h"
+
 #include "bar/widget/battery_widget.h"
 
 #include "modules/bar.h"

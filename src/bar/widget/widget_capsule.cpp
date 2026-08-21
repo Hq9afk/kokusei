@@ -6,6 +6,7 @@
 #include "bar/panel/system_monitor_panel.h"
 #include "bar/panel/tray_panel.h"
 #include "bar/panel/volume_panel.h"
+
 #include "bar/widget/widget_capsule.h"
 
 #include "render/icon.h"

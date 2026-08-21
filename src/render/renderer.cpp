@@ -138,10 +138,8 @@ void Renderer::draw_texture_rect_rounded(float x, float y, float w, float h,
     float tc[4] = {tint[0], tint[1], tint[2], tint[3] * opacity_};
     glUniform4fv(glGetUniformLocation(rounded_tex_program_, "u_color"), 1, tc);
     float size[2] = {w, h};
-    glUniform2fv(glGetUniformLocation(rounded_tex_program_, "u_size"), 1,
-                size);
-    glUniform1f(glGetUniformLocation(rounded_tex_program_, "u_radius"),
-               radius);
+    glUniform2fv(glGetUniformLocation(rounded_tex_program_, "u_size"), 1, size);
+    glUniform1f(glGetUniformLocation(rounded_tex_program_, "u_radius"), radius);
     draw_quad(rounded_tex_program_);
 }
 

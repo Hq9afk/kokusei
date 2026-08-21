@@ -26,27 +26,23 @@
 #include "service/system_telemetry.h"
 #include "service/upower_service.h"
 
-bool dashboard_create_surface(DashboardState &state,
-                                  wl_compositor *compositor,
-                                  zwlr_layer_shell_v1 *layer_shell,
-                                  wl_output *output) {
+bool dashboard_create_surface(DashboardState &state, wl_compositor *compositor,
+                              zwlr_layer_shell_v1 *layer_shell,
+                              wl_output *output) {
     return overlay_panel_create_surface(state.base, compositor, layer_shell,
                                         "kokusei-dashboard", output);
 }
 
 bool dashboard_init_egl(DashboardState &state, Renderer &renderer,
-                            WaylandState &app, EGLDisplay display,
-                            EGLConfig config, EGLContext context) {
+                        WaylandState &app, EGLDisplay display, EGLConfig config,
+                        EGLContext context) {
     state.renderer = &renderer;
     if (!overlay_panel_init_egl(state.base, display, config, context))
         return false;
     state.base.frame_clock.draw = [&state, &app] {
         dashboard_paint(state, app, state.pending_bar_height,
-                            state.pending_bar_top_margin);
+                        state.pending_bar_top_margin);
     };
-    // ponytail: only ~/.face (PNG/JPG) is tried; keqing-shell's userPfp is a
-    // GIF, which this codebase's image loader can't decode. Upgrade path:
-    // add GIF support to render/image.cpp, or a config field for the path.
     if (const char *home = getenv("HOME")) {
         std::string face_path = std::string(home) + "/.face";
         if (std::filesystem::exists(face_path))
@@ -55,29 +51,28 @@ bool dashboard_init_egl(DashboardState &state, Renderer &renderer,
     return true;
 }
 
-void dashboard_retarget(DashboardState &state,
-                            wl_compositor *compositor,
-                            zwlr_layer_shell_v1 *layer_shell,
-                            wl_display *display, Renderer &renderer,
-                            WaylandState &app, EGLDisplay egl_display,
-                            EGLConfig egl_config, EGLContext egl_context,
-                            wl_output *target_output, const char *target_name) {
+void dashboard_retarget(DashboardState &state, wl_compositor *compositor,
+                        zwlr_layer_shell_v1 *layer_shell, wl_display *display,
+                        Renderer &renderer, WaylandState &app,
+                        EGLDisplay egl_display, EGLConfig egl_config,
+                        EGLContext egl_context, wl_output *target_output,
+                        const char *target_name) {
     wl_output *bound = overlay_panel_retarget(
         state.base, display, state.bound_output, target_output, target_name,
         [&](wl_output *out) {
             return dashboard_create_surface(state, compositor, layer_shell,
-                                                out);
+                                            out);
         },
         [&] {
             return dashboard_init_egl(state, renderer, app, egl_display,
-                                          egl_config, egl_context);
+                                      egl_config, egl_context);
         });
     if (bound)
         state.bound_output = bound;
 }
 
 void dashboard_request_frame(DashboardState &state, float bar_height,
-                                 float bar_top_margin) {
+                             float bar_top_margin) {
     state.pending_bar_height = bar_height;
     state.pending_bar_top_margin = bar_top_margin;
     overlay_panel_request_frame(state.base);
@@ -91,18 +86,16 @@ void dashboard_toggle(DashboardState &state, bool by_widget) {
     overlay_panel_toggle(state.base);
 }
 
-std::vector<IpcHandler>
-dashboard_ipc_handlers(DashboardState &dashboard,
-                           WaylandState &state) {
+std::vector<IpcHandler> dashboard_ipc_handlers(DashboardState &dashboard,
+                                               WaylandState &state) {
     return {
         {"dashboard",
          [&dashboard, &state] {
              if (!dashboard.base.open) {
                  MonitorOutput *target =
                      bar_detail::active_target_monitor(state);
-                 if (target &&
-                     (target->output.wl != dashboard.bound_output ||
-                      !dashboard.base.layer_surface))
+                 if (target && (target->output.wl != dashboard.bound_output ||
+                                !dashboard.base.layer_surface))
                      dashboard_retarget(
                          dashboard, state.compositor, state.layer_shell,
                          state.display, state.renderer, state,
@@ -129,8 +122,8 @@ void open_settings(WaylandState &app) {
 }
 } // namespace
 
-void dashboard_handle_click(DashboardState &state, WaylandState &app,
-                                double px, double py) {
+void dashboard_handle_click(DashboardState &state, WaylandState &app, double px,
+                            double py) {
     auto hit = [](const Rect &r, double x, double y) {
         return r.w > 0 && x >= r.x && x < r.x + r.w && y >= r.y &&
                y < r.y + r.h;
@@ -183,21 +176,21 @@ void dashboard_handle_click(DashboardState &state, WaylandState &app,
         dashboard_toggle(state);
 }
 
-void dashboard_handle_pointer_move(DashboardState &state,
-                                       PipewireState &pw, double px) {
+void dashboard_handle_pointer_move(DashboardState &state, PipewireState &pw,
+                                   double px) {
     if (!state.dragging)
         return;
     volume_slider_apply_drag(pw, *state.dragging, px);
 }
 
 void dashboard_handle_scroll(DashboardState &state, double dy) {
-    state.scroll_offset = panel_clamp_scroll(
-        state.scroll_offset, static_cast<float>(dy), state.content_height,
-        state.visible_height);
+    state.scroll_offset =
+        panel_clamp_scroll(state.scroll_offset, static_cast<float>(dy),
+                           state.content_height, state.visible_height);
 }
 
-void dashboard_handle_key_event(DashboardState &state,
-                                    PipewireState &pw, const KeyEvent &event) {
+void dashboard_handle_key_event(DashboardState &state, PipewireState &pw,
+                                const KeyEvent &event) {
     switch (event.kind) {
     case KeyKind::Escape:
         dashboard_toggle(state);
@@ -275,22 +268,17 @@ float draw_profile_card(Node *root, TextureCache &tcache, int32_t scale,
                    kProfileAvatarRingWidth, rgba(palette::overlay),
                    rgba(palette::accent));
     if (avatar_tex.id) {
-        // ponytail: no circular texture clip in this renderer, so the photo
-        // is a plain square inside the ring. Upgrade if that reads wrong.
         node_add_texture_rect(root, avatar_x, avatar_y, kProfileAvatarSize,
                               kProfileAvatarSize, avatar_tex,
                               rgba(palette::text));
     } else {
         const Texture *avatar_icon = cached_icon(tcache, icon::user, scale);
         if (avatar_icon)
-            node_add_texture(root,
-                             avatar_x +
-                                 (kProfileAvatarSize - avatar_icon->width) /
-                                     2.0f,
-                             avatar_y +
-                                 (kProfileAvatarSize - avatar_icon->height) /
-                                     2.0f,
-                             *avatar_icon, rgba(palette::text));
+            node_add_texture(
+                root,
+                avatar_x + (kProfileAvatarSize - avatar_icon->width) / 2.0f,
+                avatar_y + (kProfileAvatarSize - avatar_icon->height) / 2.0f,
+                *avatar_icon, rgba(palette::text));
     }
 
     const Texture *settings_icon = cached_icon(tcache, icon::settings, scale);
@@ -299,9 +287,9 @@ float draw_profile_card(Node *root, TextureCache &tcache, int32_t scale,
         float sy = y + kProfileTopPadding;
         node_add_texture(root, sx, sy, *settings_icon, rgba(palette::text));
         Rect hit = {sx - kProfileSettingsHitPadding,
-                   sy - kProfileSettingsHitPadding,
-                   settings_icon->width + 2 * kProfileSettingsHitPadding,
-                   settings_icon->height + 2 * kProfileSettingsHitPadding};
+                    sy - kProfileSettingsHitPadding,
+                    settings_icon->width + 2 * kProfileSettingsHitPadding,
+                    settings_icon->height + 2 * kProfileSettingsHitPadding};
         regions.push_back({PanelClickKind::ProfileSettings, hit, ""});
     }
 
@@ -489,37 +477,35 @@ float draw_system_stats_card(Node *root, TextureCache &tcache, int32_t scale,
 
     float cpu01 = std::max(0.0f, stats.cpu_usage);
     draw_gauge(root, tcache, scale, gx, cy, cpu01, kGaugeColorCpu, icon::cpu,
-              stats.cpu_usage >= 0.0f
-                  ? std::to_string(static_cast<int>(cpu01 * 100.0f)) + "%"
-                  : "--",
-              "CPU");
+               stats.cpu_usage >= 0.0f
+                   ? std::to_string(static_cast<int>(cpu01 * 100.0f)) + "%"
+                   : "--",
+               "CPU");
     gx += kGaugeDiameter + gap;
 
     if (show_gpu) {
         float gpu01 = std::max(0.0f, gpu_temp.usage_percent / 100.0f);
-        draw_gauge(root, tcache, scale, gx, cy, gpu01, kGaugeColorGpu,
-                  icon::gpu,
-                  std::to_string(static_cast<int>(gpu_temp.usage_percent)) +
-                      "%",
-                  "GPU");
+        draw_gauge(
+            root, tcache, scale, gx, cy, gpu01, kGaugeColorGpu, icon::gpu,
+            std::to_string(static_cast<int>(gpu_temp.usage_percent)) + "%",
+            "GPU");
         gx += kGaugeDiameter + gap;
     }
 
     float mem01 = std::max(0.0f, stats.mem_usage);
     draw_gauge(root, tcache, scale, gx, cy, mem01, kGaugeColorRam,
-              icon::settings,
-              stats.mem_usage >= 0.0f
-                  ? std::to_string(static_cast<int>(mem01 * 100.0f)) + "%"
-                  : "--",
-              "RAM");
+               icon::settings,
+               stats.mem_usage >= 0.0f
+                   ? std::to_string(static_cast<int>(mem01 * 100.0f)) + "%"
+                   : "--",
+               "RAM");
     gx += kGaugeDiameter + gap;
 
     if (show_disk) {
         float disk01 = std::clamp(stats.disk_pct / 100.0f, 0.0f, 1.0f);
-        draw_gauge(root, tcache, scale, gx, cy, disk01, kGaugeColorDisk,
-                  icon::folder,
-                  std::to_string(static_cast<int>(stats.disk_pct)) + "%",
-                  "DISK");
+        draw_gauge(
+            root, tcache, scale, gx, cy, disk01, kGaugeColorDisk, icon::folder,
+            std::to_string(static_cast<int>(stats.disk_pct)) + "%", "DISK");
     }
 
     return chrome.box_h;
@@ -544,17 +530,16 @@ float draw_cpu_temp_card(Node *root, TextureCache &tcache, int32_t scale,
                  kTempRowHeight);
 
     float content_w = w - 2 * kCardHorizontalPadding;
-    float cell_w =
-        (content_w - (kCpuCoreColumns - 1) * kCpuCoreColumnSpacing) /
-        kCpuCoreColumns;
+    float cell_w = (content_w - (kCpuCoreColumns - 1) * kCpuCoreColumnSpacing) /
+                   kCpuCoreColumns;
     int rows = cores.empty()
-                  ? 0
-                  : static_cast<int>(
-                        (cores.size() + kCpuCoreColumns - 1) / kCpuCoreColumns);
-    float grid_h =
-        cores.empty() ? 0.0f
-                      : kCpuTempGridTopMargin + rows * kCpuCoreItemHeight +
-                            std::max(0, rows - 1) * kCpuCoreRowSpacing;
+                   ? 0
+                   : static_cast<int>((cores.size() + kCpuCoreColumns - 1) /
+                                      kCpuCoreColumns);
+    float grid_h = cores.empty()
+                       ? 0.0f
+                       : kCpuTempGridTopMargin + rows * kCpuCoreItemHeight +
+                             std::max(0, rows - 1) * kCpuCoreRowSpacing;
     float content_h = headline_h + grid_h;
 
     CardChrome chrome = card_chrome_draw(root, tcache, scale, x, y, w,
@@ -578,22 +563,19 @@ float draw_cpu_temp_card(Node *root, TextureCache &tcache, int32_t scale,
 
         const Texture *name_tex = cached_text(tcache, core.label, scale);
         if (name_tex)
-            node_add_texture(
-                root, cell_x + kCpuCoreTextMargin,
-                cell_y + (kCpuCoreItemHeight - name_tex->height) / 2.0f,
-                *name_tex, rgba(palette::text_dim));
+            node_add_texture(root, cell_x + kCpuCoreTextMargin,
+                             cell_y +
+                                 (kCpuCoreItemHeight - name_tex->height) / 2.0f,
+                             *name_tex, rgba(palette::text_dim));
 
         std::string value_label =
             std::to_string(static_cast<int>(core.celsius)) + "°C";
         const Texture *value_tex = cached_text(tcache, value_label, scale);
         if (value_tex)
-            node_add_texture(root,
-                             cell_x + cell_w - kCpuCoreTextMargin -
-                                 value_tex->width,
-                             cell_y +
-                                 (kCpuCoreItemHeight - value_tex->height) /
-                                     2.0f,
-                             *value_tex, rgba(temp_color(core.celsius)));
+            node_add_texture(
+                root, cell_x + cell_w - kCpuCoreTextMargin - value_tex->width,
+                cell_y + (kCpuCoreItemHeight - value_tex->height) / 2.0f,
+                *value_tex, rgba(temp_color(core.celsius)));
     }
 
     return chrome.box_h;
@@ -658,8 +640,6 @@ float draw_media_card(Node *root, TextureCache &tcache, int32_t scale, float x,
     const Texture *art_tex = nullptr;
     if (mpris.has_player &&
         mpris_detail_is_local_art_url(mpris.track.art_url)) {
-        // ponytail: no percent-decoding of the file:// path. Local players
-        // write plain-ASCII cache paths in practice; upgrade if one doesn't.
         std::string path = mpris.track.art_url.substr(7);
         auto it = art_cache.find(path);
         if (it == art_cache.end())
@@ -668,17 +648,15 @@ float draw_media_card(Node *root, TextureCache &tcache, int32_t scale, float x,
             art_tex = &it->second;
     }
     if (art_tex) {
-        // ponytail: square crop, no rounded-corner texture draw in this
-        // renderer. Upgrade if the square corners peeking out look wrong.
         node_add_texture_rect(root, cx, cy, kMediaThumbSize, kMediaThumbSize,
                               *art_tex, rgba(palette::text));
     } else {
         const Texture *note_tex = cached_icon(tcache, icon::music_note, scale);
         if (note_tex)
-            node_add_texture(
-                root, cx + (kMediaThumbSize - note_tex->width) / 2.0f,
-                cy + (kMediaThumbSize - note_tex->height) / 2.0f, *note_tex,
-                rgba(palette::text_dim));
+            node_add_texture(root,
+                             cx + (kMediaThumbSize - note_tex->width) / 2.0f,
+                             cy + (kMediaThumbSize - note_tex->height) / 2.0f,
+                             *note_tex, rgba(palette::text_dim));
     }
 
     float text_x = cx + kMediaThumbSize + kMediaTitleLeftMargin;
@@ -717,8 +695,7 @@ float draw_media_card(Node *root, TextureCache &tcache, int32_t scale, float x,
                 *progress_tex, rgba(palette::text_dim));
     }
 
-    float ctrl_y =
-        progress_y + kMediaProgressRowHeight + kMediaCtrlTopMargin;
+    float ctrl_y = progress_y + kMediaProgressRowHeight + kMediaCtrlTopMargin;
     float ctrl_row_w =
         2 * kMediaSideBtnSize + kMediaPlayBtnSize + 2 * kMediaCtrlSpacing;
     float btn_x = cx + (content_w - ctrl_row_w) / 2.0f;
@@ -847,8 +824,8 @@ float draw_volume_card(Node *root, TextureCache &tcache, int32_t scale, float x,
 
 } // namespace
 
-void dashboard_paint(DashboardState &state, WaylandState &app,
-                         float bar_height, float bar_top_margin) {
+void dashboard_paint(DashboardState &state, WaylandState &app, float bar_height,
+                     float bar_top_margin) {
     if (state.base.egl_surface == EGL_NO_SURFACE)
         return;
     state.base.animations.tick(std::chrono::steady_clock::now());
@@ -876,11 +853,8 @@ void dashboard_paint(DashboardState &state, WaylandState &app,
         static_cast<float>(state.base.width) - panel_w - kPanelSideMargin;
     float panel_y = bar_top_margin + bar_height + kPanelGap;
 
-    // ponytail: visible_height uses last frame's content_height, so a card
-    // appearing/disappearing (battery, gpu temp) lags the panel height by one
-    // frame. Upgrade to a real two-pass measure if that lag ever shows.
-    float screen_budget = std::max(
-        0.0f, static_cast<float>(state.base.height) - panel_y - kPanelSideMargin);
+    float screen_budget = std::max(0.0f, static_cast<float>(state.base.height) -
+                                             panel_y - kPanelSideMargin);
     float content_h_est =
         state.content_height > 0.0f ? state.content_height : screen_budget;
     float visible_height = std::min(screen_budget, content_h_est);
@@ -890,32 +864,30 @@ void dashboard_paint(DashboardState &state, WaylandState &app,
     Node *scroll_clip =
         node_add_group(root, panel_x, panel_y, panel_w, visible_height, true);
     Node *scroll_content =
-        node_add_group(scroll_clip, -panel_x,
-                       -panel_y - state.scroll_offset, panel_w, content_h_est,
-                       false);
+        node_add_group(scroll_clip, -panel_x, -panel_y - state.scroll_offset,
+                       panel_w, content_h_est, false);
 
     float content_y = panel_y;
-    content_y += draw_profile_card(scroll_content, state.tcache, scale,
-                                   panel_x, content_y, panel_w,
-                                   state.avatar_tex, state.click_regions);
+    content_y += draw_profile_card(scroll_content, state.tcache, scale, panel_x,
+                                   content_y, panel_w, state.avatar_tex,
+                                   state.click_regions);
 
     float battery_y = content_y + kPanelColumnSpacing;
-    float battery_h = draw_battery_card(scroll_content, state.tcache, scale,
-                                        panel_x, battery_y, panel_w,
-                                        app.upower);
+    float battery_h =
+        draw_battery_card(scroll_content, state.tcache, scale, panel_x,
+                          battery_y, panel_w, app.upower);
     if (battery_h > 0.0f)
         content_y = battery_y + battery_h;
 
     float stats_y = content_y + kPanelColumnSpacing;
     content_y = stats_y + draw_system_stats_card(
                               scroll_content, state.tcache, scale, panel_x,
-                              stats_y, panel_w, app.system_stats,
-                              app.gpu_temp);
+                              stats_y, panel_w, app.system_stats, app.gpu_temp);
 
     float cpu_y = content_y + kPanelColumnSpacing;
-    content_y = cpu_y + draw_cpu_temp_card(scroll_content, state.tcache, scale,
-                                           panel_x, cpu_y, panel_w,
-                                           app.cpu_temp);
+    content_y =
+        cpu_y + draw_cpu_temp_card(scroll_content, state.tcache, scale, panel_x,
+                                   cpu_y, panel_w, app.cpu_temp);
 
     float gpu_y = content_y + kPanelColumnSpacing;
     float gpu_h = draw_gpu_temp_card(scroll_content, state.tcache, scale,
@@ -926,14 +898,12 @@ void dashboard_paint(DashboardState &state, WaylandState &app,
     float media_y = content_y + kPanelColumnSpacing;
     content_y = media_y + draw_media_card(scroll_content, state.tcache, scale,
                                           panel_x, media_y, panel_w, app.mpris,
-                                          state.art_cache,
-                                          state.click_regions);
+                                          state.art_cache, state.click_regions);
 
     float volume_y = content_y + kPanelColumnSpacing;
-    content_y = volume_y +
-               draw_volume_card(scroll_content, state.tcache, scale, panel_x,
-                                volume_y, panel_w, app.pipewire,
-                                state.click_regions);
+    content_y = volume_y + draw_volume_card(scroll_content, state.tcache, scale,
+                                            panel_x, volume_y, panel_w,
+                                            app.pipewire, state.click_regions);
 
     state.content_height = content_y - panel_y;
     state.visible_height = visible_height;

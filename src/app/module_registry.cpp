@@ -209,13 +209,13 @@ class DashboardModule final : public Module {
     bool create_surface(WaylandState &app, wl_output *output) override {
         output_ = output;
         want_ = dashboard_create_surface(state_, app.compositor,
-                                             app.layer_shell, output);
+                                         app.layer_shell, output);
         return want_;
     }
 
     bool init_egl(WaylandState &app) override {
         if (!dashboard_init_egl(state_, app.renderer, app, app.egl_display,
-                                    app.egl_config, app.egl_context))
+                                app.egl_config, app.egl_context))
             return false;
         state_.bound_output = output_;
         request_frame();
@@ -227,9 +227,9 @@ class DashboardModule final : public Module {
     }
     wl_surface *surface() const override { return state_.base.surface; }
     void request_frame() override {
-        dashboard_request_frame(
-            state_, static_cast<float>(bar_detail::kBarHeight),
-            static_cast<float>(bar_detail::kBarTopMargin));
+        dashboard_request_frame(state_,
+                                static_cast<float>(bar_detail::kBarHeight),
+                                static_cast<float>(bar_detail::kBarTopMargin));
     }
 
     bool timer_tick(WaylandState &app) override {
@@ -282,10 +282,10 @@ class DashboardModule final : public Module {
             if (target && (target->output.wl != state_.bound_output ||
                            !state_.base.layer_surface))
                 dashboard_retarget(state_, app.compositor, app.layer_shell,
-                                       app.display, app.renderer, app,
-                                       app.egl_display, app.egl_config,
-                                       app.egl_context, target->output.wl,
-                                       target->output.name.c_str());
+                                   app.display, app.renderer, app,
+                                   app.egl_display, app.egl_config,
+                                   app.egl_context, target->output.wl,
+                                   target->output.name.c_str());
         }
         dashboard_toggle(state_, true);
     }
@@ -304,8 +304,8 @@ class OverviewModule final : public Module {
 
     bool create_surface(WaylandState &app, wl_output *output) override {
         output_ = output;
-        want_ = overview_create_surface(state_, app.compositor,
-                                        app.layer_shell, output);
+        want_ = overview_create_surface(state_, app.compositor, app.layer_shell,
+                                        output);
         return want_;
     }
 

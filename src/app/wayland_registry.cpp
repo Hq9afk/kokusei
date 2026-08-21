@@ -118,10 +118,9 @@ void registry_global(void *data, wl_registry *registry, uint32_t name,
                       hyprland_toplevel_export_manager_v1_interface.name) ==
                0) {
         state->toplevel_export_manager =
-            static_cast<hyprland_toplevel_export_manager_v1 *>(
-                wl_registry_bind(
-                    registry, name,
-                    &hyprland_toplevel_export_manager_v1_interface, 1));
+            static_cast<hyprland_toplevel_export_manager_v1 *>(wl_registry_bind(
+                registry, name, &hyprland_toplevel_export_manager_v1_interface,
+                1));
     }
 }
 

@@ -26,8 +26,6 @@ struct PointerState {
     std::vector<PointerClick> pending_clicks;
     std::vector<PointerScroll> pending_scrolls;
 
-    // Bound once from the registry global; outlives individual pointer
-    // binds, so it is not cleared by pointer_release.
     wp_cursor_shape_manager_v1 *cursor_shape_manager = nullptr;
     wp_cursor_shape_device_v1 *cursor_shape_device = nullptr;
     uint32_t last_enter_serial = 0;
@@ -41,6 +39,5 @@ std::vector<PointerClick> pointer_drain_clicks(PointerState &state);
 
 std::vector<PointerScroll> pointer_drain_scrolls(PointerState &state);
 
-// No-op if cursor-shape-v1 isn't available from the compositor.
 void pointer_set_cursor_shape(PointerState &state,
                               wp_cursor_shape_device_v1_shape shape);

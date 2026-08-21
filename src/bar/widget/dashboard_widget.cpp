@@ -2,6 +2,7 @@
 
 #include "bar/panel/system_monitor_panel.h"
 #include "bar/panel/tray_panel.h"
+
 #include "bar/widget/dashboard_widget.h"
 
 #include "modules/bar.h"
@@ -77,8 +78,8 @@ Pill cpu_pill(MonitorOutput &mon) {
 
 Pill dashboard_pill(MonitorOutput &mon) {
     BarPerMonitorState &bs = bar_state(mon);
-    return Pill{PillId::Dashboard, &bs.dashboard_texture,
-                user_info::username(), nullptr, [&mon, &bs] {
+    return Pill{PillId::Dashboard, &bs.dashboard_texture, user_info::username(),
+                nullptr, [&mon, &bs] {
                     close_other_overlays(mon, PillId::Dashboard);
                     update_pill_expand(bs.capsule, mon.animations,
                                        PillId::Dashboard, true, true);

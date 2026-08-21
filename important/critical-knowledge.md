@@ -84,6 +84,7 @@ One statement + One explanation, ≤ 20 words each.
 - **Click regions inside a scrolled clip must stay in unscrolled coordinates, adjusted only at hit-test time.** Storing pre-scroll absolute rects and adding `scroll_offset` to the incoming pointer `y` keeps region math independent of the render-side offset trick above.
 - **kokusei has only 3 font-size tiers (default/small/large), not per-widget pixel sizes like the QML reference.** A large headline value uses the new `KOKUSEI_FONT_LARGE` tier instead of porting every `FontConfig.font*` field 1:1.
 - **Control center's font family/size and card border/glow numerically match `keqing-shell`'s config already.** The flatter/monospace-heavier visual diff there is a Pango/cairo rasterization-path difference, not a config gap — still an open follow-up, not yet root-caused.
+- **An on-demand panel's own geometry should lock at open, not track live content.** Recomputing height every frame let content changes desync the close animation's start value from the render size.
 
 ## 4. Wayland protocol
 

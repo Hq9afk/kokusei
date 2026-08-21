@@ -4,6 +4,7 @@
 #include <string>
 
 #include "bar/panel/volume_panel.h"
+
 #include "bar/widget/volume_widget.h"
 
 #include "modules/bar.h"

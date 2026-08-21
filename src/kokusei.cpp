@@ -276,9 +276,10 @@ int main(int argc, char **argv) {
                 Module *hovered =
                     find_overlay_for_surface(app, app.pointer.focused_surface);
                 pointer_set_cursor_shape(
-                    app.pointer, hovered && hovered->wants_pointing_hand_cursor()
-                                     ? WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_POINTER
-                                     : WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT);
+                    app.pointer,
+                    hovered && hovered->wants_pointing_hand_cursor()
+                        ? WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_POINTER
+                        : WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT);
             }
         }
         for (SourceRange &r : ranges)

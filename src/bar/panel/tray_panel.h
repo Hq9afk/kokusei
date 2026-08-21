@@ -72,6 +72,7 @@ struct TrayPanelState {
     Rect panel_rect;
     std::vector<PanelClickRegion> click_regions;
     float locked_center_x = -1.0f;
+    float locked_panel_h = -1.0f;
     float visible_height = -1.0f;
 
     float pending_pill_center_x = 0.0f;

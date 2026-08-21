@@ -35,9 +35,6 @@ struct OverviewState {
     std::unordered_map<int, Texture> workspace_number_tex;
     bool opened_by_widget = false;
     wl_output *bound_output = nullptr;
-    // Module::handle_pointer_release() takes no WaylandState&, unlike every
-    // other pointer/key callback here; stashed at init_egl time so the drag-
-    // release handler (which needs app.hypr) still has something to call.
     WaylandState *app_ptr = nullptr;
 
     int workspace_group = 0;

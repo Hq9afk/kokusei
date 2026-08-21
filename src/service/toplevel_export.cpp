@@ -13,12 +13,9 @@
 namespace {
 
 uint32_t parse_handle(const std::string &address) {
-    return static_cast<uint32_t>(
-        std::strtoull(address.c_str(), nullptr, 16));
+    return static_cast<uint32_t>(std::strtoull(address.c_str(), nullptr, 16));
 }
 
-// wl_shm ARGB8888/XRGB8888 is native-endian 0xAARRGGBB, i.e. B,G,R,A byte
-// order on little-endian. The renderer's texture path expects R,G,B,A.
 void swizzle_bgra_to_rgba(const uint8_t *src, uint32_t src_stride,
                           uint32_t width, uint32_t height,
                           std::vector<uint8_t> &dst) {
@@ -60,8 +57,7 @@ bool allocate_buffer(ToplevelExportCapture &cap, wl_shm *shm, uint32_t width,
         close(fd);
         return false;
     }
-    void *data =
-        mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    void *data = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (data == MAP_FAILED) {
         klog("toplevel_export: mmap failed: %s", strerror(errno));
         close(fd);
@@ -92,8 +88,9 @@ bool allocate_buffer(ToplevelExportCapture &cap, wl_shm *shm, uint32_t width,
     return true;
 }
 
-void handle_buffer(void *data, hyprland_toplevel_export_frame_v1 *, uint32_t format,
-                   uint32_t width, uint32_t height, uint32_t stride) {
+void handle_buffer(void *data, hyprland_toplevel_export_frame_v1 *,
+                   uint32_t format, uint32_t width, uint32_t height,
+                   uint32_t stride) {
     auto *cap = static_cast<ToplevelExportCapture *>(data);
     cap->pending_width = width;
     cap->pending_height = height;
@@ -103,14 +100,13 @@ void handle_buffer(void *data, hyprland_toplevel_export_frame_v1 *, uint32_t for
 }
 
 void handle_linux_dmabuf(void *, hyprland_toplevel_export_frame_v1 *, uint32_t,
-                         uint32_t, uint32_t) {
-    // Only the wl_shm path is implemented; dmabuf offers are ignored.
-}
+                         uint32_t, uint32_t) {}
 
 void handle_flags(void *data, hyprland_toplevel_export_frame_v1 *,
                   uint32_t flags) {
     auto *cap = static_cast<ToplevelExportCapture *>(data);
-    cap->y_invert = (flags & HYPRLAND_TOPLEVEL_EXPORT_FRAME_V1_FLAGS_Y_INVERT) != 0;
+    cap->y_invert =
+        (flags & HYPRLAND_TOPLEVEL_EXPORT_FRAME_V1_FLAGS_Y_INVERT) != 0;
 }
 
 void handle_damage(void *, hyprland_toplevel_export_frame_v1 *, uint32_t,
@@ -199,13 +195,13 @@ void toplevel_export_request(ToplevelExportState &state,
 
     uint32_t handle = parse_handle(address);
     cap.shm = shm;
-    cap.frame = hyprland_toplevel_export_manager_v1_capture_toplevel(
-        manager, 0, handle);
+    cap.frame = hyprland_toplevel_export_manager_v1_capture_toplevel(manager, 0,
+                                                                     handle);
     if (!cap.frame)
         return;
     cap.in_flight = true;
     hyprland_toplevel_export_frame_v1_add_listener(cap.frame, &frame_listener(),
-                                                    &cap);
+                                                   &cap);
 }
 
 const Texture *toplevel_export_texture(const ToplevelExportState &state,

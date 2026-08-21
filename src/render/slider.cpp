@@ -24,8 +24,7 @@ void draw_slider_track(Node *clip, std::vector<PanelClickRegion> &regions,
 
     float thumb_x = std::clamp(fill_w - kSliderThumbSize / 2.0f, 0.0f,
                                rect_local.w - kSliderThumbSize);
-    float thumb_y =
-        rect_local.y + (rect_local.h - kSliderThumbSize) / 2.0f;
+    float thumb_y = rect_local.y + (rect_local.h - kSliderThumbSize) / 2.0f;
     node_add_rrect(clip, rect_local.x + thumb_x, thumb_y, kSliderThumbSize,
                    kSliderThumbSize, kSliderThumbSize / 2.0f, 0.0f,
                    rgba(palette::text), kPanelNoBorder);

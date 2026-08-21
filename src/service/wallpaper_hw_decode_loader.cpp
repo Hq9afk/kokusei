@@ -35,8 +35,8 @@ const Plugin &plugin() {
                  dlerror());
             return p;
         }
-        p.start = reinterpret_cast<StartFn>(
-            dlsym(lib, "kokusei_whd_plugin_start"));
+        p.start =
+            reinterpret_cast<StartFn>(dlsym(lib, "kokusei_whd_plugin_start"));
         p.release_drm_frame = reinterpret_cast<ReleaseDrmFrameFn>(
             dlsym(lib, "kokusei_whd_plugin_release_drm_frame"));
         if (!p.start || !p.release_drm_frame) {

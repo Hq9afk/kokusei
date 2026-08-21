@@ -289,8 +289,8 @@ void bar_paint(MonitorOutput &mon) {
         bluetooth_pill(mon), volume_pill(mon),
     };
 
-    float cc_w = pills_row_width(bs.capsule, mon.animations,
-                                 dashboard_pills, hovered, height);
+    float cc_w = pills_row_width(bs.capsule, mon.animations, dashboard_pills,
+                                 hovered, height);
     float batt_w = pills_row_width(bs.capsule, mon.animations, battery_pills,
                                    hovered, height);
     float stub_w = pills_row_width(bs.capsule, mon.animations, right_stub_pills,

@@ -150,8 +150,8 @@ void node_draw(const Node &n, Renderer &renderer, float parent_x,
         break;
     case NodeKind::RoundedTexture:
         if (n.tex && n.tex->id)
-            renderer.draw_texture_rect_rounded(x, y, n.w, n.h, n.radius,
-                                               *n.tex, n.tint);
+            renderer.draw_texture_rect_rounded(x, y, n.w, n.h, n.radius, *n.tex,
+                                               n.tint);
         break;
     case NodeKind::VideoTexture:
         if (n.video_tex && n.video_tex->tex)

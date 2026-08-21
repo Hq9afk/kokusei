@@ -462,12 +462,6 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
 
 } // namespace
 
-// Exported under kokusei_whd_plugin_* names (not the wallpaper_hw_decode.h
-// names) and dlsym'd by service/wallpaper_hw_decode_loader.cpp: this file is
-// built as a standalone dlopen'd plugin (see meson.build), not linked into
-// the main kokusei binary, so it doesn't need to match the header's C++
-// linkage - only extern "C" has a stable, mangling-free symbol name to
-// dlsym against.
 extern "C" WallpaperHwDecodePlayback kokusei_whd_plugin_start(
     const std::string &path, const std::string &filter_desc, int fps,
     bool supports_row_length, WallpaperHwDecodeFrameCallback on_frame,
