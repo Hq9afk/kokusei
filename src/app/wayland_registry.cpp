@@ -106,6 +106,11 @@ void registry_global(void *data, wl_registry *registry, uint32_t name,
         state->idle.inhibit_manager =
             static_cast<zwp_idle_inhibit_manager_v1 *>(wl_registry_bind(
                 registry, name, &zwp_idle_inhibit_manager_v1_interface, 1));
+    } else if (strcmp(interface, wp_cursor_shape_manager_v1_interface.name) ==
+               0) {
+        state->pointer.cursor_shape_manager =
+            static_cast<wp_cursor_shape_manager_v1 *>(wl_registry_bind(
+                registry, name, &wp_cursor_shape_manager_v1_interface, 1));
     }
 }
 

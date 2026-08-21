@@ -462,7 +462,13 @@ void decode_loop(std::string path, std::string filter_desc, int fps,
 
 } // namespace
 
-WallpaperHwDecodePlayback wallpaper_hw_decode_start(
+// Exported under kokusei_whd_plugin_* names (not the wallpaper_hw_decode.h
+// names) and dlsym'd by service/wallpaper_hw_decode_loader.cpp: this file is
+// built as a standalone dlopen'd plugin (see meson.build), not linked into
+// the main kokusei binary, so it doesn't need to match the header's C++
+// linkage - only extern "C" has a stable, mangling-free symbol name to
+// dlsym against.
+extern "C" WallpaperHwDecodePlayback kokusei_whd_plugin_start(
     const std::string &path, const std::string &filter_desc, int fps,
     bool supports_row_length, WallpaperHwDecodeFrameCallback on_frame,
     WallpaperHwDecodeDrmFrameCallback on_drm_frame) {
@@ -479,37 +485,9 @@ WallpaperHwDecodePlayback wallpaper_hw_decode_start(
     return playback;
 }
 
-void wallpaper_hw_decode_stop(WallpaperHwDecodePlayback &playback) {
-    if (!playback.stop_flag)
-        return;
-    playback.stop_flag->store(true);
-    if (playback.worker.joinable())
-        playback.worker.join();
-    playback.stop_flag.reset();
-    playback.pause_flag.reset();
-    playback.status.reset();
-    playback.egl_import_failed.reset();
-}
-
-void wallpaper_hw_decode_pause(WallpaperHwDecodePlayback &playback) {
-    if (playback.pause_flag)
-        playback.pause_flag->store(true);
-}
-
-void wallpaper_hw_decode_resume(WallpaperHwDecodePlayback &playback) {
-    if (playback.pause_flag)
-        playback.pause_flag->store(false);
-}
-
-void wallpaper_hw_decode_release_drm_frame(void *avframe_handle) {
+extern "C" void kokusei_whd_plugin_release_drm_frame(void *avframe_handle) {
     if (!avframe_handle)
         return;
     auto *frame = static_cast<AVFrame *>(avframe_handle);
     av_frame_free(&frame);
-}
-
-WallpaperHwDecodeStatus
-wallpaper_hw_decode_status(const WallpaperHwDecodePlayback &playback) {
-    return playback.status ? playback.status->load()
-                           : WallpaperHwDecodeStatus::Idle;
 }

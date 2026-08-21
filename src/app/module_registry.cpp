@@ -363,6 +363,15 @@ class SettingsModule final : public Module {
             },
             x, y);
     }
+    void handle_pointer_move(WaylandState &, wl_surface *focused_surface,
+                             double x, double y) override {
+        hovering_clickable_ = state_.base.open &&
+                              focused_surface == state_.base.surface &&
+                              settings_point_is_clickable(state_, x, y);
+    }
+    bool wants_pointing_hand_cursor() const override {
+        return hovering_clickable_;
+    }
     void handle_key_event(WaylandState &app, const KeyEvent &event) override {
         settings_handle_key_event(
             state_, app.cfg,
@@ -383,6 +392,7 @@ class SettingsModule final : public Module {
     SettingsState state_;
     wl_output *output_ = nullptr;
     bool want_ = false;
+    bool hovering_clickable_ = false;
 };
 
 class MatrixModule final : public Module {

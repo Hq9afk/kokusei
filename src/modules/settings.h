@@ -96,6 +96,9 @@ void settings_handle_click(SettingsState &state, const Config &cfg,
                            const SettingsCommitFn &on_commit, double px,
                            double py);
 
+bool settings_point_is_clickable(const SettingsState &state, double px,
+                                 double py);
+
 void settings_handle_key_event(SettingsState &state, const Config &cfg,
                                const SettingsCommitFn &on_commit,
                                const KeyEvent &event);

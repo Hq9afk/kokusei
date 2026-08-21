@@ -127,6 +127,45 @@ foreach proto : [['ext-idle-notify-v1', ext_idle_notify_xml], ['idle-inhibit-uns
   idle_protocol_sources += proto_source
 endforeach
 
+# cursor-shape-v1: lets the compositor draw the pointer image (arrow /
+# pointing-hand / etc.) by name, so kokusei never has to load a cursor
+# theme or ship cursor bitmaps itself. Shared by both binaries because
+# service/pointer.cpp (which references it) is linked into both.
+cursor_shape_xml = wayland_protocols_dir / 'staging/cursor-shape/cursor-shape-v1.xml'
+
+cursor_shape_header = custom_target(
+  'cursor-shape-v1-client-header',
+  input: cursor_shape_xml,
+  output: 'cursor-shape-v1-client-protocol.h',
+  command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@'],
+)
+
+cursor_shape_source = custom_target(
+  'cursor-shape-v1-client-source',
+  input: cursor_shape_xml,
+  output: 'cursor-shape-v1-client-protocol.c',
+  command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
+)
+
+# cursor-shape-v1's get_tablet_tool_v2 request references zwp_tablet_tool_v2,
+# so tablet-unstable-v2's generated code has to be linked in too even though
+# nothing here uses tablets directly (same situation as xdg-shell above).
+tablet_v2_xml = wayland_protocols_dir / 'unstable/tablet/tablet-unstable-v2.xml'
+
+tablet_v2_header = custom_target(
+  'tablet-v2-client-header',
+  input: tablet_v2_xml,
+  output: 'tablet-unstable-v2-client-protocol.h',
+  command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@'],
+)
+
+tablet_v2_source = custom_target(
+  'tablet-v2-client-source',
+  input: tablet_v2_xml,
+  output: 'tablet-unstable-v2-client-protocol.c',
+  command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
+)
+
 # Modules split into .h/.cpp pairs (own translation unit), shared between the
 # main executable and the test binary. Modules still #include-d as header-only
 # .hpp files don't need an entry here.
@@ -201,7 +240,7 @@ kokusei_service_main_only_sources = [
   'src/service/hyprland.cpp',
   'src/service/shojiwm.cpp',
   'src/service/audio_spectrum.cpp',
-  'src/service/wallpaper_hw_decode.cpp',
+  'src/service/wallpaper_hw_decode_loader.cpp',
 ]
 
 # launcher.cpp now only touches EGL/GL/Wayland for the panel itself (the
@@ -322,6 +361,34 @@ kokusei_test_split_sources = [
   kokusei_app_test_sources,
 ]
 
+# Animated-wallpaper decode is the only thing in kokusei that touches
+# ffmpeg, and ffmpeg's SONAME isn't stable across releases (see readme.md).
+# Building it as a dlopen'd plugin instead of linking it into the main
+# binary means a missing/mismatched ffmpeg only disables animated
+# wallpapers (service/wallpaper_hw_decode_loader.cpp falls back
+# gracefully) instead of preventing the whole shell from starting.
+kokusei_wallpaper_hw_decode_plugin_dir = kokusei_data_dir / 'plugins'
+
+wallpaper_hw_decode_plugin = shared_module(
+  'kokusei-wallpaper-hw-decode',
+  'src/service/wallpaper_hw_decode.cpp',
+  # klog() isn't exported by the main kokusei binary (no -rdynamic), so a
+  # dlopen'd plugin can't resolve it against the host - the plugin needs
+  # its own copy. log.cpp is a stateless append-only file logger, so two
+  # independent instances (host + plugin) writing the same log file is fine.
+  'src/core/log.cpp',
+  include_directories: kokusei_inc,
+  dependencies: [
+    libavformat_dep,
+    libavcodec_dep,
+    libavfilter_dep,
+    libavutil_dep,
+    libdrm_dep,
+  ],
+  install: true,
+  install_dir: kokusei_wallpaper_hw_decode_plugin_dir,
+)
+
 executable(
   'kokusei',
   'src/kokusei.cpp',
@@ -332,6 +399,10 @@ executable(
   xdg_shell_source,
   idle_protocol_headers,
   idle_protocol_sources,
+  cursor_shape_header,
+  cursor_shape_source,
+  tablet_v2_header,
+  tablet_v2_source,
   include_directories: kokusei_inc,
   dependencies: [
     wayland_client_dep,
@@ -349,10 +420,6 @@ executable(
     threads_dep,
     libpng_dep,
     libjpeg_dep,
-    libavformat_dep,
-    libavcodec_dep,
-    libavfilter_dep,
-    libavutil_dep,
     libdrm_dep,
   ],
   cpp_args: [
@@ -361,6 +428,9 @@ executable(
     '-DKOKUSEI_BULLET_DIR="' + kokusei_bullet_dir + '"',
     '-DKOKUSEI_YUJIMAI_FONT="' + kokusei_font_dir / 'YujiMai.ttf' + '"',
     '-DKOKUSEI_STARWARD_LOGO="' + kokusei_data_dir / 'logo.png' + '"',
+    '-DKOKUSEI_WALLPAPER_HW_DECODE_PLUGIN="' +
+        kokusei_wallpaper_hw_decode_plugin_dir /
+        'libkokusei-wallpaper-hw-decode.so' + '"',
   ],
   install: true,
   install_dir: 'bin',
@@ -374,6 +444,10 @@ kokusei_test = executable(
   layer_shell_source,
   xdg_shell_header,
   xdg_shell_source,
+  cursor_shape_header,
+  cursor_shape_source,
+  tablet_v2_header,
+  tablet_v2_source,
   'test/app/test_config.cpp',
   'test/app/test_wallpaper_resolve.cpp',
   'test/core/test_async_process.cpp',

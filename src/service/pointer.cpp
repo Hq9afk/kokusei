@@ -2,13 +2,15 @@
 
 namespace {
 
-void enter_cb(void *data, wl_pointer *, uint32_t, wl_surface *surface,
+void enter_cb(void *data, wl_pointer *, uint32_t serial, wl_surface *surface,
               wl_fixed_t sx, wl_fixed_t sy) {
     auto *state = static_cast<PointerState *>(data);
     state->focused_surface = surface;
     state->x = wl_fixed_to_double(sx);
     state->y = wl_fixed_to_double(sy);
     state->dirty = true;
+    state->last_enter_serial = serial;
+    pointer_set_cursor_shape(*state, WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT);
 }
 
 void leave_cb(void *data, wl_pointer *, uint32_t, wl_surface *surface) {
@@ -74,11 +76,26 @@ void pointer_bind(PointerState &state, wl_seat *seat) {
 }
 
 void pointer_release(PointerState &state) {
+    if (state.cursor_shape_device) {
+        wp_cursor_shape_device_v1_destroy(state.cursor_shape_device);
+        state.cursor_shape_device = nullptr;
+    }
     if (state.pointer) {
         wl_pointer_release(state.pointer);
         state.pointer = nullptr;
     }
     state.focused_surface = nullptr;
+}
+
+void pointer_set_cursor_shape(PointerState &state,
+                              wp_cursor_shape_device_v1_shape shape) {
+    if (!state.cursor_shape_manager || !state.pointer)
+        return;
+    if (!state.cursor_shape_device)
+        state.cursor_shape_device = wp_cursor_shape_manager_v1_get_pointer(
+            state.cursor_shape_manager, state.pointer);
+    wp_cursor_shape_device_v1_set_shape(state.cursor_shape_device,
+                                        state.last_enter_serial, shape);
 }
 
 std::vector<PointerClick> pointer_drain_clicks(PointerState &state) {

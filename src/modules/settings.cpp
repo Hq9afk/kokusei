@@ -517,6 +517,18 @@ void settings_paint(SettingsState &state, const Config &cfg,
     eglSwapBuffers(state.base.egl_display, state.base.egl_surface);
 }
 
+bool settings_point_is_clickable(const SettingsState &state, double px,
+                                 double py) {
+    auto hit = [](const Rect &r, double x, double y) {
+        return r.w > 0 && x >= r.x && x < r.x + r.w && y >= r.y &&
+               y < r.y + r.h;
+    };
+    for (const PanelClickRegion &region : state.click_regions)
+        if (hit(region.rect, px, py))
+            return true;
+    return false;
+}
+
 void settings_handle_scroll(SettingsState &state, double dy) {
     if (state.active_tab != SettingsTab::Wallpaper)
         return;
