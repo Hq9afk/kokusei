@@ -86,6 +86,21 @@ Node *node_add_texture_rect(Node *parent, float x, float y, float w, float h,
     return n;
 }
 
+Node *node_add_texture_rect_rounded(Node *parent, float x, float y, float w,
+                                    float h, float radius, const Texture &tex,
+                                    const float tint[4]) {
+    Node *n = parent->claim_child();
+    n->kind = NodeKind::RoundedTexture;
+    n->x = x;
+    n->y = y;
+    n->w = w;
+    n->h = h;
+    n->radius = radius;
+    n->tex = &tex;
+    n->tint = tint;
+    return n;
+}
+
 Node *node_add_video_texture_rect(Node *parent, float x, float y, float w,
                                   float h, const VideoTexture &tex) {
     Node *n = parent->claim_child();
@@ -132,6 +147,11 @@ void node_draw(const Node &n, Renderer &renderer, float parent_x,
     case NodeKind::Texture:
         if (n.tex && n.tex->id)
             renderer.draw_texture_rect(x, y, n.w, n.h, *n.tex, n.tint);
+        break;
+    case NodeKind::RoundedTexture:
+        if (n.tex && n.tex->id)
+            renderer.draw_texture_rect_rounded(x, y, n.w, n.h, n.radius,
+                                               *n.tex, n.tint);
         break;
     case NodeKind::VideoTexture:
         if (n.video_tex && n.video_tex->tex)

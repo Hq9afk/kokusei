@@ -7,7 +7,7 @@
 #include "bar/widget/battery_widget.h"
 #include "bar/widget/bluetooth_widget.h"
 #include "bar/widget/clock_widget.h"
-#include "bar/widget/control_center_widget.h"
+#include "bar/widget/dashboard_widget.h"
 #include "bar/widget/network_widget.h"
 #include "bar/widget/starward_widget.h"
 #include "bar/widget/volume_widget.h"
@@ -51,8 +51,8 @@ void close_other_overlays(MonitorOutput &mon, PillId keep) {
             m && m->is_open())
             m->toggle_from_widget(*mon.app);
     }
-    if (keep != PillId::ControlCenter) {
-        if (Module *m = find_overlay_by_name(*mon.app, "controlcenter");
+    if (keep != PillId::Dashboard) {
+        if (Module *m = find_overlay_by_name(*mon.app, "dashboard");
             m && m->is_open())
             m->toggle_from_widget(*mon.app);
     }
@@ -183,7 +183,7 @@ void init_stub_widgets(MonitorOutput &mon) {
     bs.starward_texture = make_icon_texture(icon::power);
     bs.tray_texture = make_icon_texture(icon::tray);
     bs.cpu_texture = make_icon_texture(icon::cpu);
-    bs.control_center_texture = make_icon_texture(icon::control_center);
+    bs.dashboard_texture = make_icon_texture(icon::dashboard);
 }
 
 void bar_paint(MonitorOutput &mon) {
@@ -194,13 +194,13 @@ void bar_paint(MonitorOutput &mon) {
     mon.animations.tick(std::chrono::steady_clock::now());
 
     Module *starward_m = find_overlay_by_name(app, "starward");
-    Module *controlcenter_m = find_overlay_by_name(app, "controlcenter");
+    Module *dashboard_m = find_overlay_by_name(app, "dashboard");
     PillId current_panel_pill = panel_pill(
         bs.network_panel, bs.bluetooth_panel, bs.volume_panel, bs.tray_panel,
         bs.battery_panel, bs.system_monitor_panel,
         starward_m && starward_m->is_open() && starward_m->opened_by_widget(),
-        controlcenter_m && controlcenter_m->is_open() &&
-            controlcenter_m->opened_by_widget());
+        dashboard_m && dashboard_m->is_open() &&
+            dashboard_m->opened_by_widget());
 
     if (mon.autohide.enabled) {
         bool want_shown = app.pointer.focused_surface == mon.surface ||
@@ -282,7 +282,7 @@ void bar_paint(MonitorOutput &mon) {
     draw_clock_pill(content, height, mon.width, bs.clock_texture, white,
                     pill_bg);
 
-    std::vector<Pill> control_center_pills = {control_center_pill(mon)};
+    std::vector<Pill> dashboard_pills = {dashboard_pill(mon)};
     std::vector<Pill> battery_pills = {battery_pill(mon)};
     std::vector<Pill> right_stub_pills = {
         tray_pill(mon),      cpu_pill(mon),    wifi_pill(mon),
@@ -290,7 +290,7 @@ void bar_paint(MonitorOutput &mon) {
     };
 
     float cc_w = pills_row_width(bs.capsule, mon.animations,
-                                 control_center_pills, hovered, height);
+                                 dashboard_pills, hovered, height);
     float batt_w = pills_row_width(bs.capsule, mon.animations, battery_pills,
                                    hovered, height);
     float stub_w = pills_row_width(bs.capsule, mon.animations, right_stub_pills,
@@ -318,7 +318,7 @@ void bar_paint(MonitorOutput &mon) {
     }
     if (cc_w > 0) {
         draw_pills(content, bs.capsule, mon.animations, cc_x, height,
-                   control_center_pills, white, pill_bg, hovered);
+                   dashboard_pills, white, pill_bg, hovered);
     }
 
     mon.scene.draw(app.renderer);

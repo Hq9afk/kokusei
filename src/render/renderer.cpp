@@ -15,8 +15,11 @@ bool Renderer::init() {
     rect_program_ = gl_compile_program(kRendererQuadVs, kRendererRectFs);
     tex_program_ = gl_compile_program(kRendererQuadVs, kRendererTexFs);
     rrect_program_ = gl_compile_program(kRendererQuadVs, kRendererRrectFs);
+    rounded_tex_program_ =
+        gl_compile_program(kRendererQuadVs, kRendererRoundedTexFs);
     video_program_ = gl_compile_program(kRendererQuadVs, kRendererVideoFs);
-    if (!rect_program_ || !tex_program_ || !rrect_program_ || !video_program_)
+    if (!rect_program_ || !tex_program_ || !rrect_program_ ||
+        !rounded_tex_program_ || !video_program_)
         return false;
 
     static const float quad[] = {0, 0, 1, 0, 0, 1, 1, 1};
@@ -33,6 +36,8 @@ void Renderer::destroy() {
         glDeleteProgram(tex_program_);
     if (rrect_program_)
         glDeleteProgram(rrect_program_);
+    if (rounded_tex_program_)
+        glDeleteProgram(rounded_tex_program_);
     if (video_program_)
         glDeleteProgram(video_program_);
     if (quad_vbo_)
@@ -118,6 +123,26 @@ void Renderer::draw_texture_rect(float x, float y, float w, float h,
     float tc[4] = {tint[0], tint[1], tint[2], tint[3] * opacity_};
     glUniform4fv(glGetUniformLocation(tex_program_, "u_color"), 1, tc);
     draw_quad(tex_program_);
+}
+
+void Renderer::draw_texture_rect_rounded(float x, float y, float w, float h,
+                                         float radius, const Texture &tex,
+                                         const float tint[4]) {
+    x = std::round(x);
+    y = std::round(y);
+    glUseProgram(rounded_tex_program_);
+    set_common_uniforms(rounded_tex_program_, x, y, w, h);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tex.id);
+    glUniform1i(glGetUniformLocation(rounded_tex_program_, "u_tex"), 0);
+    float tc[4] = {tint[0], tint[1], tint[2], tint[3] * opacity_};
+    glUniform4fv(glGetUniformLocation(rounded_tex_program_, "u_color"), 1, tc);
+    float size[2] = {w, h};
+    glUniform2fv(glGetUniformLocation(rounded_tex_program_, "u_size"), 1,
+                size);
+    glUniform1f(glGetUniformLocation(rounded_tex_program_, "u_radius"),
+               radius);
+    draw_quad(rounded_tex_program_);
 }
 
 void Renderer::draw_video_texture_rect(float x, float y, float w, float h,

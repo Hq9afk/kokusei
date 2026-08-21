@@ -8,7 +8,14 @@
 
 class Renderer;
 
-enum class NodeKind { Group, Rect, RoundedRect, Texture, VideoTexture };
+enum class NodeKind {
+    Group,
+    Rect,
+    RoundedRect,
+    Texture,
+    RoundedTexture,
+    VideoTexture
+};
 
 inline constexpr float kNodeTransparent[4] = {0, 0, 0, 0};
 inline constexpr float kNodeOpaqueWhite[4] = {1, 1, 1, 1};
@@ -44,6 +51,10 @@ Node *node_add_rrect(Node *parent, float x, float y, float w, float h,
 
 Node *node_add_texture_rect(Node *parent, float x, float y, float w, float h,
                             const Texture &tex, const float tint[4]);
+
+Node *node_add_texture_rect_rounded(Node *parent, float x, float y, float w,
+                                    float h, float radius, const Texture &tex,
+                                    const float tint[4]);
 
 Node *node_add_video_texture_rect(Node *parent, float x, float y, float w,
                                   float h, const VideoTexture &tex);

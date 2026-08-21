@@ -9,7 +9,7 @@ constexpr float kCardHeaderContentGap = 8.0f;
 constexpr float kCardRadius = 12.0f;
 constexpr float kCardGatedHeight = 0.0f;
 
-constexpr float kControlCenterPanelWidth = 360.0f;
+constexpr float kDashboardPanelWidth = 360.0f;
 constexpr float kPanelColumnSpacing = 10.0f;
 
 constexpr float kProfileAvatarSize = 100.0f;

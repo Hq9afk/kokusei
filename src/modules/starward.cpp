@@ -10,7 +10,6 @@
 #include "app/wayland_state.h"
 
 #include "core/async_process.h"
-#include "core/deferred_call.h"
 #include "core/log.h"
 
 #include "modules/starward.h"
@@ -179,10 +178,6 @@ void finish_close(StarwardState &state) {
         ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE);
     overlay_panel_update_input_region(state.base);
     wl_surface_commit(state.base.surface);
-    DeferredCall::call_later([&state] {
-        if (!state.base.open)
-            overlay_panel_destroy_surface(state.base);
-    });
 }
 
 void start_close_sequence(StarwardState &state) {

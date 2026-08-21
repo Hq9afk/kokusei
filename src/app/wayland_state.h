@@ -28,6 +28,7 @@
 #include "service/tray_service.h"
 #include "service/upower_service.h"
 
+#include "hyprland-toplevel-export-v1-client-protocol.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
@@ -38,6 +39,8 @@ struct WaylandState {
     wl_compositor *compositor = nullptr;
     zwlr_layer_shell_v1 *layer_shell = nullptr;
     xdg_wm_base *wm_base = nullptr;
+    wl_shm *shm = nullptr;
+    hyprland_toplevel_export_manager_v1 *toplevel_export_manager = nullptr;
     EGLDisplay egl_display = EGL_NO_DISPLAY;
     EGLConfig egl_config = nullptr;
     EGLContext egl_context = EGL_NO_CONTEXT;

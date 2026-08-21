@@ -359,6 +359,18 @@ sdbus::IProxy *adapter(BluetoothState &state) {
     return state.adapter.get();
 }
 
+sdbus::IProxy *device_proxy(BluetoothState &state, const std::string &path) {
+    auto it = state.device_proxies.find(path);
+    if (it != state.device_proxies.end())
+        return it->second.get();
+    auto proxy = sdbus::createProxy(state.root->getConnection(),
+                                    sdbus::ServiceName{kService},
+                                    sdbus::ObjectPath{path});
+    sdbus::IProxy *raw = proxy.get();
+    state.device_proxies.emplace(path, std::move(proxy));
+    return raw;
+}
+
 } // namespace bluetooth_detail
 
 bool bluetooth_init(BluetoothState &state, sdbus::IConnection &bus) {
@@ -375,8 +387,9 @@ bool bluetooth_init(BluetoothState &state, sdbus::IConnection &bus) {
                 });
         state.root->uponSignal("InterfacesRemoved")
             .onInterface(kObjectManagerIface)
-            .call([&state](const sdbus::ObjectPath &,
+            .call([&state](const sdbus::ObjectPath &path,
                            const std::vector<std::string> &) {
+                state.device_proxies.erase(path);
                 state.next_refresh_at = std::chrono::steady_clock::now();
             });
 
@@ -464,11 +477,8 @@ void bluetooth_connect(BluetoothState &state, const std::string &device_path) {
             bluetooth_detail::find_device(state, device_path))
         d->connecting = true;
     try {
-        auto proxy =
-            sdbus::createProxy(state.root->getConnection(),
-                               sdbus::ServiceName{bluetooth_detail::kService},
-                               sdbus::ObjectPath{device_path});
-        proxy->callMethodAsync("Connect")
+        bluetooth_detail::device_proxy(state, device_path)
+            ->callMethodAsync("Connect")
             .onInterface(bluetooth_detail::kDeviceIface)
             .uponReplyInvoke([](std::optional<sdbus::Error> err) {
                 if (err)
@@ -483,11 +493,8 @@ void bluetooth_connect(BluetoothState &state, const std::string &device_path) {
 void bluetooth_disconnect(BluetoothState &state,
                           const std::string &device_path) {
     try {
-        auto proxy =
-            sdbus::createProxy(state.root->getConnection(),
-                               sdbus::ServiceName{bluetooth_detail::kService},
-                               sdbus::ObjectPath{device_path});
-        proxy->callMethodAsync("Disconnect")
+        bluetooth_detail::device_proxy(state, device_path)
+            ->callMethodAsync("Disconnect")
             .onInterface(bluetooth_detail::kDeviceIface)
             .uponReplyInvoke([](std::optional<sdbus::Error> err) {
                 if (err)
@@ -505,11 +512,8 @@ void bluetooth_pair(BluetoothState &state, const std::string &device_path) {
             bluetooth_detail::find_device(state, device_path))
         d->connecting = true;
     try {
-        auto proxy =
-            sdbus::createProxy(state.root->getConnection(),
-                               sdbus::ServiceName{bluetooth_detail::kService},
-                               sdbus::ObjectPath{device_path});
-        proxy->callMethodAsync("Pair")
+        bluetooth_detail::device_proxy(state, device_path)
+            ->callMethodAsync("Pair")
             .onInterface(bluetooth_detail::kDeviceIface)
             .uponReplyInvoke([](std::optional<sdbus::Error> err) {
                 if (err)

@@ -50,7 +50,7 @@ inline constexpr const char *code = "\uea77";
 inline constexpr const char *link = "\ueade";
 inline constexpr const char *refresh = "\ueb13";
 
-inline constexpr const char *control_center = "\uec42";
+inline constexpr const char *dashboard = "\uec42";
 inline constexpr const char *cpu = "\uef8e";
 inline constexpr const char *folder = "\ueaad";
 inline constexpr const char *folder_open = "\ufaf7";

@@ -9,7 +9,7 @@
 
 #include "app/ipc.h"
 
-#include "config/controlcenter_config.h"
+#include "config/dashboard_config.h"
 
 #include "render/overlay_panel.h"
 #include "render/panel_chrome.h"
@@ -24,7 +24,7 @@
 
 struct WaylandState;
 
-struct ControlCenterState {
+struct DashboardState {
     OverlayPanelBase base;
     Renderer *renderer = nullptr;
     Scene scene;
@@ -48,16 +48,16 @@ struct ControlCenterState {
     float pending_bar_top_margin = 0.0f;
 };
 
-bool controlcenter_create_surface(ControlCenterState &state,
+bool dashboard_create_surface(DashboardState &state,
                                   wl_compositor *compositor,
                                   zwlr_layer_shell_v1 *layer_shell,
                                   wl_output *output = nullptr);
 
-bool controlcenter_init_egl(ControlCenterState &state, Renderer &renderer,
+bool dashboard_init_egl(DashboardState &state, Renderer &renderer,
                             WaylandState &app, EGLDisplay display,
                             EGLConfig config, EGLContext context);
 
-void controlcenter_retarget(ControlCenterState &state,
+void dashboard_retarget(DashboardState &state,
                             wl_compositor *compositor,
                             zwlr_layer_shell_v1 *layer_shell,
                             wl_display *display, Renderer &renderer,
@@ -65,25 +65,25 @@ void controlcenter_retarget(ControlCenterState &state,
                             EGLConfig egl_config, EGLContext egl_context,
                             wl_output *target_output, const char *target_name);
 
-void controlcenter_request_frame(ControlCenterState &state, float bar_height,
+void dashboard_request_frame(DashboardState &state, float bar_height,
                                  float bar_top_margin);
 
-void controlcenter_toggle(ControlCenterState &state, bool by_widget = false);
+void dashboard_toggle(DashboardState &state, bool by_widget = false);
 
 std::vector<IpcHandler>
-controlcenter_ipc_handlers(ControlCenterState &controlcenter,
+dashboard_ipc_handlers(DashboardState &dashboard,
                            WaylandState &state);
 
-void controlcenter_handle_click(ControlCenterState &state, WaylandState &app,
+void dashboard_handle_click(DashboardState &state, WaylandState &app,
                                 double px, double py);
 
-void controlcenter_handle_pointer_move(ControlCenterState &state,
+void dashboard_handle_pointer_move(DashboardState &state,
                                        PipewireState &pw, double px);
 
-void controlcenter_handle_scroll(ControlCenterState &state, double dy);
+void dashboard_handle_scroll(DashboardState &state, double dy);
 
-void controlcenter_handle_key_event(ControlCenterState &state,
+void dashboard_handle_key_event(DashboardState &state,
                                     PipewireState &pw, const KeyEvent &event);
 
-void controlcenter_paint(ControlCenterState &state, WaylandState &app,
+void dashboard_paint(DashboardState &state, WaylandState &app,
                          float bar_height, float bar_top_margin);

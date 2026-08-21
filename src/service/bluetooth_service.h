@@ -7,6 +7,7 @@
 #include <optional>
 #include <sdbus-c++/sdbus-c++.h>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace rfkill_detail {
@@ -82,6 +83,8 @@ struct BluetoothState {
     bool init_done = false;
 
     std::string prev_connected_path;
+    std::unordered_map<std::string, std::unique_ptr<sdbus::IProxy>>
+        device_proxies;
 };
 
 bool bluetooth_init(BluetoothState &state, sdbus::IConnection &bus);

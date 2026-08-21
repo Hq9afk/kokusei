@@ -9,7 +9,7 @@
 #include "app/user_info.h"
 #include "app/wayland_state.h"
 
-#include "modules/controlcenter.h"
+#include "modules/dashboard.h"
 
 #include "render/icon.h"
 #include "render/icons.h"
@@ -26,22 +26,22 @@
 #include "service/system_telemetry.h"
 #include "service/upower_service.h"
 
-bool controlcenter_create_surface(ControlCenterState &state,
+bool dashboard_create_surface(DashboardState &state,
                                   wl_compositor *compositor,
                                   zwlr_layer_shell_v1 *layer_shell,
                                   wl_output *output) {
     return overlay_panel_create_surface(state.base, compositor, layer_shell,
-                                        "kokusei-controlcenter", output);
+                                        "kokusei-dashboard", output);
 }
 
-bool controlcenter_init_egl(ControlCenterState &state, Renderer &renderer,
+bool dashboard_init_egl(DashboardState &state, Renderer &renderer,
                             WaylandState &app, EGLDisplay display,
                             EGLConfig config, EGLContext context) {
     state.renderer = &renderer;
     if (!overlay_panel_init_egl(state.base, display, config, context))
         return false;
     state.base.frame_clock.draw = [&state, &app] {
-        controlcenter_paint(state, app, state.pending_bar_height,
+        dashboard_paint(state, app, state.pending_bar_height,
                             state.pending_bar_top_margin);
     };
     // ponytail: only ~/.face (PNG/JPG) is tried; keqing-shell's userPfp is a
@@ -55,7 +55,7 @@ bool controlcenter_init_egl(ControlCenterState &state, Renderer &renderer,
     return true;
 }
 
-void controlcenter_retarget(ControlCenterState &state,
+void dashboard_retarget(DashboardState &state,
                             wl_compositor *compositor,
                             zwlr_layer_shell_v1 *layer_shell,
                             wl_display *display, Renderer &renderer,
@@ -65,25 +65,25 @@ void controlcenter_retarget(ControlCenterState &state,
     wl_output *bound = overlay_panel_retarget(
         state.base, display, state.bound_output, target_output, target_name,
         [&](wl_output *out) {
-            return controlcenter_create_surface(state, compositor, layer_shell,
+            return dashboard_create_surface(state, compositor, layer_shell,
                                                 out);
         },
         [&] {
-            return controlcenter_init_egl(state, renderer, app, egl_display,
+            return dashboard_init_egl(state, renderer, app, egl_display,
                                           egl_config, egl_context);
         });
     if (bound)
         state.bound_output = bound;
 }
 
-void controlcenter_request_frame(ControlCenterState &state, float bar_height,
+void dashboard_request_frame(DashboardState &state, float bar_height,
                                  float bar_top_margin) {
     state.pending_bar_height = bar_height;
     state.pending_bar_top_margin = bar_top_margin;
     overlay_panel_request_frame(state.base);
 }
 
-void controlcenter_toggle(ControlCenterState &state, bool by_widget) {
+void dashboard_toggle(DashboardState &state, bool by_widget) {
     if (!state.base.open)
         state.opened_by_widget = by_widget;
     else
@@ -92,24 +92,24 @@ void controlcenter_toggle(ControlCenterState &state, bool by_widget) {
 }
 
 std::vector<IpcHandler>
-controlcenter_ipc_handlers(ControlCenterState &controlcenter,
+dashboard_ipc_handlers(DashboardState &dashboard,
                            WaylandState &state) {
     return {
-        {"controlcenter",
-         [&controlcenter, &state] {
-             if (!controlcenter.base.open) {
+        {"dashboard",
+         [&dashboard, &state] {
+             if (!dashboard.base.open) {
                  MonitorOutput *target =
                      bar_detail::active_target_monitor(state);
                  if (target &&
-                     (target->output.wl != controlcenter.bound_output ||
-                      !controlcenter.base.layer_surface))
-                     controlcenter_retarget(
-                         controlcenter, state.compositor, state.layer_shell,
+                     (target->output.wl != dashboard.bound_output ||
+                      !dashboard.base.layer_surface))
+                     dashboard_retarget(
+                         dashboard, state.compositor, state.layer_shell,
                          state.display, state.renderer, state,
                          state.egl_display, state.egl_config, state.egl_context,
                          target->output.wl, target->output.name.c_str());
              }
-             controlcenter_toggle(controlcenter);
+             dashboard_toggle(dashboard);
          },
          "toggle the control center"},
     };
@@ -129,7 +129,7 @@ void open_settings(WaylandState &app) {
 }
 } // namespace
 
-void controlcenter_handle_click(ControlCenterState &state, WaylandState &app,
+void dashboard_handle_click(DashboardState &state, WaylandState &app,
                                 double px, double py) {
     auto hit = [](const Rect &r, double x, double y) {
         return r.w > 0 && x >= r.x && x < r.x + r.w && y >= r.y &&
@@ -142,7 +142,7 @@ void controlcenter_handle_click(ControlCenterState &state, WaylandState &app,
             continue;
         switch (region.kind) {
         case PanelClickKind::Close:
-            controlcenter_toggle(state);
+            dashboard_toggle(state);
             break;
         case PanelClickKind::MuteToggle: {
             uint32_t id =
@@ -180,27 +180,27 @@ void controlcenter_handle_click(ControlCenterState &state, WaylandState &app,
     }
 
     if (!hit(state.panel_rect, px, py))
-        controlcenter_toggle(state);
+        dashboard_toggle(state);
 }
 
-void controlcenter_handle_pointer_move(ControlCenterState &state,
+void dashboard_handle_pointer_move(DashboardState &state,
                                        PipewireState &pw, double px) {
     if (!state.dragging)
         return;
     volume_slider_apply_drag(pw, *state.dragging, px);
 }
 
-void controlcenter_handle_scroll(ControlCenterState &state, double dy) {
+void dashboard_handle_scroll(DashboardState &state, double dy) {
     state.scroll_offset = panel_clamp_scroll(
         state.scroll_offset, static_cast<float>(dy), state.content_height,
         state.visible_height);
 }
 
-void controlcenter_handle_key_event(ControlCenterState &state,
+void dashboard_handle_key_event(DashboardState &state,
                                     PipewireState &pw, const KeyEvent &event) {
     switch (event.kind) {
     case KeyKind::Escape:
-        controlcenter_toggle(state);
+        dashboard_toggle(state);
         break;
     case KeyKind::Left:
     case KeyKind::Right: {
@@ -847,7 +847,7 @@ float draw_volume_card(Node *root, TextureCache &tcache, int32_t scale, float x,
 
 } // namespace
 
-void controlcenter_paint(ControlCenterState &state, WaylandState &app,
+void dashboard_paint(DashboardState &state, WaylandState &app,
                          float bar_height, float bar_top_margin) {
     if (state.base.egl_surface == EGL_NO_SURFACE)
         return;
@@ -871,7 +871,7 @@ void controlcenter_paint(ControlCenterState &state, WaylandState &app,
 
     Node *root = &state.scene.root;
 
-    float panel_w = kControlCenterPanelWidth;
+    float panel_w = kDashboardPanelWidth;
     float panel_x =
         static_cast<float>(state.base.width) - panel_w - kPanelSideMargin;
     float panel_y = bar_top_margin + bar_height + kPanelGap;

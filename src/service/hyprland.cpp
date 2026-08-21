@@ -125,15 +125,65 @@ void hypr_refresh(HyprlandState &state) {
         request(state.request_socket_path, "j/monitors");
     try {
         json arr = json::parse(monitors_reply);
+        state.monitors.clear();
         for (auto &m : arr) {
             std::string name = m.value("name", std::string());
             state.by_monitor[name].active_id =
                 m.value("activeWorkspace", json::object()).value("id", -1);
             if (m.value("focused", false))
                 state.focused_monitor = name;
+
+            HyprMonitor hm;
+            hm.id = m.value("id", -1);
+            hm.name = name;
+            hm.x = m.value("x", 0.0);
+            hm.y = m.value("y", 0.0);
+            hm.width = m.value("width", 0.0);
+            hm.height = m.value("height", 0.0);
+            hm.scale = m.value("scale", 1.0);
+            hm.transform = m.value("transform", 0);
+            json reserved = m.value("reserved", json::array());
+            for (size_t i = 0; i < hm.reserved.size() && i < reserved.size();
+                 ++i)
+                hm.reserved[i] = reserved[i].get<double>();
+            state.monitors.push_back(std::move(hm));
         }
     } catch (const json::exception &e) {
         klog("hyprland: failed to parse j/monitors: %s", e.what());
+    }
+
+    std::string clients_reply = request(state.request_socket_path, "j/clients");
+    try {
+        json arr = json::parse(clients_reply);
+        state.clients.clear();
+        for (auto &c : arr) {
+            HyprClient hc;
+            hc.address = c.value("address", std::string());
+            hc.window_class = c.value("class", std::string());
+            hc.title = c.value("title", std::string());
+            hc.workspace_id =
+                c.value("workspace", json::object()).value("id", -1);
+            hc.monitor_id = c.value("monitor", -1);
+            json at = c.value("at", json::array({0.0, 0.0}));
+            if (at.size() >= 2) {
+                hc.at[0] = at[0].get<double>();
+                hc.at[1] = at[1].get<double>();
+            }
+            json size = c.value("size", json::array({100.0, 100.0}));
+            if (size.size() >= 2) {
+                hc.size[0] = size[0].get<double>();
+                hc.size[1] = size[1].get<double>();
+            }
+            hc.floating = c.value("floating", false);
+            hc.fullscreen = c.value("fullscreen", 0);
+            hc.pinned = c.value("pinned", false);
+            hc.focus_history_id =
+                static_cast<long>(c.value("focusHistoryID", 0));
+            hc.xwayland = c.value("xwayland", false);
+            state.clients.push_back(std::move(hc));
+        }
+    } catch (const json::exception &e) {
+        klog("hyprland: failed to parse j/clients: %s", e.what());
     }
 }
 
@@ -163,6 +213,12 @@ bool hypr_connect_events(HyprlandState &state) {
 }
 
 } // namespace
+
+void hypr_dispatch(HyprlandState &state, const std::string &command) {
+    if (state.request_socket_path.empty())
+        return;
+    request(state.request_socket_path, "dispatch " + command);
+}
 
 bool hypr_init(HyprlandState &state) {
     if (!resolve_socket_paths(state)) {
@@ -227,7 +283,10 @@ HyprEventResult hypr_poll_events(HyprlandState &state) {
         } else if (event == "createworkspacev2" ||
                    event == "destroyworkspacev2" ||
                    event == "renameworkspace" || event == "moveworkspacev2" ||
-                   event == "openwindow" || event == "closewindow") {
+                   event == "openwindow" || event == "closewindow" ||
+                   event == "movewindow" || event == "movewindowv2" ||
+                   event == "pin" || event == "fullscreen" ||
+                   event == "changefloatingmode") {
             result = HyprEventResult::StructuralChanged;
         }
     }

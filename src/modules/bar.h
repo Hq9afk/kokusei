@@ -43,7 +43,7 @@ struct BarPerMonitorState {
     Texture dock_texture;
     Texture tray_texture;
     Texture cpu_texture;
-    Texture control_center_texture;
+    Texture dashboard_texture;
     Texture battery_icon_texture;
     const char *battery_icon_glyph = nullptr;
     Texture wifi_icon_texture;

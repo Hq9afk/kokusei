@@ -115,7 +115,7 @@ PillId panel_pill(const NetworkPanelState &network_panel,
                   const TrayPanelState &tray_panel,
                   const BatteryPanelState &battery_panel,
                   const SystemMonitorPanelState &system_monitor_panel,
-                  bool starward_open, bool controlcenter_open) {
+                  bool starward_open, bool dashboard_open) {
     if (network_panel.base.open)
         return PillId::Wifi;
     if (bluetooth_panel.base.open)
@@ -130,8 +130,8 @@ PillId panel_pill(const NetworkPanelState &network_panel,
         return PillId::Cpu;
     if (starward_open)
         return PillId::Starward;
-    if (controlcenter_open)
-        return PillId::ControlCenter;
+    if (dashboard_open)
+        return PillId::Dashboard;
     return PillId::None;
 }
 

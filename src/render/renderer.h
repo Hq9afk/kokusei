@@ -36,6 +36,10 @@ class Renderer {
     void draw_texture_rect(float x, float y, float w, float h,
                            const Texture &tex, const float tint[4]);
 
+    void draw_texture_rect_rounded(float x, float y, float w, float h,
+                                   float radius, const Texture &tex,
+                                   const float tint[4]);
+
     void draw_video_texture_rect(float x, float y, float w, float h,
                                  const VideoTexture &tex);
 
@@ -54,6 +58,7 @@ class Renderer {
     GLuint rect_program_ = 0;
     GLuint tex_program_ = 0;
     GLuint rrect_program_ = 0;
+    GLuint rounded_tex_program_ = 0;
     GLuint video_program_ = 0;
     GLuint quad_vbo_ = 0;
     float viewport_[2] = {0, 0};

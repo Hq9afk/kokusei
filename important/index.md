@@ -28,7 +28,8 @@
 - osd_config.h
 - notification_config.h
 - starward_config.h
-- controlcenter_config.h
+- dashboard_config.h
+- overview_config.h
 - wallpaper_config.h
 - settings_config.h
 - matrix_config.h
@@ -75,6 +76,7 @@
 - pointer.h / pointer.cpp
 - hyprland.h / hyprland.cpp
 - shojiwm.h / shojiwm.cpp
+- toplevel_export.h / toplevel_export.cpp
 - active_output.h / active_output.cpp
 - workspace.h
 - wallpaper_service.h / wallpaper_service.cpp
@@ -99,7 +101,8 @@
 - osd.h / osd.cpp
 - notification.h / notification.cpp
 - starward.h / starward.cpp
-- controlcenter.h / controlcenter.cpp
+- dashboard.h / dashboard.cpp
+- overview.h / overview.cpp
 - wallpaper.h / wallpaper.cpp
 - idle.h / idle.cpp
 - settings.h / settings.cpp
@@ -139,7 +142,7 @@
 - widget/network_widget.h / widget/network_widget.cpp
 - widget/bluetooth_widget.h / widget/bluetooth_widget.cpp
 - widget/volume_widget.h / widget/volume_widget.cpp
-- widget/control_center_widget.h / widget/control_center_widget.cpp
+- widget/dashboard_widget.h / widget/dashboard_widget.cpp
 
 ## src/visualizer
 

@@ -26,7 +26,7 @@ enum class PillId : int {
     Bluetooth,
     Volume,
     Battery,
-    ControlCenter,
+    Dashboard,
     Count
 };
 constexpr size_t kPillCount = static_cast<size_t>(PillId::Count);
@@ -115,6 +115,6 @@ PillId panel_pill(const NetworkPanelState &network_panel,
                   const TrayPanelState &tray_panel,
                   const BatteryPanelState &battery_panel,
                   const SystemMonitorPanelState &system_monitor_panel,
-                  bool starward_open, bool controlcenter_open);
+                  bool starward_open, bool dashboard_open);
 
 }

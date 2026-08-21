@@ -1,5 +1,3 @@
-#include "core/deferred_call.h"
-
 #include "render/overlay_panel.h"
 
 namespace {
@@ -149,10 +147,6 @@ void overlay_panel_toggle(OverlayPanelBase &base) {
             wl_surface_commit(base.surface);
             klog("panel: %s released exclusive keyboard interactivity",
                  base.name_space ? base.name_space : "?");
-            DeferredCall::call_later([&base] {
-                if (!base.open)
-                    overlay_panel_destroy_surface(base);
-            });
         },
         kOverlayFadeOwner);
     overlay_panel_request_frame(base);

@@ -26,7 +26,7 @@
 - `src/modules/bar.h`+`.cpp`: Bar rendering, autohide geometry, pill-click dispatch, bar surface's own EGL; shared `WaylandState`-wide helpers.
 - `src/bar/widget/widget_capsule.h`+`.cpp`: Shared pill bookkeeping, hover-expand/click dispatch, and generic scene-node draw helpers.
 - `src/bar/widget/workspace_widget.h`+`.cpp`, `clock_widget.h`+`.cpp`: State-free workspace-row and clock-pill drawing.
-- `src/bar/widget/battery_widget.*`, `network_widget.*`, `bluetooth_widget.*`, `volume_widget.*`, `starward_widget.*`, `control_center_widget.*`: One pair per bar pill.
+- `src/bar/widget/battery_widget.*`, `network_widget.*`, `bluetooth_widget.*`, `volume_widget.*`, `starward_widget.*`, `dashboard_widget.*`: One pair per bar pill.
 - `src/bar/panel/`: One `<name>_panel.h/.cpp` pair per on-demand panel (network, bluetooth, volume, tray+menu, battery, system monitor).
 - `src/config/wallpaper_config.h`: Wallpaper layer-shell namespace constant.
 - `src/modules/wallpaper.h`+`.cpp`: Per-monitor background surface, multi-column texture upload, per-column fill mode (crop/fit/stretch/tile).
@@ -55,8 +55,10 @@
 - `src/modules/osd.h`+`.cpp`: Volume/brightness popup, per-monitor, auto-hides, reactive to system state changes.
 - `src/config/starward_config.h`: Ring-menu geometry, timing, and the 8-button action table.
 - `src/modules/starward.h`+`.cpp`: Starward (logout ring) state, rasterizer, animation choreography, input dispatch, and paint.
-- `src/config/controlcenter_config.h`: Control-center card-stack geometry constants.
-- `src/modules/controlcenter.h`+`.cpp`: Control-center singleton state, fixed top-right overlay, IPC/widget-triggered open wiring, clamped/scrollable card layout.
+- `src/config/dashboard_config.h`: Dashboard card-stack geometry constants.
+- `src/modules/dashboard.h`+`.cpp`: Dashboard singleton state, fixed top-right overlay, IPC/widget-triggered open wiring, clamped/scrollable card layout.
+- `src/config/overview_config.h`: Overview workspace-grid geometry, timing, and live-capture throttle constants.
+- `src/modules/overview.h`+`.cpp`: Overview state, Hyprland-only full-screen exclusive-keyboard overlay; paginated workspace grid, live per-window `hyprland-toplevel-export-v1` thumbnails, click/drag-to-switch-or-move, keyboard nav, IPC-only toggle.
 - `src/config/launcher_config.h`: Every launcher data type and constant, no function bodies.
 - `src/modules/launcher.h`+`.cpp`: `LauncherState`, surface/EGL/tick/toggle/key/click/paint core only.
 - `src/launcher/apps_provider.h`+`.cpp`: App name scoring and search over `DesktopEntry` lists.
@@ -66,8 +68,9 @@
 - `src/launcher/search.h`+`.cpp`: Query-mode prefix detection and combined result ranking.
 - `src/launcher/submenu.h`+`.cpp`: Directory-browse submenu navigation and entry actions.
 - `src/launcher/visit_store.h`+`.cpp`: Per-item launch-count persistence for result ranking.
-- `src/service/hyprland.h`+`.cpp`: Hyprland IPC client, per-monitor workspace state via request+event sockets.
+- `src/service/hyprland.h`+`.cpp`: Hyprland IPC client, per-monitor workspace state plus full monitor/window-client lists via request+event sockets, and fire-and-forget `dispatch` requests.
 - `src/service/shojiwm.h`+`.cpp`: ShojiWM IPC client, per-monitor workspace state, single persistent JSON-RPC socket.
+- `src/service/toplevel_export.h`+`.cpp`: Per-window `hyprland-toplevel-export-v1` live capture; `wl_shm` buffer alloc/reuse and GL texture upload, throttled per window.
 - `src/service/workspace.h`: Shared `Workspace`/`MonitorWorkspaces` types produced by both compositor backends.
 - `src/service/active_output.h`+`.cpp`: Pure-data `Output` struct plus output-selection logic.
 - `src/service/output_scale.h`+`.cpp`: Per-output fractional-scale listener tracking.
@@ -91,7 +94,7 @@
 - `src/core/poll_source.h`+`.cpp`: `PollSource` interface and `FnPollSource` helper for the main poll loop.
 - `src/core/deferred_call.h`+`.cpp`: Cross-thread callback hand-off so worker threads can post to the main thread.
 - `src/core/sdbus_poll_source.h`: Wraps an sdbus connection's poll data into a `PollSource`.
-- `src/render/node.h`+`.cpp`/`scene.h`: `Node`/`Scene` retained-allocation scene graph with per-frame node pooling.
+- `src/render/node.h`+`.cpp`/`scene.h`: `Node`/`Scene` retained-allocation scene graph with per-frame node pooling; kinds are rect/rounded-rect/texture/rounded-texture/video-texture/group.
 - `src/render/renderer.h`+`.cpp`: GL draw calls, clip-stack management, shared `Renderer` across every surface.
 - `src/render/rect.h`: Shared `Rect{x,y,w,h}` struct for hit-testing.
 - `src/render/panel_chrome.h`+`.cpp`: Shared box/header/confirm/dropdown chrome and click-kind enum for on-demand panels.
@@ -114,4 +117,6 @@
 - `convention.md`: Formatting and commenting rules.
 - `assets/fonts/*`, `assets/bullets/*`, `assets/logo.png`: Installed fonts, launcher bullet icons, starward mascot logo.
 - `protocols/wlr-layer-shell-unstable-v1.xml`: Wayland protocol XML, code-generated at build time.
+- `protocols/hyprland-toplevel-export-v1.xml`: Per-window live-capture protocol XML, code-generated at build time, used by `overview`.
+- `protocols/wlr-foreign-toplevel-management-unstable-v1.xml`: Not used directly; code-generated and linked only to satisfy an interface symbol `hyprland-toplevel-export-v1`'s v2 request references.
 - `local/`: Planning/design docs, not part of the shipped repo.

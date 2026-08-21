@@ -7,11 +7,12 @@
 #include "config/bar_config.h"
 
 #include "modules/bar.h"
-#include "modules/controlcenter.h"
+#include "modules/dashboard.h"
 #include "modules/launcher.h"
 #include "modules/matrix.h"
 #include "modules/notification.h"
 #include "modules/osd.h"
+#include "modules/overview.h"
 #include "modules/settings.h"
 #include "modules/starward.h"
 #include "modules/visualizer.h"
@@ -200,20 +201,20 @@ class StarwardModule final : public Module {
     bool want_ = false;
 };
 
-class ControlCenterModule final : public Module {
+class DashboardModule final : public Module {
   public:
-    const char *name() const override { return "controlcenter"; }
+    const char *name() const override { return "dashboard"; }
     bool is_open() const override { return state_.base.open; }
 
     bool create_surface(WaylandState &app, wl_output *output) override {
         output_ = output;
-        want_ = controlcenter_create_surface(state_, app.compositor,
+        want_ = dashboard_create_surface(state_, app.compositor,
                                              app.layer_shell, output);
         return want_;
     }
 
     bool init_egl(WaylandState &app) override {
-        if (!controlcenter_init_egl(state_, app.renderer, app, app.egl_display,
+        if (!dashboard_init_egl(state_, app.renderer, app, app.egl_display,
                                     app.egl_config, app.egl_context))
             return false;
         state_.bound_output = output_;
@@ -226,7 +227,7 @@ class ControlCenterModule final : public Module {
     }
     wl_surface *surface() const override { return state_.base.surface; }
     void request_frame() override {
-        controlcenter_request_frame(
+        dashboard_request_frame(
             state_, static_cast<float>(bar_detail::kBarHeight),
             static_cast<float>(bar_detail::kBarTopMargin));
     }
@@ -250,7 +251,7 @@ class ControlCenterModule final : public Module {
                              double) override {
         if (!state_.dragging)
             return;
-        controlcenter_handle_pointer_move(state_, app.pipewire, x);
+        dashboard_handle_pointer_move(state_, app.pipewire, x);
         request_frame();
     }
 
@@ -260,18 +261,18 @@ class ControlCenterModule final : public Module {
     }
 
     void handle_click(WaylandState &app, double x, double y) override {
-        controlcenter_handle_click(state_, app, x, y);
+        dashboard_handle_click(state_, app, x, y);
     }
     void handle_key_event(WaylandState &app, const KeyEvent &event) override {
-        controlcenter_handle_key_event(state_, app.pipewire, event);
+        dashboard_handle_key_event(state_, app.pipewire, event);
     }
     void handle_scroll(WaylandState &, double dy) override {
-        controlcenter_handle_scroll(state_, dy);
+        dashboard_handle_scroll(state_, dy);
         request_frame();
     }
 
     std::vector<IpcHandler> ipc_handlers(WaylandState &app) override {
-        return controlcenter_ipc_handlers(state_, app);
+        return dashboard_ipc_handlers(state_, app);
     }
 
     bool opened_by_widget() const override { return state_.opened_by_widget; }
@@ -280,20 +281,89 @@ class ControlCenterModule final : public Module {
             MonitorOutput *target = bar_detail::active_target_monitor(app);
             if (target && (target->output.wl != state_.bound_output ||
                            !state_.base.layer_surface))
-                controlcenter_retarget(state_, app.compositor, app.layer_shell,
+                dashboard_retarget(state_, app.compositor, app.layer_shell,
                                        app.display, app.renderer, app,
                                        app.egl_display, app.egl_config,
                                        app.egl_context, target->output.wl,
                                        target->output.name.c_str());
         }
-        controlcenter_toggle(state_, true);
+        dashboard_toggle(state_, true);
     }
 
   private:
-    ControlCenterState state_;
+    DashboardState state_;
     wl_output *output_ = nullptr;
     bool want_ = false;
     int poll_tick_ = 0;
+};
+
+class OverviewModule final : public Module {
+  public:
+    const char *name() const override { return "overview"; }
+    bool is_open() const override { return state_.base.open; }
+
+    bool create_surface(WaylandState &app, wl_output *output) override {
+        output_ = output;
+        want_ = overview_create_surface(state_, app.compositor,
+                                        app.layer_shell, output);
+        return want_;
+    }
+
+    bool init_egl(WaylandState &app) override {
+        if (!overview_init_egl(state_, app.renderer, app.egl_display,
+                               app.egl_config, app.egl_context))
+            return false;
+        state_.bound_output = output_;
+        state_.app_ptr = &app;
+        return true;
+    }
+
+    bool configured() const override {
+        return !want_ || state_.base.configured;
+    }
+    wl_surface *surface() const override { return state_.base.surface; }
+    void request_frame() override { overview_request_frame(state_); }
+
+    void handle_pointer_move(WaylandState &app, wl_surface *, double x,
+                             double y) override {
+        overview_handle_pointer_move(state_, app, x, y);
+    }
+    void handle_pointer_release() override {
+        if (state_.app_ptr)
+            overview_handle_pointer_release(state_, *state_.app_ptr);
+    }
+
+    void handle_click(WaylandState &app, double x, double y) override {
+        overview_handle_click(state_, app, x, y);
+        request_frame();
+    }
+    void handle_key_event(WaylandState &app, const KeyEvent &event) override {
+        overview_handle_key_event(state_, app, event);
+    }
+
+    std::vector<IpcHandler> ipc_handlers(WaylandState &app) override {
+        return overview_ipc_handlers(state_, app);
+    }
+
+    bool opened_by_widget() const override { return state_.opened_by_widget; }
+    void toggle_from_widget(WaylandState &app) override {
+        if (!state_.base.open) {
+            MonitorOutput *target = bar_detail::active_target_monitor(app);
+            if (target && (target->output.wl != state_.bound_output ||
+                           !state_.base.layer_surface))
+                overview_retarget(state_, app.compositor, app.layer_shell,
+                                  app.display, app.renderer, app.egl_display,
+                                  app.egl_config, app.egl_context,
+                                  target->output.wl,
+                                  target->output.name.c_str());
+        }
+        overview_toggle(state_, app, true);
+    }
+
+  private:
+    OverviewState state_;
+    wl_output *output_ = nullptr;
+    bool want_ = false;
 };
 
 class SettingsModule final : public Module {
@@ -651,7 +721,8 @@ std::vector<std::unique_ptr<Module>> build_app_modules() {
     std::vector<std::unique_ptr<Module>> modules;
     modules.push_back(std::make_unique<LauncherModule>());
     modules.push_back(std::make_unique<StarwardModule>());
-    modules.push_back(std::make_unique<ControlCenterModule>());
+    modules.push_back(std::make_unique<DashboardModule>());
+    modules.push_back(std::make_unique<OverviewModule>());
     modules.push_back(std::make_unique<SettingsModule>());
     modules.push_back(std::make_unique<MatrixModule>());
     modules.push_back(std::make_unique<VisualizerModule>());

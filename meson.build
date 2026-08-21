@@ -166,6 +166,45 @@ tablet_v2_source = custom_target(
   command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
 )
 
+# hyprland-toplevel-export-v1: per-window live capture for the overview
+# module's workspace-grid window thumbnails. Hyprland-specific, mirrors
+# wlr-layer-shell's plain (non-idle-protocol) custom_target shape above.
+#
+# Its v2 request capture_toplevel_with_wlr_toplevel_handle references
+# zwlr_foreign_toplevel_handle_v1 (unused here - kokusei only calls v1's
+# capture_toplevel by numeric window address), so wlr-foreign-toplevel-
+# management-unstable-v1's generated code has to be linked in too, same
+# situation as xdg-shell/tablet-v2 above.
+toplevel_export_header = custom_target(
+  'hyprland-toplevel-export-client-header',
+  input: 'protocols/hyprland-toplevel-export-v1.xml',
+  output: 'hyprland-toplevel-export-v1-client-protocol.h',
+  command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@'],
+)
+
+toplevel_export_source = custom_target(
+  'hyprland-toplevel-export-client-source',
+  input: 'protocols/hyprland-toplevel-export-v1.xml',
+  output: 'hyprland-toplevel-export-v1-client-protocol.c',
+  command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
+)
+
+foreign_toplevel_xml = 'protocols/wlr-foreign-toplevel-management-unstable-v1.xml'
+
+foreign_toplevel_header = custom_target(
+  'foreign-toplevel-client-header',
+  input: foreign_toplevel_xml,
+  output: 'wlr-foreign-toplevel-management-unstable-v1-client-protocol.h',
+  command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@'],
+)
+
+foreign_toplevel_source = custom_target(
+  'foreign-toplevel-client-source',
+  input: foreign_toplevel_xml,
+  output: 'wlr-foreign-toplevel-management-unstable-v1-client-protocol.c',
+  command: [wayland_scanner, 'private-code', '@INPUT@', '@OUTPUT@'],
+)
+
 # Modules split into .h/.cpp pairs (own translation unit), shared between the
 # main executable and the test binary. Modules still #include-d as header-only
 # .hpp files don't need an entry here.
@@ -239,6 +278,7 @@ kokusei_service_main_only_sources = [
   'src/service/layer_surface.cpp',
   'src/service/hyprland.cpp',
   'src/service/shojiwm.cpp',
+  'src/service/toplevel_export.cpp',
   'src/service/audio_spectrum.cpp',
   'src/service/wallpaper_hw_decode_loader.cpp',
 ]
@@ -283,7 +323,7 @@ kokusei_bar_main_only_sources = [
   'src/bar/widget/starward_widget.cpp',
   'src/bar/widget/bluetooth_widget.cpp',
   'src/bar/widget/network_widget.cpp',
-  'src/bar/widget/control_center_widget.cpp',
+  'src/bar/widget/dashboard_widget.cpp',
   'src/bar/widget/volume_widget.cpp',
 ]
 
@@ -298,7 +338,8 @@ kokusei_overlay_main_only_sources = [
   'src/modules/wallpaper.cpp',
   'src/modules/notification.cpp',
   'src/modules/starward.cpp',
-  'src/modules/controlcenter.cpp',
+  'src/modules/dashboard.cpp',
+  'src/modules/overview.cpp',
   'src/modules/matrix.cpp',
   'src/modules/visualizer.cpp',
 ]
@@ -403,6 +444,10 @@ executable(
   cursor_shape_source,
   tablet_v2_header,
   tablet_v2_source,
+  toplevel_export_header,
+  toplevel_export_source,
+  foreign_toplevel_header,
+  foreign_toplevel_source,
   include_directories: kokusei_inc,
   dependencies: [
     wayland_client_dep,
