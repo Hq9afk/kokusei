@@ -41,8 +41,7 @@ void settings_draw_monitor_row(SettingsState &state, Node *parent,
         cx += tile_w + kSettingsScreenSelectorSpacing;
     };
 
-    draw_tile("Default", kSettingsDisplaysDefaultTag,
-              selected_monitor.empty());
+    draw_tile("Default", kSettingsDisplaysDefaultTag, selected_monitor.empty());
     for (const std::string &name : sorted_names)
         draw_tile(name, name, name == selected_monitor);
 }

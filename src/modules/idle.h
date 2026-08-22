@@ -14,10 +14,6 @@
 
 struct WaylandState;
 
-// Short pulse used purely to answer "was there input in the last N seconds",
-// the primitive the per-monitor ambient/screensaver clock is built from.
-// Independent of timeout_seconds below (the long, scriptable idle_command
-// hook) - mirrors keqing-shell's IdleService.qml recentActivity IdleMonitor.
 constexpr uint32_t kIdleRecentActivityPulseSeconds = 2;
 
 struct IdleState {
@@ -46,11 +42,7 @@ void idle_set_inhibited(IdleState &state, wl_surface *surface, bool inhibited);
 
 std::vector<IpcHandler> idle_ipc_handlers(WaylandState &state);
 
-// Called once a second with the currently Hyprland-focused monitor (empty
-// string if none/not on Hyprland): stamps that monitor's activity clock
-// forward when there was input in the last kIdleRecentActivityPulseSeconds.
-// Unfocused monitors' clocks freeze and drift into "idle" on their own.
 void idle_tick(IdleState &state, const std::string &focused_monitor);
 
 bool is_idle(const IdleState &state, const std::string &monitor,
-            uint32_t timeout_seconds);
+             uint32_t timeout_seconds);

@@ -29,9 +29,9 @@ void settings_service_apply_field_text(Config &cfg, SettingsFieldId id,
             cfg.idle_resume_command = text;
             break;
         case SettingsFieldId::AmbientTimeout: {
-            auto v = static_cast<uint32_t>(std::clamp(
-                std::stoi(text), kSettingsIdleTimeoutMin,
-                kSettingsIdleTimeoutMax));
+            auto v = static_cast<uint32_t>(std::clamp(std::stoi(text),
+                                                      kSettingsIdleTimeoutMin,
+                                                      kSettingsIdleTimeoutMax));
             if (monitor.empty())
                 cfg.ambient_timeout_seconds = v;
             else
@@ -39,9 +39,9 @@ void settings_service_apply_field_text(Config &cfg, SettingsFieldId id,
             break;
         }
         case SettingsFieldId::ScreensaverTimeout: {
-            auto v = static_cast<uint32_t>(std::clamp(
-                std::stoi(text), kSettingsIdleTimeoutMin,
-                kSettingsIdleTimeoutMax));
+            auto v = static_cast<uint32_t>(std::clamp(std::stoi(text),
+                                                      kSettingsIdleTimeoutMin,
+                                                      kSettingsIdleTimeoutMax));
             if (monitor.empty())
                 cfg.screensaver_timeout_seconds = v;
             else

@@ -17,7 +17,7 @@
 - `src/app/wayland_registry.h`+`.cpp`: Wayland global registry bind/listener wiring, populates `WaylandState`'s globals.
 - `src/app/service.h`: `Service` interface, the process-wide boundary for cross-cutting services: `init`/`timer_tick`/`poll_sources`.
 - `src/app/service_registry.h`+`.cpp`: `build_services` composition root, one `Service` subclass per cross-cutting service.
-- `src/app/config.h`+`.cpp`: TOML config loader/saver with atomic write and inotify hot-reload.
+- `src/app/config.h`+`.cpp`: JSON config loader/saver with atomic write and inotify hot-reload.
 - `src/app/user_info.h`+`.cpp`: `getpwuid`-based username and `sysinfo`-based uptime string, shared across modules.
 - `src/app/ipc.h`+`.cpp`: Kokusei's own control socket, client/server request handling; verb table from each module.
 - `src/app/key_dispatch.h`+`.cpp`: Generic keyboard-focus dispatch table so `kokusei.cpp` never names a module's key handler.

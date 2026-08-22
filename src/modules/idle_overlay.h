@@ -17,13 +17,10 @@
 
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
-// 400ms to match keqing-shell's ambient/screensaver fade exactly
-// (Idle.qml/Wallpaper.qml), rather than the bar-panel-scale kOverlayFadeMs.
 constexpr float kIdleOverlayFadeMs = 400.0f;
 constexpr uint64_t kIdleAmbientFadeOwner = 1;
 constexpr uint64_t kIdleScreensaverFadeOwner = 2;
 
-// DVD-logo bounce speed, px/s.
 constexpr float kIdleLogoSpeed = 90.0f;
 
 struct IdleOverlayState {
@@ -56,9 +53,6 @@ struct IdleOverlayState {
 
     Texture logo_tex;
 
-    // Populated by module_registry.cpp with a lookup of the sibling
-    // WallpaperPerMonitorModule for this output; draws its already-decoded
-    // column textures into root at (w, h) - see wallpaper_draw_columns.
     std::function<void(Node &root, float w, float h)> draw_ambient;
 };
 
@@ -73,7 +67,5 @@ bool idle_overlay_init_egl(IdleOverlayState &state, Renderer &renderer,
 
 void idle_overlay_request_frame(IdleOverlayState &state);
 
-// Drives the ambient/screensaver opacity fades and, on a screensaver-state
-// transition, resets the bounce so it doesn't jump.
 void idle_overlay_set_active(IdleOverlayState &state, bool ambient_active,
                              bool screensaver_active);

@@ -74,10 +74,6 @@ bool wallpaper_init_egl(WallpaperState &wp, Renderer &renderer,
 
 void wallpaper_request_frame(WallpaperState &wp);
 
-// Lays out wp's decoded column textures/animations into parent at the given
-// logical size. Shared by the primary wallpaper surface and the idle
-// module's ambient overlay (which samples the same already-decoded textures
-// instead of running its own decode - see local/plan/idle-port.md).
 void wallpaper_draw_columns(const WallpaperState &wp, Node *parent,
                             int32_t width, int32_t height);
 

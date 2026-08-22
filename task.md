@@ -1,42 +1,22 @@
-# Idle port — execution checklist
+# toml-config to json-config — execution checklist
 
-Source plan: `local/plan/idle-port.md`. Real idle module lives at
-`src/modules/idle.{h,cpp}` (plan said `src/service/idle.*` — stale path,
-used the real one).
+Source plan: `local/plan/toml-to-json-config.md`.
 
-- [x] Phase 1 — Config & resolvers (`src/app/config.h/.cpp`)
-- [x] Phase 2 — Per-monitor idle clock (`src/modules/idle.h/.cpp`,
-      `src/app/service_registry.cpp`)
-- [x] Phase 3 — Screensaver + ambient overlay module
-      (`src/modules/idle_overlay.{h,cpp}` NEW, `src/modules/wallpaper.h/.cpp`
-      extraction, `src/render/renderer.h/.cpp` + shader video-opacity)
-- [x] Phase 4 — Wallpaper pause rewire (`src/app/module_registry.h/.cpp`)
-- [x] Phase 5 — Settings idle tab rewrite (`src/settings/idle_tab.h/.cpp`,
-      `src/settings/displays_tab.h/.cpp` selector-row export,
-      `src/modules/settings.h/.cpp`, `src/config/settings_config.h`,
-      `src/service/settings_service.h/.cpp`)
-- [x] meson.build — register `src/modules/idle_overlay.cpp`
-- [x] Build verification (`meson compile` clean, `meson test` passing)
+- [x] `src/app/config.cpp` — rewritten on `nlohmann::json` (was `toml++`)
+- [x] `meson.build` — dropped `tomlplusplus_dep` everywhere, added the
+      missing `nlohmann_json_dep` to the test executable
+- [x] `readme.md` — dropped `tomlplusplus` from the pacman package list
+- [x] `test/app/test_config.cpp` — path/content assertions moved to JSON
+- [x] `important/structure.md` — `config.h`+`.cpp` line now says JSON
+- [x] Build verification (`dist/test.sh`, exit 0)
+- [x] `~/.config/kokusei/config.json` seeded from the real device
+      `config.toml`; old `config.toml` deleted
 
-## Deviations from the written plan (all judgment calls, not asked-about)
+## Deviations from the written plan (judgment call, asked about)
 
-- Idle module is at `src/modules/idle.*`, not `src/service/idle.*` as the
-  plan text said — used the real path.
-- Added `Config::idle_management_enabled` (global "Enable Idle Management"
-  toggle). The plan's phase-1 field list omitted it, but the Settings
-  section and tab layout both require it, so it was added and folded into
-  `ambient_effective_enabled`/`screensaver_effective_enabled` as a master
-  gate.
-- Reset-to-default icon on the Ambient/Screensaver tiles is always visible
-  (when the value differs from the global default) rather than
-  hover-gated — `SettingsState` has no per-pixel hover tracking today and
-  adding it was out of proportion to this task.
-- Screensaver logo: loads its own copy of `assets/logo.png` at
-  `idle_overlay_init_egl` time instead of borrowing
-  `StarwardModule::logo_tex` — the first monitor's per-monitor modules
-  finish `init_egl` *before* `app.overlays` (where Starward lives) is even
-  constructed, so the shared-texture pointer would be null on launch for
-  monitor 1. Loading independently sidesteps the ordering hazard.
-- Extended `Renderer::draw_video_texture_rect`/the video fragment shader
-  with a `u_opacity` uniform so the ambient overlay can fade a zero-copy
-  (VAAPI) animated wallpaper column, not just the CPU-decoded path.
+- `autohide` moved from a bare top-level key to `bar.autohideEnabled`,
+  matching `keqing-shell`'s naming for the same concept, after the user
+  asked to check whether kokusei's schema could match `keqing-shell`'s.
+  The rest of `keqing-shell`'s schema (`dock`, `osd.active`,
+  `powerButtons`) has no kokusei equivalent (no dock module, no runtime
+  OSD-source filter, no configurable power-button list) and was not added.

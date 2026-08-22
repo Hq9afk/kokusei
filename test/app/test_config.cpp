@@ -22,7 +22,7 @@ void test_config() {
     mkdir((std::string(tmp_dir) + "/.config").c_str(), 0755);
 
     std::string path = config_path();
-    assert(path == config_dir + "/config.toml");
+    assert(path == config_dir + "/config.json");
 
     Config cfg;
     save_config(cfg);
@@ -30,8 +30,8 @@ void test_config() {
     std::ifstream f(path);
     std::string content((std::istreambuf_iterator<char>(f)),
                         std::istreambuf_iterator<char>());
-    assert(content.find("[bar]") == std::string::npos);
-    assert(content.find("autohide") != std::string::npos);
+    assert(content.find("\"dock\"") == std::string::npos);
+    assert(content.find("\"autohideEnabled\"") != std::string::npos);
 
     unlink(path.c_str());
     rmdir(config_dir.c_str());
@@ -44,10 +44,10 @@ void test_config() {
 
 void test_config_watch() {
     std::string path =
-        "/tmp/kokusei_test_config_watch_" + std::to_string(getpid()) + ".toml";
+        "/tmp/kokusei_test_config_watch_" + std::to_string(getpid()) + ".json";
     {
         std::ofstream f(path);
-        f << "[idle]\ntimeout_seconds = 300\n";
+        f << "{\"idle\":{\"timeoutSeconds\":300}}";
     }
 
     int fd = config_watch_init(path);
@@ -55,7 +55,7 @@ void test_config_watch() {
 
     {
         std::ofstream f(path, std::ios::trunc);
-        f << "[idle]\ntimeout_seconds = 400\n";
+        f << "{\"idle\":{\"timeoutSeconds\":400}}";
     }
 
     bool changed = false;

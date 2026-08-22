@@ -101,11 +101,11 @@ void wallpaper_draw_columns(const WallpaperState &wp, Node *parent,
         float column_x = static_cast<float>(i) * column_w;
         FillMode mode = wallpaper_column_fill_mode(wp, i);
 
-        float scale = mode == FillMode::Fit
-                          ? std::min(column_w / tex_w,
-                                     static_cast<float>(height) / tex_h)
-                          : std::max(column_w / tex_w,
-                                     static_cast<float>(height) / tex_h);
+        float scale =
+            mode == FillMode::Fit
+                ? std::min(column_w / tex_w, static_cast<float>(height) / tex_h)
+                : std::max(column_w / tex_w,
+                           static_cast<float>(height) / tex_h);
         float draw_w = tex_w * scale;
         float draw_h = tex_h * scale;
 

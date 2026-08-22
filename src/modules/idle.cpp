@@ -64,15 +64,15 @@ bool idle_init(IdleState &state) {
     state.notification = ext_idle_notifier_v1_get_idle_notification(
         state.notifier, state.timeout_seconds * 1000, state.seat);
     if (state.notification)
-        ext_idle_notification_v1_add_listener(state.notification,
-                                              &idle_notification_listener,
-                                              &state);
-    state.recent_activity_notification = ext_idle_notifier_v1_get_idle_notification(
-        state.notifier, kIdleRecentActivityPulseSeconds * 1000, state.seat);
+        ext_idle_notification_v1_add_listener(
+            state.notification, &idle_notification_listener, &state);
+    state.recent_activity_notification =
+        ext_idle_notifier_v1_get_idle_notification(
+            state.notifier, kIdleRecentActivityPulseSeconds * 1000, state.seat);
     if (state.recent_activity_notification)
         ext_idle_notification_v1_add_listener(
-            state.recent_activity_notification,
-            &idle_recent_activity_listener, &state);
+            state.recent_activity_notification, &idle_recent_activity_listener,
+            &state);
     else
         klog("idle: recent-activity notification failed, ambient/screensaver "
              "clock disabled");
@@ -86,7 +86,7 @@ void idle_tick(IdleState &state, const std::string &focused_monitor) {
 }
 
 bool is_idle(const IdleState &state, const std::string &monitor,
-            uint32_t timeout_seconds) {
+             uint32_t timeout_seconds) {
     auto it = state.last_activity.find(monitor);
     if (it == state.last_activity.end())
         return false;

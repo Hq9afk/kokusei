@@ -38,10 +38,9 @@ void idle_overlay_layer_surface_configure(void *data,
 
 void idle_overlay_layer_surface_closed(void *, zwlr_layer_surface_v1 *) {}
 
-constexpr zwlr_layer_surface_v1_listener idle_overlay_layer_surface_listener =
-    {
-        .configure = idle_overlay_layer_surface_configure,
-        .closed = idle_overlay_layer_surface_closed,
+constexpr zwlr_layer_surface_v1_listener idle_overlay_layer_surface_listener = {
+    .configure = idle_overlay_layer_surface_configure,
+    .closed = idle_overlay_layer_surface_closed,
 };
 
 void idle_overlay_bounce(IdleOverlayState &state, float dt) {
@@ -98,8 +97,7 @@ void idle_overlay_paint(IdleOverlayState &state) {
     if (state.screensaver_opacity > 0.0f) {
         state.scene.rebuild();
         Color black{0.0f, 0.0f, 0.0f, state.screensaver_opacity};
-        node_add_rect(&state.scene.root, 0, 0,
-                      static_cast<float>(state.width),
+        node_add_rect(&state.scene.root, 0, 0, static_cast<float>(state.width),
                       static_cast<float>(state.height), rgba(black));
         Color white{1.0f, 1.0f, 1.0f, state.screensaver_opacity};
         if (state.logo_tex.id)
@@ -154,8 +152,8 @@ bool idle_overlay_init_egl(IdleOverlayState &state, Renderer &renderer,
     state.egl_context = context;
     state.renderer = &renderer;
     int32_t scale = state.output_scale.scale;
-    state.egl_window = wl_egl_window_create(
-        state.surface, state.width * scale, state.height * scale);
+    state.egl_window = wl_egl_window_create(state.surface, state.width * scale,
+                                            state.height * scale);
     state.egl_surface = eglCreateWindowSurface(
         display, config,
         reinterpret_cast<EGLNativeWindowType>(state.egl_window), nullptr);
@@ -206,10 +204,6 @@ void idle_overlay_set_active(IdleOverlayState &state, bool ambient_active,
             kIdleScreensaverFadeOwner);
         changed = true;
     }
-    // Redraws otherwise keep themselves alive (animations.hasActive() /
-    // screensaver_active re-requesting each frame from idle_overlay_paint) -
-    // only kick the loop off here on an actual state transition, not once a
-    // second forever.
     if (changed)
         idle_overlay_request_frame(state);
 }

@@ -49,10 +49,6 @@ void draw_field_row(SettingsState &state, Node *parent, int32_t scale,
                                    std::to_string(static_cast<int>(id))});
 }
 
-// One tile in the "Ambient Mode" / "Screensaver" group: label, numeric
-// timeout field (clamped kSettingsIdleTimeoutMin..Max), a reset-to-default
-// icon (override rows only, hidden once already at the default), a divider,
-// then an enable toggle - mirrors keqing-shell's IdleTab.qml tile Repeater.
 void draw_idle_tier_tile(SettingsState &state, Node *parent, int32_t scale,
                          float x, float y, float w, const std::string &label,
                          SettingsFieldId field_id, uint32_t value,
@@ -72,8 +68,8 @@ void draw_idle_tier_tile(SettingsState &state, Node *parent, int32_t scale,
 
     float switch_x = x + w - inset - kSettingsToggleTrackWidth;
     float divider_x = switch_x - kSettingsToggleTileContentSpacing;
-    float reset_x =
-        divider_x - kSettingsToggleTileContentSpacing - kSettingsIdleResetIconSize;
+    float reset_x = divider_x - kSettingsToggleTileContentSpacing -
+                    kSettingsIdleResetIconSize;
     float field_w = kSettingsNumberFieldWidth;
     float field_x = reset_x - kSettingsToggleTileContentSpacing - field_w;
     float field_y = y + (h - kSettingsFieldHeight) / 2.0f;
@@ -87,10 +83,10 @@ void draw_idle_tier_tile(SettingsState &state, Node *parent, int32_t scale,
         focused ? state.field_buffer.text : std::to_string(value);
     const Texture *value_tex = cached_text(state.tcache, display, scale);
     if (value_tex)
-        node_add_texture(
-            parent, field_x + 8,
-            field_y + (kSettingsFieldHeight - value_tex->height) / 2.0f,
-            *value_tex, rgba(palette::text));
+        node_add_texture(parent, field_x + 8,
+                         field_y +
+                             (kSettingsFieldHeight - value_tex->height) / 2.0f,
+                         *value_tex, rgba(palette::text));
     if (focused && state.field_buffer.cursor_blink_visible) {
         float cursor_x = field_x + 8 + (value_tex ? value_tex->width : 0) + 2;
         node_add_rect(parent, cursor_x, field_y + 5, 1.5f,
@@ -103,11 +99,13 @@ void draw_idle_tier_tile(SettingsState &state, Node *parent, int32_t scale,
 
     if (show_reset && value != default_value) {
         float reset_y = y + (h - kSettingsIdleResetIconSize) / 2.0f;
-        const Texture *reset_icon = cached_icon(state.tcache, icon::refresh, scale);
+        const Texture *reset_icon =
+            cached_icon(state.tcache, icon::refresh, scale);
         if (reset_icon)
             node_add_texture(
                 parent,
-                reset_x + (kSettingsIdleResetIconSize - reset_icon->width) / 2.0f,
+                reset_x +
+                    (kSettingsIdleResetIconSize - reset_icon->width) / 2.0f,
                 reset_y +
                     (kSettingsIdleResetIconSize - reset_icon->height) / 2.0f,
                 *reset_icon, rgba(palette::text_dim));
@@ -131,8 +129,7 @@ void draw_idle_tier_tile(SettingsState &state, Node *parent, int32_t scale,
 void idle_tab_paint(SettingsState &state, Node *root, int32_t scale, float x,
                     float y, float w, const Config &cfg) {
     draw_toggle_row(state, root, scale, x, y, w, "Enable Idle Management",
-                    cfg.idle_management_enabled, "idlemanagementenabled",
-                    true);
+                    cfg.idle_management_enabled, "idlemanagementenabled", true);
     y += kSettingsToggleTileHeight + kPanelRowGap;
 
     settings_draw_monitor_row(state, root, scale, x, y, w,
@@ -158,9 +155,8 @@ void idle_tab_paint(SettingsState &state, Node *root, int32_t scale, float x,
     if (is_default || override_enabled) {
         bool ambient_enabled_val =
             is_default ? cfg.ambient_enabled : ov->ambient_enabled;
-        uint32_t ambient_timeout_val =
-            is_default ? cfg.ambient_timeout_seconds
-                       : ov->ambient_timeout_seconds;
+        uint32_t ambient_timeout_val = is_default ? cfg.ambient_timeout_seconds
+                                                  : ov->ambient_timeout_seconds;
         bool screensaver_enabled_val =
             is_default ? cfg.screensaver_enabled : ov->screensaver_enabled;
         uint32_t screensaver_timeout_val =
@@ -174,12 +170,11 @@ void idle_tab_paint(SettingsState &state, Node *root, int32_t scale, float x,
                             "idleambientreset", "idleambientenabled");
         y += kSettingsToggleTileHeight + kSettingsGroupSpacingSm;
 
-        draw_idle_tier_tile(state, root, scale, x, y, w, "Screensaver",
-                            SettingsFieldId::ScreensaverTimeout,
-                            screensaver_timeout_val,
-                            cfg.screensaver_timeout_seconds,
-                            screensaver_enabled_val, !is_default,
-                            "idlescreensaverreset", "idlescreensaverenabled");
+        draw_idle_tier_tile(
+            state, root, scale, x, y, w, "Screensaver",
+            SettingsFieldId::ScreensaverTimeout, screensaver_timeout_val,
+            cfg.screensaver_timeout_seconds, screensaver_enabled_val,
+            !is_default, "idlescreensaverreset", "idlescreensaverenabled");
         y += kSettingsToggleTileHeight + kPanelRowGap;
     }
 
@@ -229,7 +224,7 @@ bool idle_tab_handle_click(SettingsState &state, const Config &cfg,
         ov.enabled = !ov.enabled;
         on_commit(updated);
     } else if (region.tag == "idleambientenabled" ||
-              region.tag == "idlescreensaverenabled") {
+               region.tag == "idlescreensaverenabled") {
         Config updated = cfg;
         if (is_default) {
             if (region.tag == "idleambientenabled")

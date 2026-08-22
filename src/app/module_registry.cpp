@@ -767,12 +767,12 @@ void IdlePerMonitorModule::timer_tick(WaylandState &app, MonitorOutput &mon) {
     bool ambient_now =
         ambient_effective_enabled(app.cfg, mon.output.name) &&
         is_idle(app.idle, mon.output.name,
-               ambient_effective_timeout_seconds(app.cfg, mon.output.name));
+                ambient_effective_timeout_seconds(app.cfg, mon.output.name));
     bool screensaver_now =
         screensaver_effective_enabled(app.cfg, mon.output.name) &&
-        is_idle(app.idle, mon.output.name,
-               screensaver_effective_timeout_seconds(app.cfg,
-                                                      mon.output.name));
+        is_idle(
+            app.idle, mon.output.name,
+            screensaver_effective_timeout_seconds(app.cfg, mon.output.name));
 
     idle_overlay_set_active(state_, ambient_now, screensaver_now);
 

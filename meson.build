@@ -10,7 +10,6 @@ wayland_client_dep = dependency('wayland-client')
 wayland_egl_dep    = dependency('wayland-egl')
 egl_dep            = dependency('egl')
 glesv2_dep         = dependency('glesv2')
-tomlplusplus_dep   = dependency('tomlplusplus')
 cairo_dep          = dependency('cairo')
 pangocairo_dep     = dependency('pangocairo')
 nlohmann_json_dep  = dependency('nlohmann_json')
@@ -455,7 +454,6 @@ executable(
     wayland_egl_dep,
     egl_dep,
     glesv2_dep,
-    tomlplusplus_dep,
     cairo_dep,
     pangocairo_dep,
     nlohmann_json_dep,
@@ -515,7 +513,6 @@ kokusei_test = executable(
   include_directories: kokusei_inc,
   dependencies: [
     threads_dep,
-    tomlplusplus_dep,
     xkbcommon_dep,
     wayland_client_dep,
     wayland_egl_dep,
@@ -527,6 +524,7 @@ kokusei_test = executable(
     libpng_dep,
     libjpeg_dep,
     glesv2_dep,
+    nlohmann_json_dep,
   ],
   cpp_args: [
     '-DKOKUSEI_DEFAULT_WALLPAPER="' + kokusei_data_dir / 'default.png' + '"',

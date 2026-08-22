@@ -1,9 +1,8 @@
 #include <cstdio>
 #include <fstream>
-#include <sstream>
+#include <nlohmann/json.hpp>
 #include <sys/inotify.h>
 #include <sys/stat.h>
-#include <toml++/toml.hpp>
 #include <unistd.h>
 
 #include "app/config.h"
@@ -61,8 +60,9 @@ bool screensaver_effective_enabled(const Config &cfg,
     return cfg.screensaver_enabled;
 }
 
-uint32_t screensaver_effective_timeout_seconds(const Config &cfg,
-                                               const std::string &monitor_name) {
+uint32_t
+screensaver_effective_timeout_seconds(const Config &cfg,
+                                      const std::string &monitor_name) {
     auto it = cfg.monitor_overrides.find(monitor_name);
     if (it != cfg.monitor_overrides.end() && it->second.enabled)
         return it->second.screensaver_timeout_seconds;
@@ -73,8 +73,17 @@ std::string config_path() {
     const char *home = getenv("HOME");
     if (!home)
         return "";
-    return std::string(home) + "/.config/kokusei/config.toml";
+    return std::string(home) + "/.config/kokusei/config.json";
 }
+
+namespace {
+
+bool is_reserved_displays_key(const std::string &key) {
+    return key == "defaultOsd" || key == "defaultNotifications" ||
+           key == "defaultWallpaper";
+}
+
+} // namespace
 
 Config load_config() {
     Config cfg;
@@ -82,128 +91,106 @@ Config load_config() {
     if (path.empty())
         return cfg;
     try {
-        toml::table tbl = toml::parse_file(path);
-        cfg.autohide = tbl["autohide"].value_or(cfg.autohide);
-        cfg.wallpaper_dir = tbl["wallpaper"]["dir"].value_or(cfg.wallpaper_dir);
-        if (const auto *columns = tbl["wallpaper"]["columns"].as_table()) {
-            for (const auto &[name, val] : *columns) {
-                if (const auto *arr = val.as_array()) {
-                    std::vector<std::string> paths;
-                    for (const auto &el : *arr)
-                        paths.push_back(el.value_or(std::string()));
-                    cfg.wallpaper_columns[std::string(name.str())] = paths;
-                }
-            }
-        }
-        if (const auto *counts = tbl["wallpaper"]["column_counts"].as_table()) {
-            for (const auto &[name, val] : *counts)
-                if (auto n = val.value<int64_t>())
-                    cfg.wallpaper_column_counts[std::string(name.str())] =
-                        static_cast<int>(*n);
-        }
-        if (const auto *modes = tbl["wallpaper"]["fill_modes"].as_table()) {
-            for (const auto &[name, val] : *modes) {
-                if (const auto *arr = val.as_array()) {
-                    std::vector<std::string> column_modes;
-                    for (const auto &el : *arr)
-                        column_modes.push_back(el.value_or(std::string()));
-                    cfg.wallpaper_fill_modes[std::string(name.str())] =
-                        column_modes;
-                }
-            }
-        }
+        std::ifstream f(path);
+        if (!f)
+            return cfg;
+        nlohmann::json j = nlohmann::json::parse(f);
+
+        nlohmann::json bar = j.value("bar", nlohmann::json::object());
+        cfg.autohide = bar.value("autohideEnabled", cfg.autohide);
+
+        nlohmann::json wallpaper =
+            j.value("wallpaper", nlohmann::json::object());
+        cfg.wallpaper_dir = wallpaper.value("dir", cfg.wallpaper_dir);
+        if (auto it = wallpaper.find("columns");
+            it != wallpaper.end() && it->is_object())
+            for (const auto &[name, val] : it->items())
+                if (val.is_array())
+                    cfg.wallpaper_columns[name] =
+                        val.get<std::vector<std::string>>();
+        if (auto it = wallpaper.find("columnCounts");
+            it != wallpaper.end() && it->is_object())
+            for (const auto &[name, val] : it->items())
+                if (val.is_number_integer())
+                    cfg.wallpaper_column_counts[name] = val.get<int>();
+        if (auto it = wallpaper.find("fillModes");
+            it != wallpaper.end() && it->is_object())
+            for (const auto &[name, val] : it->items())
+                if (val.is_array())
+                    cfg.wallpaper_fill_modes[name] =
+                        val.get<std::vector<std::string>>();
         cfg.wallpaper_animated_enabled =
-            tbl["wallpaper"]["animated_enabled"].value_or(
-                cfg.wallpaper_animated_enabled);
-        cfg.wallpaper_animated_dir = tbl["wallpaper"]["animated_dir"].value_or(
-            cfg.wallpaper_animated_dir);
-        if (const auto *columns =
-                tbl["wallpaper"]["animated_columns"].as_table()) {
-            for (const auto &[name, val] : *columns) {
-                if (const auto *arr = val.as_array()) {
-                    std::vector<std::string> paths;
-                    for (const auto &el : *arr)
-                        paths.push_back(el.value_or(std::string()));
-                    cfg.wallpaper_animated_columns[std::string(name.str())] =
-                        paths;
-                }
-            }
-        }
-        if (const auto *counts =
-                tbl["wallpaper"]["animated_column_counts"].as_table()) {
-            for (const auto &[name, val] : *counts)
-                if (auto n = val.value<int64_t>())
-                    cfg.wallpaper_animated_column_counts[std::string(
-                        name.str())] = static_cast<int>(*n);
-        }
-        if (const auto *modes =
-                tbl["wallpaper"]["animated_fill_modes"].as_table()) {
-            for (const auto &[name, val] : *modes) {
-                if (const auto *arr = val.as_array()) {
-                    std::vector<std::string> column_modes;
-                    for (const auto &el : *arr)
-                        column_modes.push_back(el.value_or(std::string()));
-                    cfg.wallpaper_animated_fill_modes[std::string(name.str())] =
-                        column_modes;
-                }
-            }
-        }
+            wallpaper.value("animatedEnabled", cfg.wallpaper_animated_enabled);
+        cfg.wallpaper_animated_dir =
+            wallpaper.value("animatedDir", cfg.wallpaper_animated_dir);
+        if (auto it = wallpaper.find("animatedColumns");
+            it != wallpaper.end() && it->is_object())
+            for (const auto &[name, val] : it->items())
+                if (val.is_array())
+                    cfg.wallpaper_animated_columns[name] =
+                        val.get<std::vector<std::string>>();
+        if (auto it = wallpaper.find("animatedColumnCounts");
+            it != wallpaper.end() && it->is_object())
+            for (const auto &[name, val] : it->items())
+                if (val.is_number_integer())
+                    cfg.wallpaper_animated_column_counts[name] = val.get<int>();
+        if (auto it = wallpaper.find("animatedFillModes");
+            it != wallpaper.end() && it->is_object())
+            for (const auto &[name, val] : it->items())
+                if (val.is_array())
+                    cfg.wallpaper_animated_fill_modes[name] =
+                        val.get<std::vector<std::string>>();
+
+        nlohmann::json displays = j.value("displays", nlohmann::json::object());
         cfg.default_osd_enabled =
-            tbl["displays"]["default_osd"].value_or(cfg.default_osd_enabled);
-        cfg.default_notifications_enabled =
-            tbl["displays"]["default_notifications"].value_or(
-                cfg.default_notifications_enabled);
+            displays.value("defaultOsd", cfg.default_osd_enabled);
+        cfg.default_notifications_enabled = displays.value(
+            "defaultNotifications", cfg.default_notifications_enabled);
         cfg.default_wallpaper_enabled =
-            tbl["displays"]["default_wallpaper"].value_or(
-                cfg.default_wallpaper_enabled);
-        if (const auto *overrides =
-                tbl["displays"]["monitor_overrides"].as_table()) {
-            for (const auto &[name, val] : *overrides) {
-                if (const auto *ov = val.as_table()) {
-                    MonitorOverride mo;
-                    mo.enabled = (*ov)["enabled"].value_or(mo.enabled);
-                    mo.osd = (*ov)["osd"].value_or(mo.osd);
-                    mo.notifications =
-                        (*ov)["notifications"].value_or(mo.notifications);
-                    mo.autohide = (*ov)["autohide"].value_or(mo.autohide);
-                    mo.ambient_enabled =
-                        (*ov)["ambient_enabled"].value_or(mo.ambient_enabled);
-                    mo.ambient_timeout_seconds =
-                        (*ov)["ambient_timeout_seconds"].value_or(
-                            mo.ambient_timeout_seconds);
-                    mo.screensaver_enabled =
-                        (*ov)["screensaver_enabled"].value_or(
-                            mo.screensaver_enabled);
-                    mo.screensaver_timeout_seconds =
-                        (*ov)["screensaver_timeout_seconds"].value_or(
-                            mo.screensaver_timeout_seconds);
-                    cfg.monitor_overrides[std::string(name.str())] = mo;
-                }
-            }
+            displays.value("defaultWallpaper", cfg.default_wallpaper_enabled);
+        for (const auto &[name, val] : displays.items()) {
+            if (is_reserved_displays_key(name) || !val.is_object())
+                continue;
+            MonitorOverride mo;
+            mo.enabled = val.value("_enabled", mo.enabled);
+            mo.osd = val.value("osd", mo.osd);
+            mo.notifications = val.value("notifications", mo.notifications);
+            mo.autohide = val.value("autohide", mo.autohide);
+            mo.ambient_enabled =
+                val.value("ambientEnabled", mo.ambient_enabled);
+            mo.ambient_timeout_seconds =
+                val.value("ambientTimeoutSeconds", mo.ambient_timeout_seconds);
+            mo.screensaver_enabled =
+                val.value("screensaverEnabled", mo.screensaver_enabled);
+            mo.screensaver_timeout_seconds = val.value(
+                "screensaverTimeoutSeconds", mo.screensaver_timeout_seconds);
+            cfg.monitor_overrides[name] = mo;
         }
+
+        nlohmann::json idle = j.value("idle", nlohmann::json::object());
         cfg.idle_timeout_seconds =
-            tbl["idle"]["timeout_seconds"].value_or(cfg.idle_timeout_seconds);
-        cfg.idle_command = tbl["idle"]["command"].value_or(cfg.idle_command);
+            idle.value("timeoutSeconds", cfg.idle_timeout_seconds);
+        cfg.idle_command = idle.value("command", cfg.idle_command);
         cfg.idle_resume_command =
-            tbl["idle"]["resume_command"].value_or(cfg.idle_resume_command);
+            idle.value("resumeCommand", cfg.idle_resume_command);
         cfg.idle_management_enabled =
-            tbl["idle"]["enabled"].value_or(cfg.idle_management_enabled);
-        cfg.ambient_enabled =
-            tbl["idle"]["ambient_enabled"].value_or(cfg.ambient_enabled);
-        cfg.ambient_timeout_seconds = tbl["idle"]["ambient_timeout_seconds"]
-                                          .value_or(cfg.ambient_timeout_seconds);
-        cfg.screensaver_enabled = tbl["idle"]["screensaver_enabled"].value_or(
-            cfg.screensaver_enabled);
-        cfg.screensaver_timeout_seconds =
-            tbl["idle"]["screensaver_timeout_seconds"].value_or(
-                cfg.screensaver_timeout_seconds);
-        cfg.visualizer_shape =
-            tbl["visualizer"]["shape"].value_or(cfg.visualizer_shape);
+            idle.value("enabled", cfg.idle_management_enabled);
+        cfg.ambient_enabled = idle.value("ambientEnabled", cfg.ambient_enabled);
+        cfg.ambient_timeout_seconds =
+            idle.value("ambientTimeoutSeconds", cfg.ambient_timeout_seconds);
+        cfg.screensaver_enabled =
+            idle.value("screensaverEnabled", cfg.screensaver_enabled);
+        cfg.screensaver_timeout_seconds = idle.value(
+            "screensaverTimeoutSeconds", cfg.screensaver_timeout_seconds);
+
+        nlohmann::json visualizer =
+            j.value("visualizer", nlohmann::json::object());
+        cfg.visualizer_shape = visualizer.value("shape", cfg.visualizer_shape);
         if (cfg.visualizer_shape == "bars")
             cfg.visualizer_shape = "bar";
         else if (cfg.visualizer_shape == "ncs")
             cfg.visualizer_shape = "sphere";
-    } catch (const toml::parse_error &) {
+    } catch (const nlohmann::json::exception &) {
     }
     return cfg;
 }
@@ -233,97 +220,53 @@ void save_config(const Config &cfg) {
     std::string path = config_path();
     if (path.empty())
         return;
-    toml::table tbl;
-    tbl.insert_or_assign("autohide", cfg.autohide);
-    toml::table wallpaper_columns_tbl;
-    for (const auto &[name, paths] : cfg.wallpaper_columns) {
-        toml::array arr;
-        for (const std::string &p : paths)
-            arr.push_back(p);
-        wallpaper_columns_tbl.insert_or_assign(name, arr);
+
+    nlohmann::json wallpaper;
+    wallpaper["dir"] = cfg.wallpaper_dir;
+    wallpaper["columns"] = cfg.wallpaper_columns;
+    wallpaper["columnCounts"] = cfg.wallpaper_column_counts;
+    wallpaper["fillModes"] = cfg.wallpaper_fill_modes;
+    wallpaper["animatedEnabled"] = cfg.wallpaper_animated_enabled;
+    wallpaper["animatedDir"] = cfg.wallpaper_animated_dir;
+    wallpaper["animatedColumns"] = cfg.wallpaper_animated_columns;
+    wallpaper["animatedColumnCounts"] = cfg.wallpaper_animated_column_counts;
+    wallpaper["animatedFillModes"] = cfg.wallpaper_animated_fill_modes;
+
+    nlohmann::json displays;
+    displays["defaultOsd"] = cfg.default_osd_enabled;
+    displays["defaultNotifications"] = cfg.default_notifications_enabled;
+    displays["defaultWallpaper"] = cfg.default_wallpaper_enabled;
+    for (const auto &[name, ov] : cfg.monitor_overrides) {
+        nlohmann::json mo;
+        mo["_enabled"] = ov.enabled;
+        mo["osd"] = ov.osd;
+        mo["notifications"] = ov.notifications;
+        mo["autohide"] = ov.autohide;
+        mo["ambientEnabled"] = ov.ambient_enabled;
+        mo["ambientTimeoutSeconds"] = ov.ambient_timeout_seconds;
+        mo["screensaverEnabled"] = ov.screensaver_enabled;
+        mo["screensaverTimeoutSeconds"] = ov.screensaver_timeout_seconds;
+        displays[name] = mo;
     }
-    toml::table wallpaper_column_counts_tbl;
-    for (const auto &[name, count] : cfg.wallpaper_column_counts)
-        wallpaper_column_counts_tbl.insert_or_assign(
-            name, static_cast<int64_t>(count));
-    toml::table wallpaper_fill_modes_tbl;
-    for (const auto &[name, modes] : cfg.wallpaper_fill_modes) {
-        toml::array arr;
-        for (const std::string &m : modes)
-            arr.push_back(m);
-        wallpaper_fill_modes_tbl.insert_or_assign(name, arr);
-    }
-    toml::table wallpaper_animated_columns_tbl;
-    for (const auto &[name, paths] : cfg.wallpaper_animated_columns) {
-        toml::array arr;
-        for (const std::string &p : paths)
-            arr.push_back(p);
-        wallpaper_animated_columns_tbl.insert_or_assign(name, arr);
-    }
-    toml::table wallpaper_animated_column_counts_tbl;
-    for (const auto &[name, count] : cfg.wallpaper_animated_column_counts)
-        wallpaper_animated_column_counts_tbl.insert_or_assign(
-            name, static_cast<int64_t>(count));
-    toml::table wallpaper_animated_fill_modes_tbl;
-    for (const auto &[name, modes] : cfg.wallpaper_animated_fill_modes) {
-        toml::array arr;
-        for (const std::string &m : modes)
-            arr.push_back(m);
-        wallpaper_animated_fill_modes_tbl.insert_or_assign(name, arr);
-    }
-    tbl.insert_or_assign(
-        "wallpaper",
-        toml::table{
-            {"dir", cfg.wallpaper_dir},
-            {"columns", wallpaper_columns_tbl},
-            {"column_counts", wallpaper_column_counts_tbl},
-            {"fill_modes", wallpaper_fill_modes_tbl},
-            {"animated_enabled", cfg.wallpaper_animated_enabled},
-            {"animated_dir", cfg.wallpaper_animated_dir},
-            {"animated_columns", wallpaper_animated_columns_tbl},
-            {"animated_column_counts", wallpaper_animated_column_counts_tbl},
-            {"animated_fill_modes", wallpaper_animated_fill_modes_tbl}});
-    toml::table monitor_overrides_tbl;
-    for (const auto &[name, ov] : cfg.monitor_overrides)
-        monitor_overrides_tbl.insert_or_assign(
-            name,
-            toml::table{
-                {"enabled", ov.enabled},
-                {"osd", ov.osd},
-                {"notifications", ov.notifications},
-                {"autohide", ov.autohide},
-                {"ambient_enabled", ov.ambient_enabled},
-                {"ambient_timeout_seconds",
-                 static_cast<int64_t>(ov.ambient_timeout_seconds)},
-                {"screensaver_enabled", ov.screensaver_enabled},
-                {"screensaver_timeout_seconds",
-                 static_cast<int64_t>(ov.screensaver_timeout_seconds)}});
-    tbl.insert_or_assign(
-        "displays",
-        toml::table{
-            {"default_osd", cfg.default_osd_enabled},
-            {"default_notifications", cfg.default_notifications_enabled},
-            {"default_wallpaper", cfg.default_wallpaper_enabled},
-            {"monitor_overrides", monitor_overrides_tbl}});
-    tbl.insert_or_assign(
-        "idle",
-        toml::table{
-            {"timeout_seconds", static_cast<int64_t>(cfg.idle_timeout_seconds)},
-            {"command", cfg.idle_command},
-            {"resume_command", cfg.idle_resume_command},
-            {"enabled", cfg.idle_management_enabled},
-            {"ambient_enabled", cfg.ambient_enabled},
-            {"ambient_timeout_seconds",
-             static_cast<int64_t>(cfg.ambient_timeout_seconds)},
-            {"screensaver_enabled", cfg.screensaver_enabled},
-            {"screensaver_timeout_seconds",
-             static_cast<int64_t>(cfg.screensaver_timeout_seconds)},
-        });
-    tbl.insert_or_assign("visualizer",
-                         toml::table{{"shape", cfg.visualizer_shape}});
-    std::ostringstream ss;
-    ss << tbl;
-    if (!write_file_atomic(path, ss.str()))
+
+    nlohmann::json idle;
+    idle["timeoutSeconds"] = cfg.idle_timeout_seconds;
+    idle["command"] = cfg.idle_command;
+    idle["resumeCommand"] = cfg.idle_resume_command;
+    idle["enabled"] = cfg.idle_management_enabled;
+    idle["ambientEnabled"] = cfg.ambient_enabled;
+    idle["ambientTimeoutSeconds"] = cfg.ambient_timeout_seconds;
+    idle["screensaverEnabled"] = cfg.screensaver_enabled;
+    idle["screensaverTimeoutSeconds"] = cfg.screensaver_timeout_seconds;
+
+    nlohmann::json j;
+    j["bar"] = {{"autohideEnabled", cfg.autohide}};
+    j["wallpaper"] = wallpaper;
+    j["displays"] = displays;
+    j["idle"] = idle;
+    j["visualizer"] = {{"shape", cfg.visualizer_shape}};
+
+    if (!write_file_atomic(path, j.dump(2)))
         klog("config: failed to save %s", path.c_str());
 }
 
