@@ -5,7 +5,8 @@
 #include "service/settings_service.h"
 
 void settings_service_apply_field_text(Config &cfg, SettingsFieldId id,
-                                       const std::string &text) {
+                                       const std::string &text,
+                                       const std::string &monitor) {
     try {
         switch (id) {
         case SettingsFieldId::WallpaperPath:
@@ -27,6 +28,26 @@ void settings_service_apply_field_text(Config &cfg, SettingsFieldId id,
         case SettingsFieldId::IdleResumeCommand:
             cfg.idle_resume_command = text;
             break;
+        case SettingsFieldId::AmbientTimeout: {
+            auto v = static_cast<uint32_t>(std::clamp(
+                std::stoi(text), kSettingsIdleTimeoutMin,
+                kSettingsIdleTimeoutMax));
+            if (monitor.empty())
+                cfg.ambient_timeout_seconds = v;
+            else
+                cfg.monitor_overrides[monitor].ambient_timeout_seconds = v;
+            break;
+        }
+        case SettingsFieldId::ScreensaverTimeout: {
+            auto v = static_cast<uint32_t>(std::clamp(
+                std::stoi(text), kSettingsIdleTimeoutMin,
+                kSettingsIdleTimeoutMax));
+            if (monitor.empty())
+                cfg.screensaver_timeout_seconds = v;
+            else
+                cfg.monitor_overrides[monitor].screensaver_timeout_seconds = v;
+            break;
+        }
         default:
             break;
         }

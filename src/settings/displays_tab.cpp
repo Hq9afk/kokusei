@@ -10,8 +10,11 @@ std::string displays_monitor_from_tag(const std::string &tag) {
     return tag == kSettingsDisplaysDefaultTag ? "" : tag;
 }
 
-void draw_displays_monitor_row(SettingsState &state, Node *parent,
-                               int32_t scale, float x, float y, float row_w) {
+} // namespace
+
+void settings_draw_monitor_row(SettingsState &state, Node *parent,
+                               int32_t scale, float x, float y, float row_w,
+                               const std::string &selected_monitor) {
     std::vector<std::string> sorted_names = state.monitor_names;
     std::sort(sorted_names.begin(), sorted_names.end());
 
@@ -39,16 +42,15 @@ void draw_displays_monitor_row(SettingsState &state, Node *parent,
     };
 
     draw_tile("Default", kSettingsDisplaysDefaultTag,
-              state.displays_selected_monitor.empty());
+              selected_monitor.empty());
     for (const std::string &name : sorted_names)
-        draw_tile(name, name, name == state.displays_selected_monitor);
+        draw_tile(name, name, name == selected_monitor);
 }
-
-} // namespace
 
 void displays_tab_paint(SettingsState &state, Node *root, int32_t scale,
                         float x, float y, float w, const Config &cfg) {
-    draw_displays_monitor_row(state, root, scale, x, y, w);
+    settings_draw_monitor_row(state, root, scale, x, y, w,
+                              state.displays_selected_monitor);
     y += kSettingsScreenSelectorHeight + kPanelRowGap;
 
     bool is_default = state.displays_selected_monitor.empty();

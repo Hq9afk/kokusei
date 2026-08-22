@@ -21,6 +21,10 @@ struct MonitorOverride {
     bool osd = true;
     bool notifications = true;
     bool autohide = false;
+    bool ambient_enabled = true;
+    uint32_t ambient_timeout_seconds = 150;
+    bool screensaver_enabled = true;
+    uint32_t screensaver_timeout_seconds = 300;
 };
 
 struct Config {
@@ -47,6 +51,12 @@ struct Config {
     std::string idle_command;
     std::string idle_resume_command;
 
+    bool idle_management_enabled = true;
+    bool ambient_enabled = true;
+    uint32_t ambient_timeout_seconds = 150;
+    bool screensaver_enabled = true;
+    uint32_t screensaver_timeout_seconds = 300;
+
     std::string visualizer_shape = "bar";
 };
 
@@ -57,6 +67,18 @@ bool notifications_effective_enabled(const Config &cfg,
 
 bool autohide_effective_enabled(const Config &cfg,
                                 const std::string &monitor_name);
+
+bool ambient_effective_enabled(const Config &cfg,
+                               const std::string &monitor_name);
+
+uint32_t ambient_effective_timeout_seconds(const Config &cfg,
+                                           const std::string &monitor_name);
+
+bool screensaver_effective_enabled(const Config &cfg,
+                                   const std::string &monitor_name);
+
+uint32_t screensaver_effective_timeout_seconds(const Config &cfg,
+                                               const std::string &monitor_name);
 
 std::string config_path();
 

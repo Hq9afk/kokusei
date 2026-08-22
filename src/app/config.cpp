@@ -33,6 +33,42 @@ bool autohide_effective_enabled(const Config &cfg,
     return cfg.autohide;
 }
 
+bool ambient_effective_enabled(const Config &cfg,
+                               const std::string &monitor_name) {
+    if (!cfg.idle_management_enabled)
+        return false;
+    auto it = cfg.monitor_overrides.find(monitor_name);
+    if (it != cfg.monitor_overrides.end() && it->second.enabled)
+        return it->second.ambient_enabled;
+    return cfg.ambient_enabled;
+}
+
+uint32_t ambient_effective_timeout_seconds(const Config &cfg,
+                                           const std::string &monitor_name) {
+    auto it = cfg.monitor_overrides.find(monitor_name);
+    if (it != cfg.monitor_overrides.end() && it->second.enabled)
+        return it->second.ambient_timeout_seconds;
+    return cfg.ambient_timeout_seconds;
+}
+
+bool screensaver_effective_enabled(const Config &cfg,
+                                   const std::string &monitor_name) {
+    if (!cfg.idle_management_enabled)
+        return false;
+    auto it = cfg.monitor_overrides.find(monitor_name);
+    if (it != cfg.monitor_overrides.end() && it->second.enabled)
+        return it->second.screensaver_enabled;
+    return cfg.screensaver_enabled;
+}
+
+uint32_t screensaver_effective_timeout_seconds(const Config &cfg,
+                                               const std::string &monitor_name) {
+    auto it = cfg.monitor_overrides.find(monitor_name);
+    if (it != cfg.monitor_overrides.end() && it->second.enabled)
+        return it->second.screensaver_timeout_seconds;
+    return cfg.screensaver_timeout_seconds;
+}
+
 std::string config_path() {
     const char *home = getenv("HOME");
     if (!home)
@@ -130,6 +166,17 @@ Config load_config() {
                     mo.notifications =
                         (*ov)["notifications"].value_or(mo.notifications);
                     mo.autohide = (*ov)["autohide"].value_or(mo.autohide);
+                    mo.ambient_enabled =
+                        (*ov)["ambient_enabled"].value_or(mo.ambient_enabled);
+                    mo.ambient_timeout_seconds =
+                        (*ov)["ambient_timeout_seconds"].value_or(
+                            mo.ambient_timeout_seconds);
+                    mo.screensaver_enabled =
+                        (*ov)["screensaver_enabled"].value_or(
+                            mo.screensaver_enabled);
+                    mo.screensaver_timeout_seconds =
+                        (*ov)["screensaver_timeout_seconds"].value_or(
+                            mo.screensaver_timeout_seconds);
                     cfg.monitor_overrides[std::string(name.str())] = mo;
                 }
             }
@@ -139,6 +186,17 @@ Config load_config() {
         cfg.idle_command = tbl["idle"]["command"].value_or(cfg.idle_command);
         cfg.idle_resume_command =
             tbl["idle"]["resume_command"].value_or(cfg.idle_resume_command);
+        cfg.idle_management_enabled =
+            tbl["idle"]["enabled"].value_or(cfg.idle_management_enabled);
+        cfg.ambient_enabled =
+            tbl["idle"]["ambient_enabled"].value_or(cfg.ambient_enabled);
+        cfg.ambient_timeout_seconds = tbl["idle"]["ambient_timeout_seconds"]
+                                          .value_or(cfg.ambient_timeout_seconds);
+        cfg.screensaver_enabled = tbl["idle"]["screensaver_enabled"].value_or(
+            cfg.screensaver_enabled);
+        cfg.screensaver_timeout_seconds =
+            tbl["idle"]["screensaver_timeout_seconds"].value_or(
+                cfg.screensaver_timeout_seconds);
         cfg.visualizer_shape =
             tbl["visualizer"]["shape"].value_or(cfg.visualizer_shape);
         if (cfg.visualizer_shape == "bars")
@@ -228,10 +286,18 @@ void save_config(const Config &cfg) {
     toml::table monitor_overrides_tbl;
     for (const auto &[name, ov] : cfg.monitor_overrides)
         monitor_overrides_tbl.insert_or_assign(
-            name, toml::table{{"enabled", ov.enabled},
-                              {"osd", ov.osd},
-                              {"notifications", ov.notifications},
-                              {"autohide", ov.autohide}});
+            name,
+            toml::table{
+                {"enabled", ov.enabled},
+                {"osd", ov.osd},
+                {"notifications", ov.notifications},
+                {"autohide", ov.autohide},
+                {"ambient_enabled", ov.ambient_enabled},
+                {"ambient_timeout_seconds",
+                 static_cast<int64_t>(ov.ambient_timeout_seconds)},
+                {"screensaver_enabled", ov.screensaver_enabled},
+                {"screensaver_timeout_seconds",
+                 static_cast<int64_t>(ov.screensaver_timeout_seconds)}});
     tbl.insert_or_assign(
         "displays",
         toml::table{
@@ -245,6 +311,13 @@ void save_config(const Config &cfg) {
             {"timeout_seconds", static_cast<int64_t>(cfg.idle_timeout_seconds)},
             {"command", cfg.idle_command},
             {"resume_command", cfg.idle_resume_command},
+            {"enabled", cfg.idle_management_enabled},
+            {"ambient_enabled", cfg.ambient_enabled},
+            {"ambient_timeout_seconds",
+             static_cast<int64_t>(cfg.ambient_timeout_seconds)},
+            {"screensaver_enabled", cfg.screensaver_enabled},
+            {"screensaver_timeout_seconds",
+             static_cast<int64_t>(cfg.screensaver_timeout_seconds)},
         });
     tbl.insert_or_assign("visualizer",
                          toml::table{{"shape", cfg.visualizer_shape}});

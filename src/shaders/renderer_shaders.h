@@ -33,7 +33,11 @@ constexpr const char *kRendererVideoFs = R"(
     precision mediump float;
     varying vec2 v_uv;
     uniform samplerExternalOES u_tex;
-    void main() { gl_FragColor = texture2D(u_tex, v_uv); }
+    uniform float u_opacity;
+    void main() {
+        gl_FragColor = texture2D(u_tex, v_uv);
+        gl_FragColor.a *= u_opacity;
+    }
 )";
 
 constexpr const char *kRendererRrectFs = R"(

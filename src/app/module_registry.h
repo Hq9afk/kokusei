@@ -6,6 +6,7 @@
 #include "app/module.h"
 #include "app/per_monitor_module.h"
 
+#include "modules/idle_overlay.h"
 #include "modules/notification.h"
 #include "modules/osd.h"
 #include "modules/wallpaper.h"
@@ -42,9 +43,25 @@ class WallpaperPerMonitorModule final : public PerMonitorModule {
     void pause_animation();
     void resume_animation();
     WallpaperHwDecodeStatus decode_status(int column_index) const;
+    const WallpaperState &wallpaper_state() const { return state_; }
 
   private:
     WallpaperState state_;
+};
+
+class IdlePerMonitorModule final : public PerMonitorModule {
+  public:
+    bool create_surface(WaylandState &app, MonitorOutput &mon,
+                        wl_output *output) override;
+    bool configured() const override;
+    bool init_egl(WaylandState &app, MonitorOutput &mon) override;
+    void destroy(WaylandState &app, MonitorOutput &mon) override;
+    bool owns_surface(wl_surface *surface) const override;
+    void timer_tick(WaylandState &app, MonitorOutput &mon) override;
+
+  private:
+    IdleOverlayState state_;
+    bool screensaver_was_active_ = false;
 };
 
 class NotificationViewPerMonitorModule final : public PerMonitorModule {

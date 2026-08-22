@@ -336,6 +336,7 @@ kokusei_idle_main_only_sources = [
 kokusei_overlay_main_only_sources = [
   'src/modules/osd.cpp',
   'src/modules/wallpaper.cpp',
+  'src/modules/idle_overlay.cpp',
   'src/modules/notification.cpp',
   'src/modules/starward.cpp',
   'src/modules/dashboard.cpp',

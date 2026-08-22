@@ -70,16 +70,27 @@ void wallpaper_paint(WallpaperState &wp) {
     glClear(GL_COLOR_BUFFER_BIT);
 
     wp.scene.rebuild();
+    wallpaper_draw_columns(wp, &wp.scene.root, wp.width, wp.height);
+    wp.scene.draw(*wp.renderer);
+
+    eglSwapBuffers(wp.egl_display, wp.egl_surface);
+}
+
+} // namespace
+
+void wallpaper_draw_columns(const WallpaperState &wp, Node *parent,
+                            int32_t width, int32_t height) {
     size_t columns = std::max<size_t>(
         std::max(wp.column_textures.size(), wp.column_animations.size()), 1);
-    float column_w = static_cast<float>(wp.width) / static_cast<float>(columns);
+    float column_w = static_cast<float>(width) / static_cast<float>(columns);
     for (size_t i = 0; i < columns; ++i) {
         bool zero_copy = i < wp.column_animations.size() &&
                          wp.column_animations[i].zero_copy &&
                          wp.column_animations[i].video_tex.tex;
-        Texture *tex = i < wp.column_textures.size() && wp.column_textures[i].id
-                           ? &wp.column_textures[i]
-                           : nullptr;
+        const Texture *tex =
+            i < wp.column_textures.size() && wp.column_textures[i].id
+                ? &wp.column_textures[i]
+                : nullptr;
         if (!zero_copy && !tex)
             continue;
         int tex_w =
@@ -92,17 +103,17 @@ void wallpaper_paint(WallpaperState &wp) {
 
         float scale = mode == FillMode::Fit
                           ? std::min(column_w / tex_w,
-                                     static_cast<float>(wp.height) / tex_h)
+                                     static_cast<float>(height) / tex_h)
                           : std::max(column_w / tex_w,
-                                     static_cast<float>(wp.height) / tex_h);
+                                     static_cast<float>(height) / tex_h);
         float draw_w = tex_w * scale;
         float draw_h = tex_h * scale;
 
-        Node *clip = node_add_group(&wp.scene.root, column_x, 0.0f, column_w,
-                                    static_cast<float>(wp.height), true);
+        Node *clip = node_add_group(parent, column_x, 0.0f, column_w,
+                                    static_cast<float>(height), true);
         Node *img = clip->claim_child();
         img->x = (column_w - draw_w) / 2.0f;
-        img->y = (wp.height - draw_h) / 2.0f;
+        img->y = (height - draw_h) / 2.0f;
         img->w = draw_w;
         img->h = draw_h;
         if (zero_copy) {
@@ -113,12 +124,7 @@ void wallpaper_paint(WallpaperState &wp) {
             img->tex = tex;
         }
     }
-    wp.scene.draw(*wp.renderer);
-
-    eglSwapBuffers(wp.egl_display, wp.egl_surface);
 }
-
-} // namespace
 
 bool wallpaper_create_surface(WallpaperState &wp, wl_compositor *compositor,
                               zwlr_layer_shell_v1 *layer_shell,

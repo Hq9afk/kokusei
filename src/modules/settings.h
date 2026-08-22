@@ -61,9 +61,11 @@ struct SettingsState {
     std::vector<std::string> monitor_names;
 
     std::string displays_selected_monitor;
+    std::string idle_selected_monitor;
 };
 
-std::string settings_detail_format_field(const Config &cfg, SettingsFieldId id);
+std::string settings_detail_format_field(const Config &cfg, SettingsFieldId id,
+                                         const std::string &monitor = "");
 
 bool settings_create_surface(SettingsState &state, wl_compositor *compositor,
                              zwlr_layer_shell_v1 *layer_shell,

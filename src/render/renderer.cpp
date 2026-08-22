@@ -152,6 +152,7 @@ void Renderer::draw_video_texture_rect(float x, float y, float w, float h,
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_EXTERNAL_OES, tex.tex);
     glUniform1i(glGetUniformLocation(video_program_, "u_tex"), 0);
+    glUniform1f(glGetUniformLocation(video_program_, "u_opacity"), opacity_);
     draw_quad(video_program_);
 }
 

@@ -10,6 +10,8 @@ enum class SettingsFieldId {
     IdleTimeout,
     IdleCommand,
     IdleResumeCommand,
+    AmbientTimeout,
+    ScreensaverTimeout,
 };
 
 constexpr float kSettingsRailWidth = 140.0f;
@@ -74,3 +76,7 @@ constexpr float kSettingsToggleTrackRadius = 10.0f;
 constexpr float kSettingsToggleKnobSize = 14.0f;
 constexpr float kSettingsToggleKnobRadius = 7.0f;
 constexpr float kSettingsToggleKnobInset = 3.0f;
+
+constexpr float kSettingsIdleResetIconSize = 20.0f;
+constexpr int kSettingsIdleTimeoutMin = 10;
+constexpr int kSettingsIdleTimeoutMax = 1800;

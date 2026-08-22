@@ -1,3 +1,4 @@
+#include <chrono>
 #include <filesystem>
 
 #include "app/module_registry.h"
@@ -717,6 +718,75 @@ void NotificationViewPerMonitorModule::resync(WaylandState &app,
     }
 }
 
+bool IdlePerMonitorModule::create_surface(WaylandState &app, MonitorOutput &mon,
+                                          wl_output *output) {
+    if (!idle_overlay_create_surface(state_, app.compositor, app.layer_shell,
+                                     output))
+        klog("idle-overlay: failed to create layer surface on '%s'",
+             mon.output.name.c_str());
+    return true;
+}
+
+bool IdlePerMonitorModule::configured() const {
+    return !state_.layer_surface || state_.configured;
+}
+
+bool IdlePerMonitorModule::init_egl(WaylandState &app, MonitorOutput &mon) {
+    if (!state_.layer_surface)
+        return true;
+    if (!idle_overlay_init_egl(state_, app.renderer, app.egl_display,
+                               app.egl_config, app.egl_context))
+        return true;
+    state_.draw_ambient = [&mon](Node &root, float w, float h) {
+        auto *wp = mon.module<WallpaperPerMonitorModule>();
+        if (!wp)
+            return;
+        wallpaper_draw_columns(wp->wallpaper_state(), &root,
+                               static_cast<int32_t>(w),
+                               static_cast<int32_t>(h));
+    };
+    eglMakeCurrent(app.egl_display, mon.egl_surface, mon.egl_surface,
+                   app.egl_context);
+    return true;
+}
+
+void IdlePerMonitorModule::destroy(WaylandState &app, MonitorOutput &) {
+    destroy_layer_surface(app.egl_display, state_.surface, state_.layer_surface,
+                          state_.egl_window, state_.egl_surface);
+}
+
+bool IdlePerMonitorModule::owns_surface(wl_surface *surface) const {
+    return surface == state_.surface;
+}
+
+void IdlePerMonitorModule::timer_tick(WaylandState &app, MonitorOutput &mon) {
+    if (!app.idle.last_activity.count(mon.output.name))
+        app.idle.last_activity[mon.output.name] =
+            std::chrono::steady_clock::now();
+
+    bool ambient_now =
+        ambient_effective_enabled(app.cfg, mon.output.name) &&
+        is_idle(app.idle, mon.output.name,
+               ambient_effective_timeout_seconds(app.cfg, mon.output.name));
+    bool screensaver_now =
+        screensaver_effective_enabled(app.cfg, mon.output.name) &&
+        is_idle(app.idle, mon.output.name,
+               screensaver_effective_timeout_seconds(app.cfg,
+                                                      mon.output.name));
+
+    idle_overlay_set_active(state_, ambient_now, screensaver_now);
+
+    if (screensaver_now != screensaver_was_active_) {
+        screensaver_was_active_ = screensaver_now;
+        if (auto *wp = mon.module<WallpaperPerMonitorModule>()) {
+            if (screensaver_now)
+                wp->pause_animation();
+            else
+                wp->resume_animation();
+        }
+    }
+}
+
 std::vector<std::unique_ptr<Module>> build_app_modules() {
     std::vector<std::unique_ptr<Module>> modules;
     modules.push_back(std::make_unique<LauncherModule>());
@@ -735,5 +805,6 @@ std::vector<std::unique_ptr<PerMonitorModule>> build_per_monitor_modules() {
     modules.push_back(std::make_unique<WallpaperPerMonitorModule>());
     modules.push_back(std::make_unique<OsdPerMonitorModule>());
     modules.push_back(std::make_unique<NotificationViewPerMonitorModule>());
+    modules.push_back(std::make_unique<IdlePerMonitorModule>());
     return modules;
 }

@@ -18,8 +18,8 @@
 #include "settings/displays_tab.h"
 #include "settings/idle_tab.h"
 
-std::string settings_detail_format_field(const Config &cfg,
-                                         SettingsFieldId id) {
+std::string settings_detail_format_field(const Config &cfg, SettingsFieldId id,
+                                         const std::string &monitor) {
     switch (id) {
     case SettingsFieldId::WallpaperPath:
         return cfg.wallpaper_path;
@@ -33,6 +33,11 @@ std::string settings_detail_format_field(const Config &cfg,
         return cfg.idle_command;
     case SettingsFieldId::IdleResumeCommand:
         return cfg.idle_resume_command;
+    case SettingsFieldId::AmbientTimeout:
+        return std::to_string(ambient_effective_timeout_seconds(cfg, monitor));
+    case SettingsFieldId::ScreensaverTimeout:
+        return std::to_string(
+            screensaver_effective_timeout_seconds(cfg, monitor));
     default:
         return "";
     }
@@ -79,7 +84,8 @@ void settings_commit_focused_field(SettingsState &state, const Config &cfg,
         return;
     Config updated = cfg;
     settings_service_apply_field_text(updated, state.focused_field,
-                                      state.field_buffer.text);
+                                      state.field_buffer.text,
+                                      state.idle_selected_monitor);
     on_commit(updated);
     state.focused_field = SettingsFieldId::None;
 }
@@ -135,7 +141,8 @@ void settings_focus_field(SettingsState &state, const Config &cfg,
         return;
     settings_commit_focused_field(state, cfg, on_commit);
     state.focused_field = id;
-    state.field_buffer.text = settings_detail_format_field(cfg, id);
+    state.field_buffer.text =
+        settings_detail_format_field(cfg, id, state.idle_selected_monitor);
     state.field_buffer.cursor_blink_visible = true;
 }
 
@@ -173,8 +180,9 @@ void settings_handle_click(SettingsState &state, const Config &cfg,
             return;
         case PanelClickKind::ToggleFlip:
             if (!visualizer_tab_handle_click(state, cfg, on_commit, region) &&
-                !wallpaper_tab_handle_click(state, cfg, on_commit, region))
-                displays_tab_handle_click(state, cfg, on_commit, region);
+                !wallpaper_tab_handle_click(state, cfg, on_commit, region) &&
+                !displays_tab_handle_click(state, cfg, on_commit, region))
+                idle_tab_handle_click(state, cfg, on_commit, region);
             return;
         case PanelClickKind::FieldFocus:
             settings_focus_field(
@@ -185,6 +193,8 @@ void settings_handle_click(SettingsState &state, const Config &cfg,
         case PanelClickKind::MonitorSelect:
             if (state.active_tab == SettingsTab::Displays)
                 displays_tab_handle_click(state, cfg, on_commit, region);
+            else if (state.active_tab == SettingsTab::Idle)
+                idle_tab_handle_click(state, cfg, on_commit, region);
             else
                 wallpaper_tab_handle_click(state, cfg, on_commit, region);
             return;
@@ -442,6 +452,10 @@ void settings_paint(SettingsState &state, const Config &cfg,
         std::find(monitor_names.begin(), monitor_names.end(),
                   state.displays_selected_monitor) == monitor_names.end())
         state.displays_selected_monitor.clear();
+    if (!state.idle_selected_monitor.empty() &&
+        std::find(monitor_names.begin(), monitor_names.end(),
+                  state.idle_selected_monitor) == monitor_names.end())
+        state.idle_selected_monitor.clear();
     state.base.animations.tick(std::chrono::steady_clock::now());
     eglMakeCurrent(state.base.egl_display, state.base.egl_surface,
                    state.base.egl_surface, state.base.egl_context);
@@ -490,7 +504,6 @@ void settings_paint(SettingsState &state, const Config &cfg,
                       rgba(palette::text_alpha11));
 
         float label_x = divider_x + kSettingsRailDividerGap;
-        float field_x = label_x + kSettingsLabelWidth;
         float y = content_y;
 
         switch (state.active_tab) {
@@ -502,9 +515,11 @@ void settings_paint(SettingsState &state, const Config &cfg,
             displays_tab_paint(state, root, scale, label_x, y, row_w, cfg);
             break;
         }
-        case SettingsTab::Idle:
-            idle_tab_paint(state, root, scale, label_x, field_x, y, cfg);
+        case SettingsTab::Idle: {
+            float row_w = panel_x + panel_w - kPanelPadding - label_x;
+            idle_tab_paint(state, root, scale, label_x, y, row_w, cfg);
             break;
+        }
         case SettingsTab::Visualizer:
             visualizer_tab_paint(state, root, scale, label_x, y, cfg);
             break;

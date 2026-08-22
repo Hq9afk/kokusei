@@ -40,6 +40,19 @@ constexpr ext_idle_notification_v1_listener idle_notification_listener = {
     .resumed = idle_notification_resumed,
 };
 
+void idle_recent_activity_idled(void *data, ext_idle_notification_v1 *) {
+    static_cast<IdleState *>(data)->recent_activity_idled = true;
+}
+
+void idle_recent_activity_resumed(void *data, ext_idle_notification_v1 *) {
+    static_cast<IdleState *>(data)->recent_activity_idled = false;
+}
+
+constexpr ext_idle_notification_v1_listener idle_recent_activity_listener = {
+    .idled = idle_recent_activity_idled,
+    .resumed = idle_recent_activity_resumed,
+};
+
 } // namespace
 
 bool idle_init(IdleState &state) {
@@ -50,12 +63,37 @@ bool idle_init(IdleState &state) {
     }
     state.notification = ext_idle_notifier_v1_get_idle_notification(
         state.notifier, state.timeout_seconds * 1000, state.seat);
-    if (!state.notification)
-        return false;
-    ext_idle_notification_v1_add_listener(state.notification,
-                                          &idle_notification_listener, &state);
+    if (state.notification)
+        ext_idle_notification_v1_add_listener(state.notification,
+                                              &idle_notification_listener,
+                                              &state);
+    state.recent_activity_notification = ext_idle_notifier_v1_get_idle_notification(
+        state.notifier, kIdleRecentActivityPulseSeconds * 1000, state.seat);
+    if (state.recent_activity_notification)
+        ext_idle_notification_v1_add_listener(
+            state.recent_activity_notification,
+            &idle_recent_activity_listener, &state);
+    else
+        klog("idle: recent-activity notification failed, ambient/screensaver "
+             "clock disabled");
     klog("idle: watching for %us of inactivity", state.timeout_seconds);
-    return true;
+    return state.notification != nullptr;
+}
+
+void idle_tick(IdleState &state, const std::string &focused_monitor) {
+    if (!state.recent_activity_idled && !focused_monitor.empty())
+        state.last_activity[focused_monitor] = std::chrono::steady_clock::now();
+}
+
+bool is_idle(const IdleState &state, const std::string &monitor,
+            uint32_t timeout_seconds) {
+    auto it = state.last_activity.find(monitor);
+    if (it == state.last_activity.end())
+        return false;
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+                       std::chrono::steady_clock::now() - it->second)
+                       .count();
+    return elapsed > static_cast<int64_t>(timeout_seconds);
 }
 
 void idle_set_inhibited(IdleState &state, wl_surface *surface, bool inhibited) {
